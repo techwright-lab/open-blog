@@ -62,7 +62,7 @@ class ApiAcceptanceTest < ActionDispatch::IntegrationTest
   end
 
   test "deferred endpoints and unsupported verbs are not routable" do
-    paths = [ [ :get, "/posts/#{@post.id}/preview" ], [ :post, "/images" ], [ :get, "/pages" ],
+    paths = [ [ :get, "/posts/#{@post.id}/preview" ], [ :get, "/pages" ],
       [ :get, "/posts/#{@post.id}/views" ], [ :get, "/views/top" ], [ :get, "/report" ],
       [ :get, "/standard" ], [ :put, "/posts/#{@post.id}" ] ]
     paths.each do |method, suffix|
@@ -79,6 +79,7 @@ class ApiAcceptanceTest < ActionDispatch::IntegrationTest
     path = "/blog/api/v1/posts/#{@post.id}"
     [
       [ :get, "/blog/api/v1/posts", "read", {} ], [ :get, path, "read", {} ],
+      [ :post, "/blog/api/v1/images", "write", { url: "https://images.example/photo.png" } ],
       [ :post, "/blog/api/v1/posts", "write", { title: "New note" } ],
       [ :post, "/blog/api/v1/posts", "publish", { title: "New note", publish: true } ],
       [ :patch, path, "write", { title: "Edited note" } ],

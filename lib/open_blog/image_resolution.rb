@@ -21,6 +21,15 @@ module OpenBlog
       build(text, format, external: true)
     end
 
+    def self.prepare_inputs(attributes)
+      %i[cover_image social_image].each_with_object({}) do |field, prepared|
+        value = attributes[field] || attributes[field.to_s]
+        if value.is_a?(Hash) && (value.keys.map(&:to_s) & %w[signed_id url]).any?
+          prepared[field] = ImageImport.prepare(value)
+        end
+      end
+    end
+
     def self.source_digest(text, format)
       Digest::SHA256.hexdigest("#{format}\0#{text}")
     end
@@ -29,8 +38,13 @@ module OpenBlog
       source_digest(post.body_for_payload, post.body_format)
     end
 
-    def self.fetch_external(_url)
+    def self.fetch_external(url)
+      fetched = ImageFetch.call(url)
+      Digest::SHA256.hexdigest(fetched.fetch(:io).read)
+    rescue Error::ImageNotPermitted
       nil
+    ensure
+      fetched&.fetch(:io)&.close
     end
 
     def self.native!(post)

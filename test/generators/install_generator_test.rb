@@ -54,7 +54,7 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     assert_file_includes "app/views/layouts/open_blog.html.erb", 'stylesheet_link_tag "tailwind"', "javascript_importmap_tags"
     assert_no_file "app/assets/builds/open_blog/blog.css"
     assert_equal 5, Dir[File.join(destination_root, "app/javascript/controllers/open_blog/*_controller.js")].length
-    assert_includes output, "API token: none"
+    assert_includes Recorder.host_commands, [ "bin/rails", "open_blog:install_token" ]
     routes = read("config/routes.rb")
     assert_operator routes.index("/blog/host"), :<, routes.index("mount OpenBlog::Engine")
   end
@@ -62,6 +62,8 @@ class InstallGeneratorTest < Rails::Generators::TestCase
   test "neither JavaScript setup installs importmap before Stimulus and writes placeholder identities" do
     output = run_generator %w[--skip-tailwind --skip-sample --skip-migrate]
     assert_operator Recorder.host_commands.index([ "bin/rails", "importmap:install" ]), :<, Recorder.host_commands.index([ "bin/rails", "stimulus:install" ])
+    refute_includes Recorder.host_commands, [ "bin/rails", "open_blog:install_token" ]
+    assert_includes output, "API token deferred"
     refute_includes Recorder.host_commands, [ "bin/rails", "db:migrate" ]
     refute_includes Recorder.host_commands, [ "bin/rails", "open_blog:sample" ]
     refute_includes Recorder.host_commands, [ "bin/rails", "tailwindcss:install" ]

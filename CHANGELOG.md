@@ -24,3 +24,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Render ordered FAQ records as visible plain text and FAQ structured data, with a shared table-of-contents anchor and Markdown text output.
 - Add install and views generators, an idempotent sample article, installation diagnostics, and fresh-application compatibility checks.
 - Add scoped API tokens and authenticated JSON endpoints for posts, approvals, connection declarations, publishing history, findings, and installation checks.
+- Add bounded remote image imports, deduplicated uploads, supporting-record APIs, adoption previews, FAQ extraction, redirect serialization, and one-time installer tokens.

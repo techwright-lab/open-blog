@@ -5,7 +5,8 @@ module OpenBlog
       EXTRA_FIELDS = %i[source_system source_id source_body_sha256 old_slugs category_description first_published_at first_published_evidence last_modified_at last_modified_evidence imported_approval declaration connections dry_run].freeze
       attr_reader :attributes, :baseline, :approval, :connections
 
-      def initialize(input)
+      def initialize(input, now: Time.current)
+        @now = now
         invalid("attributes") unless input.is_a?(Hash) && input.keys.all? { |key| key.is_a?(String) || key.is_a?(Symbol) }
         @attributes = input.symbolize_keys
         unknown = @attributes.keys - CONTENT_FIELDS - EXTRA_FIELDS
@@ -82,6 +83,7 @@ module OpenBlog
 
       def date(value, path)
         invalid(path) unless value.is_a?(String) || value.is_a?(Date)
+        invalid(path) if value.is_a?(String) && !value.match?(/\A\d{4}-\d{2}-\d{2}\z/)
         value.is_a?(String) ? Date.iso8601(value) : value.to_date
       rescue ArgumentError, TypeError
         invalid(path)
@@ -136,7 +138,7 @@ module OpenBlog
         value = nested(@attributes[:connections], %i[connections third_party_paid declared_by declared_on], "connections")
         required_text(value, :declared_by, "connections.declared_by")
         invalid("connections.third_party_paid") unless [ true, false ].include?(value[:third_party_paid])
-        value[:declared_on] = date(value[:declared_on], "connections.declared_on")
+        value[:declared_on] = value.key?(:declared_on) ? date(value[:declared_on], "connections.declared_on") : @now.to_date
         invalid("connections.connections") unless value[:connections].is_a?(Array)
         value[:connections] = value[:connections].map do |entry|
           normalized = nested(entry, %i[party relation], "connections.connections")

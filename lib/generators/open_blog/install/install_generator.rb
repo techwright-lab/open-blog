@@ -141,8 +141,13 @@ module OpenBlog
           run_host_command("bin/rails", "open_blog:sample")
         end
         say "Blog: #{options[:mount_at]}"
-        say "API token: none"
-        say "The publishing API and MCP endpoint will be available in a later release."
+        if options[:skip_migrate]
+          say "API token deferred: run db:migrate, then open_blog:install_token."
+        else
+          run_host_command("bin/rails", "open_blog:install_token")
+        end
+        say "Publishing API: #{options[:mount_at].chomp('/')}/api/v1"
+        say "The MCP endpoint will be available in a later release."
         say "AdminSuite generator is not available in this release." if options[:admin_suite]
         say "Next: set your public base URL, review publisher details and policy links, and customize the theme."
         run_host_command("bin/rails", "open_blog:doctor")

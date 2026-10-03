@@ -31,11 +31,16 @@ class InstallerHarness
     install << "--skip-tailwind" if @options[:skip_tailwind]
     install << "--skip-sample" if @options[:skip_sample]
     command(*install)
+    @log.flush
+    check(File.read(@log_path).scan(/API token: ob_[1-9A-HJ-NP-Za-km-z]{40}/).length == 1, "Installer did not print one new token")
     command("git", "add", "-A")
     command("git", "-c", "user.name=Installer Test", "-c", "user.email=installer@example.invalid", "commit", "-qm", "Installed blog")
     command(*install)
     clean = capture("git", "status", "--porcelain")
     check(clean.empty?, "Repeated installation changed files:\n#{clean}")
+    @log.flush
+    check(File.read(@log_path).scan(/API token: ob_[1-9A-HJ-NP-Za-km-z]{40}/).length == 1, "Repeated installation printed another token")
+    check(capture("bin/rails", "runner", "puts OpenBlog::ApiToken.count") == "1", "Repeated installation changed token count")
     verify_migrations
     command("bin/rails", "db:migrate")
     build_assets

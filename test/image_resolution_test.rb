@@ -184,6 +184,83 @@ class ImageResolutionTest < ActiveSupport::TestCase
     assert_includes fragment.at_css("pre").text, "puts 1"
   end
 
+  test "cover and social signed blobs are read before locking and share one image" do
+    blob = upload_png
+    depth = ActiveRecord::Base.connection.open_transactions
+    reads = []
+    downloader = blob.service.method(:download)
+    result = nil
+    blob.service.stub(:download, ->(*args, &block) { reads << ActiveRecord::Base.connection.open_transactions; downloader.call(*args, &block) }) do
+      result = publish(cover_image: { signed_id: blob.signed_id }, social_image: { signed_id: blob.signed_id })
+    end
+    assert result.success?, result.error&.message
+    assert reads.all? { |value| value == depth }
+    assert_operator reads.length, :>=, 1
+    assert_equal result.post.cover_image_id, result.post.social_image_id
+    assert_equal 1, OpenBlog::Image.count
+    assert_equal blob.id, result.post.cover_image.file.blob.id
+    assert_equal result.post.current_revision_identifier, result.post.public_revision.identifier
+  end
+
+  test "rejected cover publication leaves the host blob and no imported image" do
+    blob = upload_png
+    OpenBlog.config.before_publish = ->(*) { [ "Wait for review" ] }
+    assert_no_difference [ "OpenBlog::Post.count", "OpenBlog::Image.count", "ActiveStorage::Attachment.count" ] do
+      result = publish(cover_image: { signed_id: blob.signed_id })
+      assert_equal :refused_by_host, result.error&.code
+    end
+    assert blob.service.exist?(blob.key)
+  end
+
+  test "external body verification closes fetched bytes without creating an image" do
+    stream = StringIO.new(png_bytes)
+    result = nil
+    OpenBlog::ImageFetch.stub(:call, { io: stream, content_type: "image/png", filename: "leaf.png" }) do
+      assert_no_difference "OpenBlog::Image.count" do
+        result = publish(body: "![Leaf](https://images.example/leaf.png)")
+      end
+    end
+    assert result.success?, result.error&.message
+    assert stream.closed?
+    assert_equal "![Leaf](https://images.example/leaf.png)", result.post.body_markdown
+    assert_equal Digest::SHA256.hexdigest(png_bytes), result.post.body_image_manifest.sole.fetch("sha256")
+  end
+
+  test "a refused external body image stays unverified without refusing the article" do
+    OpenBlog::ImageFetch.stub(:call, ->(*) { raise OpenBlog::Error::ImageNotPermitted }) do
+      result = publish(body: "![Leaf](https://images.example/leaf.png)")
+      assert result.success?, result.error&.message
+      assert_equal "", result.post.body_image_manifest.sole.fetch("sha256")
+      assert_equal "![Leaf](https://images.example/leaf.png)", result.post.body_markdown
+    end
+  end
+
+  test "URL cover refusal and adoption dry run retain no rows or stored bytes" do
+    streams = []
+    fetch = lambda do |*, **|
+      stream = StringIO.new(png_bytes)
+      streams << stream
+      { io: stream, content_type: "image/png", filename: "garden.png" }
+    end
+    service = ActiveStorage::Blob.service
+    service.stub(:upload, ->(*) { flunk "A refused or preview-only operation uploaded bytes" }) do
+      OpenBlog::ImageFetch.stub(:call, fetch) do
+        assert_no_difference [ "OpenBlog::Post.count", "OpenBlog::Image.count", "ActiveStorage::Blob.count", "ActiveStorage::Attachment.count" ] do
+          OpenBlog.config.before_publish = ->(*) { [ "Not ready" ] }
+          refused = publish(cover_image: { url: "https://images.example/garden.png" })
+          assert_equal :refused_by_host, refused.error&.code
+          OpenBlog.config.before_publish = nil
+          preview = OpenBlog::Adopt.call({ source_system: "notes", source_id: "garden", slug: "garden-import", title: "Garden",
+            body_format: "markdown", body: "Water the seedlings.", cover_image: { url: "https://images.example/garden.png" }, dry_run: true }, actor: "Importer")
+          assert preview.success?, preview.error&.message
+          assert_equal Digest::SHA256.hexdigest(png_bytes), preview.post.cover_image.sha256
+        end
+      end
+    end
+    assert_equal 2, streams.length
+    assert streams.all?(&:closed?)
+  end
+
   private
 
   def publish(**attributes)

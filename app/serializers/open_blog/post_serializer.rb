@@ -1,11 +1,11 @@
 module OpenBlog
   class PostSerializer
-    def self.call(post, base_url: nil, card: false)
-      new(post, base_url: base_url).call(card: card)
+    def self.call(post, base_url: nil, card: false, label: nil)
+      new(post, base_url: base_url, label: label).call(card: card)
     end
 
-    def initialize(post, base_url:)
-      @post, @base_url = post, OpenBlog.config.public_base_url || base_url
+    def initialize(post, base_url:, label: nil)
+      @post, @base_url, @label = post, OpenBlog.config.public_base_url || base_url, label
     end
 
     def call(card: false)
@@ -14,7 +14,7 @@ module OpenBlog
         title: @post.title, description: @post.description, author: author,
         category: taxonomy(@post.category), tags: @post.tags.map(&:name),
         published_at: timestamp(@post.published_at), modified_at: timestamp(@post.modified_at),
-        revision_identifier: @post.current_revision_identifier, label: LabelPolicy.for(@post).to_s
+        revision_identifier: @post.current_revision_identifier, label: (@label || LabelPolicy.for(@post)).to_s
       }
       return result if card
 
@@ -27,12 +27,21 @@ module OpenBlog
         provenance: @post.provenance, provenance_evidence: @post.provenance_evidence,
         external_id: @post.external_id, publish_at: timestamp(@post.publish_at),
         public_revision_identifier: @post.public_revision&.identifier,
-        approved: @post.public_revision_id.present? && @post.approvals.exists?(revision_id: @post.public_revision_id, facts_checked: true),
+        approved: approved?,
         preview_url: nil, reading_time_minutes: @post.reading_time_minutes, word_count: @post.word_count,
         created_at: timestamp(@post.created_at), updated_at: timestamp(@post.updated_at))
     end
 
     private
+
+    def approved?
+      return false unless @post.public_revision_id
+      if @post.association(:approvals).loaded?
+        @post.approvals.any? { |approval| approval.revision_id == @post.public_revision_id && approval.facts_checked }
+      else
+        @post.approvals.exists?(revision_id: @post.public_revision_id, facts_checked: true)
+      end
+    end
 
     def author
       record = @post.author

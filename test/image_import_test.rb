@@ -92,8 +92,7 @@ class ImageImportTest < ActiveSupport::TestCase
   end
 
   test "invalid signed references and unsupported inputs are typed refusals" do
-    [ nil, {}, { signed_id: "invalid" }, { signed_id: nil }, { signed_id: "", extra: true },
-      { url: "https://images.example/tree.png" } ].each do |input|
+    [ nil, {}, { signed_id: "invalid" }, { signed_id: nil }, { signed_id: "", extra: true } ].each do |input|
       assert_raises(OpenBlog::Error::ImageNotPermitted) { OpenBlog::ImageImport.prepare(input) }
     end
   end

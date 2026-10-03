@@ -17,6 +17,18 @@ module OpenBlog
       end
     end
 
+    def self.from_upload(io, filename:, content_type:, uploaded_by: nil)
+      ImageImport.prepare_upload(io, filename: filename, content_type: content_type).persist(uploaded_by: uploaded_by)
+    end
+
+    def self.from_signed_id(signed_id, uploaded_by: nil)
+      ImageImport.prepare(signed_id: signed_id).persist(uploaded_by: uploaded_by)
+    end
+
+    def self.from_url(url, uploaded_by: nil)
+      ImageImport.prepare(url: url).persist(uploaded_by: uploaded_by)
+    end
+
     def path
       "#{OpenBlog.mount_path.chomp("/")}/media/#{sha256}/#{ERB::Util.url_encode(filename)}"
     end

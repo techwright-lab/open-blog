@@ -1,4 +1,17 @@
 namespace :open_blog do
+  desc "Set up authentication during installation without replacing existing tokens"
+  task install_token: :environment do
+    if OpenBlog.config.authenticate
+      puts "API token: using host authentication."
+    elsif OpenBlog::ApiToken.exists?
+      puts "API token: existing token kept; use open_blog:token to issue another if needed."
+    else
+      _record, secret = OpenBlog::ApiToken.generate(name: "Blog publisher")
+      puts "API token: #{secret}"
+      puts "Save this secret now; it will not be shown again."
+    end
+  end
+
   desc "Issue an API token and print its secret once"
   task token: :environment do
     name = ENV.fetch("NAME") { abort "Set NAME to identify this token's actor." }

@@ -10,6 +10,15 @@ OpenBlog::Engine.routes.draw do
         resource :records, only: :show, controller: "records"
         resource :findings, only: :show, controller: "findings"
       end
+      resources :images, only: :create
+      %i[categories authors series].each do |resource|
+        resources resource, only: [ :index, :create ]
+        patch "#{resource}/:id", to: "#{resource}#update"
+      end
+      resources :tags, only: :index
+      resources :redirects, only: [ :index, :create, :destroy ]
+      resources :adoptions, only: :create
+      resources :faq_extractions, only: :create
       get "doctor", to: "doctor#show"
     end
   end

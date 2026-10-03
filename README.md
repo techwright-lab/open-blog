@@ -10,9 +10,9 @@ bin/rails generate open_blog:install --site-name="My Journal" --author-name="Exa
 bin/dev
 ```
 
-The generator installs the tables, mounts `/blog`, copies reader views and browser controllers, and publishes one sample article. It detects importmap or a JavaScript bundler and Tailwind 4. If Tailwind is absent, its installer also changes the host's application layout and development scripts. Use `--skip-tailwind` to keep the host's CSS setup and load the gem's compiled stylesheet only in the blog layout.
+The generator installs the tables, mounts `/blog`, copies reader views and browser controllers, and publishes one sample article. When the host has no authentication hook or existing token, it prints one API token; save the secret because repeated installation will not show it again. It detects importmap or a JavaScript bundler and Tailwind 4. If Tailwind is absent, its installer also changes the host's application layout and development scripts. Use `--skip-tailwind` to keep the host's CSS setup and load the gem's compiled stylesheet only in the blog layout.
 
-Options include `--mount-at=/journal`, `--mount-position=first`, `--body-format=markdown|rich_text|both`, `--skip-sample`, and `--skip-migrate`. The default mount position is last so existing host routes retain precedence. Repeating installation reuses the sample and migrations. `--skip-migrate` also defers the sample until you run the migrations. Changed files are kept in a noninteractive terminal; use `--force` to replace them. `bin/rails generate open_blog:views` refreshes only the copied views.
+Options include `--mount-at=/journal`, `--mount-position=first`, `--body-format=markdown|rich_text|both`, `--skip-sample`, and `--skip-migrate`. The default mount position is last so existing host routes retain precedence. Repeating installation reuses the sample and migrations. `--skip-migrate` also defers the sample and token until you run the migrations. Then run `bin/rails open_blog:sample` and `bin/rails open_blog:install_token` as needed. Changed files are kept in a noninteractive terminal; use `--force` to replace them. `bin/rails generate open_blog:views` refreshes only the copied views.
 
 Run `bin/rails open_blog:doctor` to inspect configuration, assets, routes, storage, and publishing records. Errors return exit status 1; warnings identify setup still needed. Set your public origin and replace any placeholder identities in `config/initializers/open_blog.rb`:
 
@@ -47,8 +47,14 @@ The JSON API lives under `/blog/api/v1` (or your configured mount path). Create 
 | `DELETE /posts/:id` | Delete an unaudited draft or archive a post with history | `publish` |
 | `POST /posts/:post_id/approvals`, `POST /posts/:post_id/connections` | Append an approval or connection declaration | `publish` |
 | `GET /posts/:post_id/records`, `GET /posts/:post_id/findings`, `GET /doctor` | Inspect history, advisory findings, or installation checks | `read` |
+| `POST /images` | Upload an image or import one from a URL | `write` |
+| `GET /categories`, `GET /tags`, `GET /authors`, `GET /series`, `GET /redirects` | List supporting records | `read` |
+| `POST /categories`, `POST /authors`, `POST /series`; `PATCH` their `/:id` routes | Create or edit supporting records | `write` |
+| `POST /redirects`, `DELETE /redirects/:id` | Add a URL move or removal, or remove its record | `publish` |
+| `POST /adoptions` | Import one existing article, with optional dry run | `publish` |
+| `POST /faq_extractions` | Propose FAQ pairs and source ranges without saving | `read` |
 
-IDs in these routes can also be slugs. Send JSON fields directly at the top level. For example, `POST /posts` with `{"title":"Winter garden","body":"Protect the young trees.","external_id":"garden-17"}` saves a draft. Publish it with `POST /posts/:id/publish` and an empty JSON object. Updating public content still requires the change classification described above. PATCH preserves omitted fields; supplied FAQ and tag arrays replace their lists. Unsupported fields return an error rather than being silently discarded.
+Post IDs in these routes can also be slugs. Send JSON fields directly at the top level. For example, `POST /posts` with `{"title":"Winter garden","body":"Protect the young trees.","external_id":"garden-17"}` saves a draft. Publish it with `POST /posts/:id/publish` and an empty JSON object. Updating public content still requires the change classification described above. PATCH preserves omitted fields; supplied FAQ and tag arrays replace their lists. Unsupported fields return an error rather than being silently discarded.
 
 The list endpoint accepts `status`, `category`, `tag`, `author`, `series`, `q`, `page`, and `per_page`; pagination defaults to 25 and permits at most 100 posts per page. It returns `{posts, page, per_page, total}` with compact post cards. Individual reads include content, media, revision identifiers, and notices. Writes return `{post, created, records, label, findings}`; record values are null when no corresponding audit record was made. New posts return 201, scheduled creation or publication returns 202, ordinary updates return 200, and deletion of a draft without retained history returns 204.
 
@@ -71,6 +77,13 @@ API response fields are explicit:
 | Connection declaration | `post_id`, `connections` (a list of `{party, relation}`), `third_party_paid`, `declared_by`, `declared_on`, `recorded_by` |
 | Findings | `{findings: [...]}`; each item has `code`, `rule`, `message`, `location` |
 | Doctor | `{checks: [...]}`; each item has `name`, `status` (ok, warning, or error), `message` |
+| Category | `id`, `name`, `slug`, `description`, `position`, `posts_count` |
+| Tag | `id`, `name`, `slug`, `posts_count` |
+| Author | `id`, `name`, `slug`, `type`, `bio`, `url`, `profile_urls`, `avatar` (image or null), `host_reference`, `posts_count` |
+| Series | `id`, `name`, `slug`, `description`, `posts` (items with `id`, `slug`, `title`, `position`) |
+| Redirect | `id`, `old_path`, `new_path`, `source`, `occurred_on`, `post_id` |
+| Adoption | `post`, `created`, `records` (`revision`, `publication`, `approval`, `baseline`, `redirects`), `findings`, `dry_run` |
+| FAQ extraction | `pairs`, `cut`, `body_after`, `leftover`, `class`, `reasons`, `source_body_sha256` |
 
 `approved` describes a facts-checked approval for the public revision. Labels are `none`, `ai_assisted`, or `ai_unknown`. Preview URLs are currently null. Stored body and FAQ text are returned without changing their formatting. Connection writes append a complete declaration; send an empty connections array to declare none. Omitted declaration dates use the operation's date. Approval requests require `revision_identifier`, `name`, and boolean `facts_checked`.
 
@@ -81,11 +94,17 @@ These error codes are used by the current endpoints:
 | 401 | `unauthenticated` |
 | 403 | `scope_required` |
 | 404 | `not_found` |
-| 409 | `identity_conflict`, `slug_reserved`, `post_is_public`, `revision_mismatch` |
-| 422 | `validation_failed`, `unknown_field`, `change_type_required`, `correction_note_required`, `approval_required`, `approval_incomplete`, `refused_by_host`, `body_format_not_permitted`, `image_not_permitted` |
+| 409 | `identity_conflict`, `slug_reserved`, `post_is_public`, `revision_mismatch`, `already_changed_in_gem` |
+| 422 | `validation_failed`, `unknown_field`, `change_type_required`, `correction_note_required`, `approval_required`, `approval_incomplete`, `refused_by_host`, `body_format_not_permitted`, `slug_not_supported`, `image_not_permitted` |
 | 429 | `rate_limited` |
 
 `details` is always an array. It can identify rejected fields, a required scope, or messages supplied by the host publication hook. No token secret appears in API response objects.
+
+Upload images as multipart `file` data, or send `{"url":"https://images.example.com/photo.png"}` to `/images`. Repeated bytes reuse the same image and URL. Cover, social image, and author avatar inputs accept `{image_id: ...}`, `{signed_id: ...}`, or `{url: ...}`. URL imports verify the file bytes, enforce the configured size limit and a ten-second deadline, allow at most three redirects, and refuse private or other nonpublic addresses at every hop. SVG is refused. `config.image_fetch_policy = :open` permits internal image servers while retaining the other limits; Doctor reports this setting.
+
+Supporting record lists use the same pagination envelope, with the corresponding plural key. Counts include stored posts, including drafts. Category writes accept `name`, `slug`, `description`, and `position`; series writes accept `name`, `slug`, and `description`; author writes accept the author fields above except `id` and `posts_count`. An avatar attached directly by the host appears as null until its blob is imported as a gem image. Redirect writes accept `old_path`, `new_path` (null for removal), optional `post_id`, and optional `occurred_on` (defaults to today); API-created redirects have source `manual`.
+
+`POST /adoptions` accepts the same snapshot fields as the Ruby operation below. `dry_run: true` returns the proposed content and records without retaining rows or uploaded files. `POST /faq_extractions` accepts `body` and optional `standalone_questions`; it returns proposed text changes without applying them.
 
 Future `publish_at` values store a schedule and enqueue a job after commit. Scheduled job execution is still under development.
 
@@ -116,7 +135,7 @@ The extractor stores nothing and also returns `source_body_sha256` for recording
 
 Render stored content with `OpenBlog::Renderer.render(post)`, or preview a string with `OpenBlog::Renderer.render_string(text, format: :markdown)`. Both return sanitized HTML with heading links, syntax highlighting, image figures, and table wrappers. Markdown also supports task lists, footnotes, and alerts. Rich-text input cannot supply its own classes, IDs, styles, or event handlers. Rendering does not write records or fetch image bytes.
 
-Publishing and draft operations resolve body images before recording revision identities. Image manifests survive reloads and child-record edits; metadata-only updates reuse them. Native rich-text saves can import existing uploaded blobs. External image URLs remain in the body; remote image fetching is still under development, so their bytes remain unverified. Body findings report heading gaps, level-one headings, missing image descriptions, and external images.
+Publishing and draft operations resolve body images before recording revision identities. Image manifests survive reloads and child-record edits; metadata-only updates reuse them. Native rich-text saves can import existing uploaded blobs. External body image URLs remain unchanged. The gem downloads their bytes once when preparing changed content to record a digest; a refused or failed download leaves the image unverified and does not refuse the article. Metadata-only edits reuse the stored digest. Body findings report heading gaps, level-one headings, missing image descriptions, and external images.
 
 Generate syntax colors for the configured theme with `bin/rails open_blog:syntax_css`. The output includes light, explicit dark, and system dark rules scoped to code blocks. `config.syntax_theme` defaults to `"github"`; `"base16"` and `"gruvbox"` also support both modes.
 
