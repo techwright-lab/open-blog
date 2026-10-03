@@ -11,7 +11,108 @@ All request paths in the tables below are relative to `/blog/api/v1`, or the cor
 
 ## Authentication
 
-The JSON API lives under `/blog/api/v1` (or your configured mount path). Create a token with `NAME="Publishing client" SCOPES=read,write,publish bin/rails open_blog:token` and keep the printed secret: only its digest is stored. Send it as `Authorization: Bearer ob_…`. `EXPIRES_AT` accepts an ISO 8601 timestamp; revoke a token by setting its `revoked_at`. A configured `config.authenticate` callback replaces token authentication and returns an actor with `name` and optional `scopes` and `id`.
+Create a token with `NAME="Publishing client" SCOPES=read,write,publish bin/rails open_blog:token` and keep the printed secret: only its digest is stored. Send it as `Authorization: Bearer ob_…`. `EXPIRES_AT` accepts an ISO 8601 timestamp; revoke a token by setting its `revoked_at`. A configured `config.authenticate` callback replaces token authentication and returns an actor with `name` and optional `scopes` and `id`.
+
+Requests without a valid token return 401:
+
+```sh
+curl -s https://example.com/blog/api/v1/posts
+```
+
+```json
+{"error":{"code":"unauthenticated","message":"An authenticated actor is required.","details":[]}}
+```
+
+## First post
+
+Save a draft, publish it, then try an edit without a change type. Set `TOKEN` to the printed secret.
+
+```sh
+curl -s -X POST https://example.com/blog/api/v1/posts \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"title":"Winter garden","body":"Protect the young trees.","external_id":"garden-17"}'
+```
+
+The response is 201 with the full post and the write envelope. Nothing is recorded for a draft, so every record value is null:
+
+```json
+{
+  "post": {
+    "id": 228,
+    "slug": "winter-garden",
+    "url": "https://example.com/blog/winter-garden",
+    "status": "draft",
+    "title": "Winter garden",
+    "body_format": "markdown",
+    "body": "Protect the young trees.",
+    "revision_identifier": "95fde1cf890a2a8f994cbfa19ddbaa10caf5e03a5f61585ad0ce288dfea59404",
+    "public_revision_identifier": null,
+    "preview_url": "https://example.com/blog/preview/eyJfcmFpbHMi…",
+    "label": "ai_unknown",
+    "...": "see Response objects"
+  },
+  "created": true,
+  "records": {"revision": null, "publication": null, "approval": null},
+  "label": "ai_unknown",
+  "findings": [
+    {
+      "code": "description_absent",
+      "rule": "T8",
+      "message": "Add a description for readers and search results.",
+      "location": "description"
+    },
+    {
+      "code": "provenance_unknown",
+      "rule": "E18",
+      "message": "Specify whether AI contributed to this post.",
+      "location": "provenance"
+    }
+  ]
+}
+```
+
+```sh
+curl -s -X POST https://example.com/blog/api/v1/posts/228/publish \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{}'
+```
+
+```json
+{
+  "post": {"id": 228, "slug": "winter-garden", "status": "published", "public_revision_identifier": "95fde1cf…", "...": "..."},
+  "created": false,
+  "records": {"revision": "new", "publication": "first", "approval": null},
+  "label": "ai_unknown",
+  "findings": ["..."]
+}
+```
+
+A public post keeps its history. An edit that changes the public revision must say what kind of change it is, or it is refused with 422 and nothing is written:
+
+```sh
+curl -s -X PATCH https://example.com/blog/api/v1/posts/228 \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"body":"Protect the young trees with fleece."}'
+```
+
+```json
+{"error":{"code":"change_type_required","message":"This update changes the public revision. Send change: substantive, correction or maintenance.","details":[]}}
+```
+
+Add `"change":"substantive"` to the same request and it returns 200 with `"publication": "substantive"`. Read the history afterwards:
+
+```sh
+curl -s https://example.com/blog/api/v1/posts/228/records -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{
+  "revisions": [{"identifier": "95fde1cf…", "actor": "Publishing client", "made_by_ai": null, "created_at": "2026-10-03T20:59:05.711Z"}],
+  "approvals": [],
+  "publications": [{"entry_type": "first", "occurred_at": "2026-10-03T20:59:05.711Z", "released_by": "Publishing client", "description": null, "note": null, "revision_identifier": "95fde1cf…"}],
+  "baseline": null,
+  "connections": []
+}
+```
 
 ## Endpoints
 
@@ -33,12 +134,35 @@ The JSON API lives under `/blog/api/v1` (or your configured mount path). Create 
 | `POST /faq_extractions` | Propose FAQ pairs and source ranges without saving | `read` |
 | `GET /pages`, `GET /pages/:kind` | List or read policy pages, including drafts | `read` |
 | `PUT /pages/:kind` | Create or edit a policy page | `write`; also `publish` when publishing or changing a published page |
+| `GET /report` | Fetch a [surface report]({% link diagnostics.md %}#surface-reports) | `read` |
+| `GET /posts/:id/views`, `GET /views/top` | [Page-view reports]({% link analytics.md %}) | `read` |
 
-Post IDs in these routes can also be slugs. Send JSON fields directly at the top level. For example, `POST /posts` with `{"title":"Winter garden","body":"Protect the young trees.","external_id":"garden-17"}` saves a draft. Publish it with `POST /posts/:id/publish` and an empty JSON object. Updating public content requires the [change classification]({% link publishing.md %}#ruby-operations). PATCH preserves omitted fields; supplied FAQ and tag arrays replace their lists. Unsupported fields return an error rather than being silently discarded.
+Post IDs in these routes can also be slugs. Send JSON fields directly at the top level. Publish a draft with `POST /posts/:id/publish` and an empty JSON object, or create and publish in one request with `"publish": true`. Updating public content requires the [change classification]({% link publishing.md %}#ruby-operations). PATCH preserves omitted fields; supplied FAQ and tag arrays replace their lists. Unsupported fields return an error rather than being silently discarded.
 
-The list endpoint accepts `status`, `category`, `tag`, `author`, `series`, `q`, `page`, and `per_page`; pagination defaults to 25 and permits at most 100 posts per page. It returns `{posts, page, per_page, total}` with compact post cards. Individual reads include content, media, revision identifiers, and notices. Writes return `{post, created, records, label, findings}`; record values are null when no corresponding audit record was made. New posts return 201, scheduled creation or publication returns 202, ordinary updates return 200, and deletion of a draft without retained history returns 204.
+The list endpoint accepts `status`, `category`, `tag`, `author`, `series`, `q`, `page`, and `per_page`; pagination defaults to 25 and permits at most 100 posts per page.
 
-Errors return `{error: {code, message, details}}` with HTTP status 401 for missing authentication, 403 for insufficient scope, 404 for missing records, 409 for identity or revision conflicts, 422 for invalid input, and 429 for rate limits. API responses use `Cache-Control: no-store`. Requests share the configured rate limit per actor across endpoints; use a shared cache store when running multiple application processes.
+```sh
+curl -s "https://example.com/blog/api/v1/posts?status=published&per_page=2" -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{
+  "posts": [
+    {"id": 228, "slug": "winter-garden", "url": "https://example.com/blog/winter-garden", "status": "published", "title": "Winter garden",
+     "description": "", "author": {"id": 405, "name": "Ada Example", "slug": "ada-example", "type": "person", "url": null},
+     "category": null, "tags": [], "published_at": "2026-10-03T20:59:05Z", "modified_at": "2026-10-03T20:59:05Z",
+     "revision_identifier": "95fde1cf…", "label": "ai_unknown"},
+    {"id": 226, "slug": "garden-notes", "...": "..."}
+  ],
+  "page": 1,
+  "per_page": 2,
+  "total": 2
+}
+```
+
+Individual reads include content, media, revision identifiers, and notices. Writes return `{post, created, records, label, findings}`; record values are null when no corresponding audit record was made. New posts return 201, scheduled creation or publication returns 202, ordinary updates return 200, and deletion of a draft without retained history returns 204.
+
+Errors return `{error: {code, message, details}}` with HTTP status 401 for missing authentication, 403 for insufficient scope, 404 for missing records, 409 for identity or revision conflicts, 422 for invalid input, and 429 for rate limits. API responses use `Cache-Control: no-store`. Requests share `config.api_rate_limit` per actor across endpoints; use a shared cache store when running multiple application processes.
 
 ## Response objects
 
@@ -69,7 +193,13 @@ API response fields are explicit:
 | Adoption | `post`, `created`, `records` (`revision`, `publication`, `approval`, `baseline`, `redirects`), `findings`, `dry_run` |
 | FAQ extraction | `pairs`, `cut`, `body_after`, `leftover`, `class`, `reasons`, `source_body_sha256` |
 
-`approved` describes a facts-checked approval for the public revision. Labels are `none`, `ai_assisted`, or `ai_unknown`. Drafts and scheduled posts include a preview URL; public and archived posts return null. Stored body and FAQ text are returned without changing their formatting. Connection writes append a complete declaration; send an empty connections array to declare none. Omitted declaration dates use the operation's date. Approval requests require `revision_identifier`, `name`, and boolean `facts_checked`.
+`approved` describes a facts-checked approval for the public revision. Labels are `none`, `ai_assisted`, or `ai_unknown`. Drafts and scheduled posts include a preview URL; public and archived posts return null. Stored body and FAQ text are returned without changing their formatting. Connection writes append a complete declaration; send an empty connections array to declare none. Omitted declaration dates use the operation's date. Approval requests require `revision_identifier`, `name`, and boolean `facts_checked`:
+
+```sh
+curl -s -X POST https://example.com/blog/api/v1/posts/228/approvals \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"revision_identifier":"95fde1cf890a2a8f994cbfa19ddbaa10caf5e03a5f61585ad0ce288dfea59404","name":"Casey","facts_checked":true}'
+```
 
 ## Errors
 
@@ -90,6 +220,11 @@ These error codes are used by the current endpoints:
 
 Upload images as multipart `file` data, or send `{"url":"https://images.example.com/photo.png"}` to `/images`. Repeated bytes reuse the same image and URL. Cover, social image, and author avatar inputs accept `{image_id: ...}`, `{signed_id: ...}`, or `{url: ...}`. URL imports verify the file bytes, enforce the configured size limit and a ten-second deadline, allow at most three redirects, and refuse private or other nonpublic addresses at every hop. SVG is refused. `config.image_fetch_policy = :open` permits internal image servers while retaining the other limits; Doctor reports this setting.
 
+```sh
+curl -s -X POST https://example.com/blog/api/v1/images \
+  -H "Authorization: Bearer $TOKEN" -F "file=@cover.png"
+```
+
 ## Supporting records and imports
 
 Supporting record lists use the same pagination envelope, with the corresponding plural key. Counts include stored posts, including drafts. Category writes accept `name`, `slug`, `description`, and `position`; series writes accept `name`, `slug`, and `description`; author writes accept the author fields above except `id` and `posts_count`. An avatar attached directly by the host appears as null until its blob is imported as a gem image. Redirect writes accept `old_path`, `new_path` (null for removal), optional `post_id`, and optional `occurred_on` (defaults to today); API-created redirects have source `manual`.
@@ -98,10 +233,10 @@ Supporting record lists use the same pagination envelope, with the corresponding
 
 ## Policy pages
 
-Policy pages use four fixed kinds: `responsible_party`, `corrections`, `editorial`, and `ai_use`. Save `title`, Markdown `body`, and `status` (`draft` or `published`) with `PUT /pages/:kind`. Optional fields are `slug`, `approved_by`, and an ISO date `approved_on`. A supplied nonblank approver defaults the omitted date to today; approval names are never filled automatically. Omitted fields retain their values. No policy text is supplied by the gem.
+`PUT /pages/:kind` saves one of the four policy pages. See [reader pages]({% link reader.md %}#policy-pages) for the kinds, the fields, and how published pages appear to readers.
 
-Published pages appear at `/blog/policies/:slug`, in the footer, and in the sitemap. Drafts return 404 publicly. `config.policy_urls[:kind]` can point to an existing host page; this overrides the local link and hides that kind's gem-hosted page. `OpenBlog.policy_url(kind)` resolves the configured URL or published local path. Publishing or withdrawing the responsible-party page immediately updates relevant post notices without changing the posts' revision records or dates. Doctor checks configured URLs and recognizes published local pages.
-
-## Reports and analytics
-
-The read-scoped `GET /report` endpoint returns a [surface report]({% link diagnostics.md %}#surface-reports). `GET /posts/:id/views` and `GET /views/top` provide [page-view reports]({% link analytics.md %}).
+```sh
+curl -s -X PUT https://example.com/blog/api/v1/pages/responsible_party \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"title":"Who runs this blog","body":"My Company, Example Street 1.","status":"published","approved_by":"Casey"}'
+```
