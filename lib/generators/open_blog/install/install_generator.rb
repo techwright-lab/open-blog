@@ -148,7 +148,7 @@ module OpenBlog
         end
         say "Publishing API: #{options[:mount_at].chomp('/')}/api/v1"
         say "MCP: #{options[:mount_at].chomp('/')}/mcp"
-        say "AdminSuite generator is not available in this release." if options[:admin_suite]
+        invoke "open_blog:admin_suite", [], force: options[:force], skip: options[:skip] if options[:admin_suite]
         say "Next: set your public base URL, review publisher details and policy links, and customize the theme."
         run_host_command("bin/rails", "open_blog:doctor")
       end

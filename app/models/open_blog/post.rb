@@ -14,6 +14,7 @@ module OpenBlog
     belongs_to :public_revision, class_name: "OpenBlog::Revision", optional: true
 
     has_many :faqs, -> { order(:position) }, autosave: true, dependent: :destroy, inverse_of: :post
+    accepts_nested_attributes_for :faqs, allow_destroy: true, reject_if: ->(attributes) { attributes["id"].blank? && attributes["question"].blank? && attributes["answer"].blank? }
     has_many :taggings, autosave: true, dependent: :destroy
     has_many :tags, through: :taggings, autosave: false
     has_many :page_views, dependent: :delete_all

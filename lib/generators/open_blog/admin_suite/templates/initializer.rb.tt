@@ -1,0 +1,19 @@
+Rails.autoloaders.main.ignore(
+  Rails.root.join(<%= "#{@admin_dir}/resources/open_blog".inspect %>),
+  Rails.root.join(<%= "#{@admin_dir}/portals/open_blog_portal.rb".inspect %>)
+)
+
+if defined?(::AdminSuite)
+  Rails.application.config.after_initialize do
+    require "open_blog/admin_suite"
+    ::OpenBlog::AdminSuite.install!
+    ::AdminSuite.configure do |config|
+      config.resource_globs |= [ Rails.root.join(<%= "#{@admin_dir}/resources/open_blog/*_resource.rb".inspect %>).to_s ]
+      config.portal_globs |= [ Rails.root.join(<%= "#{@admin_dir}/portals/open_blog_portal.rb".inspect %>).to_s ]
+    end
+    ::AdminSuite::DefinitionLoader.load!(:resources)
+    ::AdminSuite::DefinitionLoader.load!(:portals)
+    Dir[Rails.root.join(<%= "#{@admin_dir}/resources/open_blog/*_resource.rb".inspect %>)].sort.each { |path| require path }
+    require Rails.root.join(<%= "#{@admin_dir}/portals/open_blog_portal.rb".inspect %>).to_s
+  end
+end

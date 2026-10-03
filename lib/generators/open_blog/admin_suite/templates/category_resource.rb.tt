@@ -1,0 +1,28 @@
+module Admin
+  module Resources
+    module OpenBlog
+      class CategoryResource < ::Admin::Base::Resource
+        model ::OpenBlog::Category
+        portal :open_blog
+        section :content
+        def self.resource_name = "open_blog_category"
+
+        index do
+          searchable :name, :slug
+          sortable :position, default: :position, direction: :asc
+          columns do
+            column :name
+            column :slug
+            column :position
+          end
+        end
+        form do
+          field :name, required: true
+          field :slug
+          field :description, type: :textarea
+          field :position, type: :number
+        end
+      end
+    end
+  end
+end

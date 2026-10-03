@@ -1,0 +1,29 @@
+module Admin
+  module Resources
+    module OpenBlog
+      class AuthorResource < ::Admin::Base::Resource
+        model ::OpenBlog::Author
+        portal :open_blog
+        section :content
+        def self.resource_name = "open_blog_author"
+
+        index do
+          searchable :name, :slug
+          sortable :name, default: :name, direction: :asc
+          columns do
+            column :name
+            column :slug
+            column :author_type
+          end
+        end
+        form do
+          field :name, required: true
+          field :slug
+          field :author_type, type: :select, collection: %w[person organization]
+          field :bio, type: :textarea
+          field :url, type: :url
+        end
+      end
+    end
+  end
+end
