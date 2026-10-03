@@ -44,6 +44,8 @@ module OpenBlog
 
     before_save :compute_derived
     after_save :record_release
+    around_save :guard_parent_content, prepend: true
+    around_destroy :guard_parent_content, prepend: true
 
     def path
       "#{OpenBlog.mount_path.chomp('/')}/#{slug}"
@@ -71,6 +73,10 @@ module OpenBlog
     end
 
     private
+
+    def guard_parent_content(&block)
+      ContentGuard.with_parent(self, &block)
+    end
 
     def record_release
       republishing = saved_change_to_status? && status_before_last_save != "published"

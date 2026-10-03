@@ -3,8 +3,15 @@ module OpenBlog
     def self.call(attributes, post:, actor:, now:, publish:)
       attributes = PostAttributes.normalize(attributes)
       attributes = attributes.except(:external_id) if post&.persisted?
-      Operation.run(post: post, attributes: attributes, actor: actor, now: now) do |current, _created|
-        new(current, attributes, actor: actor, now: now, publish: publish).call
+      context = {}
+      Operation.run(post: post, attributes: attributes, actor: actor, now: now, context: context) do |current, created|
+        old_slug, was_public = current.slug, current.published?
+        context[:author_default_used] = created && !attributes.key?(:author)
+        approval = attributes[:approval]
+        context[:approval_incomplete] = approval.is_a?(Hash) && approval.with_indifferent_access[:facts_checked] == false
+        records = new(current, attributes, actor: actor, now: now, publish: publish).call
+        context[:slug_changed] = was_public && old_slug != current.slug
+        records
       end
     rescue Error => error
       Operation.failure(post, error)

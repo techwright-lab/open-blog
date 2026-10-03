@@ -1,7 +1,7 @@
 module OpenBlog
   class Approve
     def self.call(post, revision_identifier:, name:, facts_checked:, actor:, now: Time.current)
-      Operation.run(post: post, actor: actor, now: now) do |current, _created|
+      Operation.run(post: post, actor: actor, now: now, context: { approval_incomplete: facts_checked == false }) do |current, _created|
         raise Error::NotFound unless current.persisted?
         unless name.is_a?(String) && name.present? && [ true, false ].include?(facts_checked)
           raise Error::ApprovalIncomplete

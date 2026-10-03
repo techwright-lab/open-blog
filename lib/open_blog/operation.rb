@@ -1,6 +1,6 @@
 module OpenBlog
   class Operation
-    def self.run(post: nil, attributes: {}, actor:, now: Time.current)
+    def self.run(post: nil, attributes: {}, actor:, now: Time.current, context: {})
       current = nil
       result = nil
       Post.transaction(requires_new: true) do
@@ -8,7 +8,9 @@ module OpenBlog
         current = resolved.persisted? ? Post.lock.find(resolved.id) : resolved
         created = current.new_record?
         records = yield(current, created)
-        result = Result.new(post: current, created: created, records: records)
+        label = current.destroyed? ? :none : LabelPolicy.for(current)
+        findings = current.destroyed? ? [] : Findings.for(current, context: context)
+        result = Result.new(post: current, created: created, records: records, label: label, findings: findings)
       end
       result
     rescue Error => error
