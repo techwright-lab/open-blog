@@ -67,6 +67,11 @@ jobs:
       - name: Prepare host database
         working-directory: test/dummy
         run: bundle exec rails db:prepare
+      - name: Verify content migrations roll back
+        working-directory: test/dummy
+        run: |
+          bundle exec rails db:rollback STEP=13
+          bundle exec rails db:migrate
       - name: Run gem tests through the host
         run: bundle exec ruby bin/test
 

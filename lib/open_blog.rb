@@ -9,6 +9,8 @@ require_relative "open_blog/version"
 module OpenBlog
   autoload :Configuration, "open_blog/configuration"
   autoload :ConfigurationError, "open_blog/configuration_error"
+  autoload :RevisionPayload, "open_blog/revision_payload"
+  autoload :PlainText, "open_blog/plain_text"
 
   class << self
     def config
