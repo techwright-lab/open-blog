@@ -16,6 +16,12 @@ module OpenBlog
       Mime::Type.register "text/markdown", :md unless Mime[:md]
     end
 
+    config.to_prepare do
+      if defined?(ActiveStorage::Attachment)
+        ActiveStorage::Attachment.include(OpenBlog::ImmutableImageAttachment)
+      end
+    end
+
     config.after_initialize do |application|
       if Engine.first_install?(application)
         OpenBlog.config.validate_structure!
