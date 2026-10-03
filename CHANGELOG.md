@@ -10,3 +10,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial gem package, runtime dependencies, tests, and continuous integration.
+- Add a mountable engine with validated configuration and a PostgreSQL/SQLite host test matrix.

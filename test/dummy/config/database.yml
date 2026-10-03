@@ -1,0 +1,19 @@
+default: &default
+<% if ENV["DB"] == "sqlite" %>
+  adapter: sqlite3
+  database: <%= Rails.root.join("storage", "open_blog_dummy_#{Rails.env}.sqlite3") %>
+<% else %>
+  adapter: postgresql
+  database: open_blog_dummy_<%= Rails.env %>
+<% end %>
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS", 5) %>
+  timeout: 5000
+
+development:
+  <<: *default
+
+test:
+  <<: *default
+
+production:
+  <<: *default
