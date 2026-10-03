@@ -1,0 +1,274 @@
+#!/usr/bin/env ruby
+require "bundler"
+require "fileutils"
+require "json"
+require "net/http"
+require "nokogiri"
+require "optparse"
+require "rbconfig"
+require "socket"
+require "tmpdir"
+require "timeout"
+
+# Runs one independent fresh-host case. No application or bundle state is reused.
+class InstallerHarness
+  MODES = { "A" => [], "B" => [ "--css", "tailwind" ],
+    "C" => [ "-j", "esbuild" ], "D" => [ "-j", "esbuild", "--css", "tailwind" ] }.freeze
+
+  def initialize(options)
+    @options = options
+    @root = File.expand_path("..", __dir__)
+    @workspace = Dir.mktmpdir("open-blog-installer-", options[:output_dir])
+    @app = File.join(@workspace, "reader_host")
+    @log_path = File.join(@workspace, "commands.log")
+    @log = File.open(@log_path, "w")
+  end
+
+  def run
+    puts "Installer case Rails #{@options[:rails]}, mode #{@options[:mode]}#{' without Tailwind' if @options[:skip_tailwind]}: #{@workspace}"
+    create_host
+    install = [ "bin/rails", "generate", "open_blog:install", "--site-name=CI", "--author-name=CI" ]
+    install << "--skip-tailwind" if @options[:skip_tailwind]
+    install << "--skip-sample" if @options[:skip_sample]
+    command(*install)
+    command("git", "add", "-A")
+    command("git", "-c", "user.name=Installer Test", "-c", "user.email=installer@example.invalid", "commit", "-qm", "Installed blog")
+    command(*install)
+    clean = capture("git", "status", "--porcelain")
+    check(clean.empty?, "Repeated installation changed files:\n#{clean}")
+    verify_migrations
+    command("bin/rails", "db:migrate")
+    build_assets
+    command("bin/rails", "open_blog:doctor")
+    verify_sample
+    serve_and_check
+    puts "PASS Rails #{@options[:rails]} mode #{@options[:mode]}: migrations, idempotence, sample, doctor, assets and navigation"
+    @passed = true
+  ensure
+    stop_server
+    @log.close
+    if @passed && !@options[:keep]
+      FileUtils.remove_entry(@workspace)
+    else
+      warn "Installer artifacts: #{@workspace}"
+    end
+  end
+
+  private
+
+  def environment
+    { "RAILS_ENV" => "development", "RACK_ENV" => nil, "DATABASE_URL" => nil, "DB" => nil,
+      "RAILS_VERSION" => nil, "RUBYOPT" => nil, "RAILS_MASTER_KEY" => nil,
+      "SECRET_KEY_BASE" => nil, "DISABLE_SPRING" => "1", "CI" => "true" }
+  end
+
+  def command(*arguments, directory: @app)
+    @log.puts("\n#{directory}: #{arguments.inspect}")
+    @log.flush
+    Bundler.with_unbundled_env do
+      pid = Process.spawn(environment, *arguments, chdir: directory, in: File::NULL, out: @log, err: @log, pgroup: true)
+      begin
+        _, status = Timeout.timeout(900) { Process.wait2(pid) }
+        check(status.success?, "Command failed: #{arguments.inspect}; see #{@log_path}")
+      rescue Timeout::Error
+        terminate(pid)
+        raise "Command timed out: #{arguments.inspect}; see #{@log_path}"
+      end
+    end
+  end
+
+  def capture(*arguments)
+    require "open3"
+    Bundler.with_unbundled_env do
+      output, status = Open3.capture2e(environment, *arguments, chdir: @app, stdin_data: "")
+      check(status.success?, output)
+      output.strip
+    end
+  end
+
+  def create_host
+    requirement = "~> #{@options[:rails]}.0"
+    installer = <<~RUBY
+      require "rubygems/dependency_installer"
+      if Gem::Specification.find_all_by_name("rails", #{requirement.inspect}).empty?
+        Gem::DependencyInstaller.new(document: []).install("rails", #{requirement.inspect})
+      end
+    RUBY
+    command(RbConfig.ruby, "-e", installer, directory: @workspace)
+    launcher = "gem 'railties', #{requirement.inspect}; load Gem.bin_path('railties', 'rails')"
+    command(RbConfig.ruby, "-e", launcher, "--", "new", @app, *MODES.fetch(@options[:mode]), directory: @workspace)
+    command("bundle", "add", "open_blog", "--path", @root)
+  end
+
+  def verify_migrations
+    migrations = Dir[File.join(@app, "db/migrate/*.rb")]
+    versions = migrations.map { |path| File.basename(path).split("_").first }
+    check(versions.uniq.size == versions.size, "Migration versions collide")
+    %w[active_storage action_text open_blog].each do |name|
+      check(migrations.any? { |path| path.include?(name) }, "Missing #{name} migrations")
+    end
+  end
+
+  def build_assets
+    if @options[:skip_tailwind]
+      check(!File.read(File.join(@app, "Gemfile")).match?(/^gem ["']tailwindcss-rails["']/), "--skip-tailwind added a Tailwind gem")
+    elsif @options[:mode] == "D"
+      command("yarn", "build:css")
+    else
+      command("bin/rails", "tailwindcss:build")
+    end
+    command("yarn", "build") if %w[C D].include?(@options[:mode])
+  end
+
+  def verify_sample
+    runner = File.join(@workspace, "verify_sample.rb")
+    content = if @options[:skip_sample]
+      <<~RUBY
+        raise "--skip-sample created a post" unless OpenBlog::Post.count.zero?
+        data = {mount: OpenBlog.mount_path}
+      RUBY
+    else
+      <<~RUBY
+      post = OpenBlog::Post.find_by!(external_id: "open_blog_sample")
+      raise "Sample is not published" unless post.published?
+      raise "Sample FAQ differs" unless post.faqs.count == 2
+      raise "Sample approval is misleading" unless post.approvals.empty? && OpenBlog::LabelPolicy.for(post) == :ai_assisted
+      raise "Sample lacks a cover" unless post.cover_image&.file&.attached?
+      raise "Sample lacks General category" unless post.category.name == "General"
+      raise "Sample author differs" unless post.author.name == "CI"
+      document = Nokogiri::HTML5.fragment(OpenBlog::Renderer.render(post))
+      %w[h2 h3 table pre img blockquote].each { |selector| raise "Sample lacks \#{selector}" unless document.at_css(selector) }
+      models = [OpenBlog::Post, OpenBlog::Author, OpenBlog::Category, OpenBlog::Image, OpenBlog::Revision, OpenBlog::Publication, ActiveStorage::Blob]
+      before = models.map(&:count)
+      raise "Unexpected initial sample records: \#{before.inspect}" unless before.all? { |count| count == 1 }
+      raise "Sample changed identity" unless OpenBlog::Sample.call.id == post.id
+      raise "Sample created duplicate records" unless before == models.map(&:count)
+      data = {path: post.path, author: OpenBlog::ReaderQueries.author_path(post.author), category: OpenBlog::ReaderQueries.category_path(post.category), mount: OpenBlog.mount_path}
+      RUBY
+    end
+    File.write(runner, content + <<~RUBY)
+      require "json"
+      checks = OpenBlog::Doctor.run
+      raise "Doctor reported an error: \#{checks.inspect}" if checks.any? { |check| check[:status] == "error" }
+      %w[Migrations Route Views Theme JavaScript Records].each do |name|
+        raise "Doctor check failed: \#{name}: \#{checks.inspect}" unless checks.any? { |check| check[:name] == name && check[:status] == "ok" }
+      end
+      raw_theme = Rails.root.join("app/assets/tailwind").to_s + "/"
+      exposed = Rails.application.assets.load_path.assets.select { |asset| asset.path.to_s.start_with?(raw_theme) }
+      raise "Raw Tailwind sources are publicly served: \#{exposed.map(&:path)}" if exposed.any?
+      File.write(#{File.join(@workspace, "sample.json").inspect}, JSON.generate(data))
+    RUBY
+    command("bin/rails", "runner", runner)
+    @sample = JSON.parse(File.read(File.join(@workspace, "sample.json")))
+  end
+
+  def serve_and_check
+    listener = TCPServer.new("127.0.0.1", 0)
+    port = listener.addr[1]
+    listener.close
+    @base = URI("http://127.0.0.1:#{port}")
+    Bundler.with_unbundled_env do
+      @server = Process.spawn(environment, "bin/rails", "server", "-b", "127.0.0.1", "-p", port.to_s,
+        chdir: @app, in: File::NULL, out: @log, err: @log, pgroup: true)
+    end
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 60
+    loop do
+      begin
+        response = request(@sample.fetch("mount"))
+        break if response.is_a?(Net::HTTPSuccess)
+      rescue Errno::ECONNREFUSED, EOFError, Net::ReadTimeout
+        # The server has not started accepting requests yet.
+      end
+      check(Process.clock_gettime(Process::CLOCK_MONOTONIC) < deadline, "Server did not start; see #{@log_path}")
+      sleep 0.2
+    end
+    mount = @sample.fetch("mount")
+    paths = [ mount, *@sample.values_at("path", "author", "category") ].compact
+    documents = paths.to_h { |path| [ path, html(path) ] }
+    [ "#{mount}/feed.xml", "#{mount}/sitemap.xml" ].each { |path| check(request(path).is_a?(Net::HTTPSuccess), "Reader endpoint failed: #{path}") }
+    if @options[:skip_sample]
+      check(documents.fetch(mount).at_css(".ob-empty"), "Empty index lacks its empty state")
+      check(documents.fetch(mount).css(".ob-post-card").empty?, "Empty index unexpectedly has article cards")
+    else
+      post = documents.fetch(@sample.fetch("path"))
+      check(post.css("[data-open-blog-faq-entry]").size == 2, "Reader sample did not render two FAQ entries")
+      check(post.at_css(".ob-notice--ai"), "Reader sample lacks its AI notice")
+      post.css("img[src]").each { |node| check(request(node["src"]).is_a?(Net::HTTPSuccess), "Sample image failed: #{node['src']}") }
+    end
+    check(documents.fetch(mount).at_css('[data-controller~="open-blog--theme"]'), "Index lacks theme control")
+    links = documents.values.flat_map { |doc| doc.css("a[href]").map { |node| node["href"] } }.uniq
+    links.each do |link|
+      uri = URI.join(@base.to_s, link)
+      next unless uri.host == @base.host && uri.port == @base.port && uri.path.start_with?(mount)
+      check(request(uri.request_uri).is_a?(Net::HTTPSuccess), "Broken blog navigation: #{link}")
+    end
+    verify_assets(documents.fetch(mount))
+  end
+
+  def html(path)
+    response = request(path)
+    check(response.is_a?(Net::HTTPSuccess), "Reader page failed: #{path} (#{response.code})")
+    Nokogiri::HTML5(response.body)
+  end
+
+  def verify_assets(document)
+    styles = document.css('link[rel="stylesheet"]').map { |node| node["href"] }
+    check(styles.any?, "Reader has no stylesheet")
+    css = styles.map { |path| response = request(path); check(response.is_a?(Net::HTTPSuccess), "Stylesheet failed: #{path}"); response.body }.join
+    check(css.include?("--ob-surface") && css.include?(".ob-page"), "Reader stylesheet lacks theme tokens or components")
+    check(css.match?(/--ob-surface:\s*(?:#fff(?:fff)?|white)\s*[;}]/), "Reader default surface differs from the bundled theme")
+    scripts = document.css("script[src]").map { |node| node["src"] }
+    document.css('script[type="importmap"]').each { |node| scripts.concat(JSON.parse(node.text).fetch("imports").values) }
+    check(scripts.any?, "Reader has no JavaScript assets")
+    scripts.uniq.each do |path|
+      uri = URI.join(@base.to_s, path)
+      next unless uri.host == @base.host && uri.port == @base.port
+      check(request(uri.request_uri).is_a?(Net::HTTPSuccess), "JavaScript asset failed: #{path}")
+    end
+  end
+
+  def request(path, redirects: 5)
+    uri = URI.join(@base.to_s, path)
+    check(uri.host == @base.host && uri.port == @base.port, "Unexpected external request: #{uri}")
+    response = Net::HTTP.start(uri.host, uri.port, open_timeout: 3, read_timeout: 10) { |http| http.get(uri.request_uri) }
+    if response.is_a?(Net::HTTPRedirection) && redirects.positive?
+      request(URI.join(uri, response.fetch("location")).to_s, redirects: redirects - 1)
+    else
+      response
+    end
+  end
+
+  def check(condition, message)
+    raise message unless condition
+  end
+
+  def stop_server
+    terminate(@server) if @server
+  end
+
+  def terminate(pid)
+    Process.kill("TERM", -pid)
+    Timeout.timeout(5) { Process.wait(pid) }
+  rescue Timeout::Error
+    Process.kill("KILL", -pid)
+    Process.wait(pid)
+  rescue Errno::ESRCH, Errno::ECHILD
+    nil
+  end
+end
+
+options = { rails: "8.1", mode: "A", skip_tailwind: false, skip_sample: false, keep: false }
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: bin/test-installer --rails 8.0|8.1 --mode A|B|C|D [--skip-tailwind] [--skip-sample] [--keep] [--output-dir PATH]"
+  opts.on("--rails VERSION", %w[8.0 8.1]) { |value| options[:rails] = value }
+  opts.on("--mode MODE", InstallerHarness::MODES.keys) { |value| options[:mode] = value }
+  opts.on("--skip-tailwind") { options[:skip_tailwind] = true }
+  opts.on("--skip-sample") { options[:skip_sample] = true }
+  opts.on("--keep") { options[:keep] = true }
+  opts.on("--output-dir PATH") { |value| options[:output_dir] = File.expand_path(value) }
+end
+parser.parse!
+abort(parser.to_s) unless ARGV.empty?
+abort "--skip-tailwind is supported for modes A and C" if options[:skip_tailwind] && %w[B D].include?(options[:mode])
+FileUtils.mkdir_p(options[:output_dir]) if options[:output_dir]
+InstallerHarness.new(options).run

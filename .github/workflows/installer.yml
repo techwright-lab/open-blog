@@ -1,0 +1,58 @@
+name: Installer
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  fresh-app:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rails: ["8.0", "8.1"]
+        setup: [A, B, C, D, A-fallback, C-fallback, A-empty]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install asset tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick libvips-dev
+          if ! command -v yarn >/dev/null; then npm install --global yarn; fi
+      - name: Verify installation in a fresh application
+        env:
+          INSTALLER_RAILS: ${{ matrix.rails }}
+          INSTALLER_SETUP: ${{ matrix.setup }}
+        run: |
+          mode="${INSTALLER_SETUP%%-*}"
+          options=()
+          if [[ "$INSTALLER_SETUP" == *-fallback ]]; then options+=(--skip-tailwind); fi
+          if [[ "$INSTALLER_SETUP" == *-empty ]]; then options+=(--skip-sample); fi
+          bundle exec ruby bin/test-installer --rails "$INSTALLER_RAILS" --mode "$mode" "${options[@]}" --output-dir "$RUNNER_TEMP/open-blog-installer" --keep
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: installer-${{ matrix.rails }}-${{ matrix.setup }}
+          path: ${{ runner.temp }}/open-blog-installer/**/*.log
+          if-no-files-found: ignore
+
+  installer:
+    if: always()
+    needs: fresh-app
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every fresh application to pass
+        env:
+          MATRIX_RESULT: ${{ needs.fresh-app.result }}
+        run: test "$MATRIX_RESULT" = success
