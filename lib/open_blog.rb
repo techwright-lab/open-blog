@@ -27,6 +27,9 @@ module OpenBlog
   autoload :RichTextGuard, "open_blog/rich_text_guard"
   autoload :LabelPolicy, "open_blog/label_policy"
   autoload :Findings, "open_blog/findings"
+  autoload :Adopt, "open_blog/adopt"
+  autoload :FaqExtraction, "open_blog/faq_extraction"
+  autoload :ImageImport, "open_blog/image_import"
 
   class << self
     def config

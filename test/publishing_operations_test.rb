@@ -70,6 +70,13 @@ class PublishingOperationsTest < ActiveSupport::TestCase
     assert_equal @now, substantive.post.published_at
   end
 
+  test "new posts persist each supplied tag only once" do
+    result = publish(tags: [ "Seeds", "Soil" ])
+    assert result.success?, result.error&.message
+    assert_equal [ "Seeds", "Soil" ], result.post.tags.order(:name).pluck(:name)
+    assert_equal 2, result.post.taggings.count
+  end
+
   test "metadata changes do not create release records" do
     post = publish.post
     result = publish({ category: "Vegetables", tags: [ "Seasonal" ], series: "Garden year", series_position: 1, featured: true }, post: post, now: @now + 1.day)
