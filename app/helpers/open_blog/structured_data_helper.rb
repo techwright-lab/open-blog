@@ -3,6 +3,12 @@ module OpenBlog
     def open_blog_structured_data(resource = nil)
       page = open_blog_page(resource)
       graph = [ open_blog_page_schema(page), open_blog_breadcrumb_schema(page) ]
+      if page.kind == :post && (entries = page.record.faq_list).any?
+        graph << { "@type" => "FAQPage", "mainEntity" => entries.map do |entry|
+          { "@type" => "Question", "name" => entry[:question],
+            "acceptedAnswer" => { "@type" => "Answer", "text" => entry[:answer] } }
+        end }
+      end
       json = ERB::Util.json_escape({ "@context" => "https://schema.org", "@graph" => graph }.to_json)
       tag.script(json.html_safe, type: "application/ld+json")
     end

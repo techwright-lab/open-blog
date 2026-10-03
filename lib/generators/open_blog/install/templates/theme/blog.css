@@ -138,6 +138,13 @@
 .ob-prose .markdown-alert-warning, .ob-prose .markdown-alert-caution { border-color: var(--ob-warning); }
 .ob-prose .markdown-alert-warning .markdown-alert-title, .ob-prose .markdown-alert-caution .markdown-alert-title { color: var(--ob-warning); }
 .ob-prose--dropcap > p:first-of-type::first-letter { float: left; font-size: 3.5em; line-height: 0.9; padding-right: 0.1em; color: var(--ob-accent); }
+.ob-faq { margin-block: 2.5rem; padding-top: 2rem; border-top: 1px solid var(--ob-border); min-width: 0; }
+.ob-faq > h2 { margin-bottom: 1.5rem; scroll-margin-top: 2rem; }
+.ob-faq-entry + .ob-faq-entry { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--ob-border); }
+.ob-faq-entry h3 { margin-bottom: 0.75rem; }
+.ob-faq-entry p { font-size: var(--ob-prose-size); line-height: var(--ob-prose-leading); overflow-wrap: anywhere; }
+.ob-faq-entry p + p { margin-top: 1rem; }
+.ob-faq-entry a { text-decoration: underline; }
 .ob-tags, .ob-author-profiles, .ob-share { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin: 1.5rem 0; }
 .ob-tags a { border-radius: var(--ob-radius-pill); padding: 0.25rem 0.75rem; background: var(--ob-accent-soft); }
 .ob-share-status { color: var(--ob-text-muted); font-size: 0.875rem; }

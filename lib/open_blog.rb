@@ -7,6 +7,8 @@ require "mcp"
 require_relative "open_blog/version"
 
 module OpenBlog
+  FAQ_SELECTORS = { section: "[data-open-blog-faq]", entry: "[data-open-blog-faq-entry]" }.freeze
+
   autoload :Configuration, "open_blog/configuration"
   autoload :ConfigurationError, "open_blog/configuration_error"
   autoload :RevisionPayload, "open_blog/revision_payload"
@@ -36,6 +38,7 @@ module OpenBlog
   autoload :BuildCss, "open_blog/build_css"
   autoload :ReaderPage, "open_blog/reader_page"
   autoload :ReaderDates, "open_blog/reader_dates"
+  autoload :MarkdownView, "open_blog/markdown_view"
   autoload :ReaderQueries, "open_blog/reader_queries"
   autoload :Pagination, "open_blog/pagination"
   autoload :NotFound, "open_blog/not_found"

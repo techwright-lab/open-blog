@@ -47,6 +47,8 @@ en:
       recent: "Recent posts"
     cards:
       featured: "Featured"
+    faq:
+      heading: "Frequently asked questions"
     lists:
       empty: "There are no posts here yet."
     share:

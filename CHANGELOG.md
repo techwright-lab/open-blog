@@ -21,3 +21,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add reader metadata, structured data, publication dates, notices, Atom feeds, sitemap entries, redirects, and stable original-image delivery.
 - Add responsive light/dark themes, configurable design tokens, accessible syntax colors, and a reproducible compiled stylesheet.
 - Add theme selection, link and code copying, device sharing, table-of-contents tracking, reading progress, and browser accessibility checks.
+- Render ordered FAQ records as visible plain text and FAQ structured data, with a shared table-of-contents anchor and Markdown text output.

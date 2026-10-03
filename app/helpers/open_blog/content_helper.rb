@@ -1,5 +1,7 @@
 module OpenBlog
   module ContentHelper
+    include FaqHelper
+
     def open_blog_post_content(_post, &block)
       tag.article(class: "ob-post-content", data: { open_blog_content: true }, &block)
     end
@@ -49,11 +51,15 @@ module OpenBlog
     def open_blog_toc(post)
       fragment = Nokogiri::HTML5.fragment(Renderer.render(post))
       headings = fragment.css("h2, h3")
-      return "".html_safe if headings.length < 3
+      has_faq = post.faq_list.any?
+      return "".html_safe if headings.length + (has_faq ? 1 : 0) < 3
       items = headings.map do |heading|
         text = heading.dup
         text.css(".ob-heading-anchor").remove
         tag.li(link_to(text.text, "##{heading['id']}"), class: "ob-toc-item ob-toc-item--#{heading.name}")
+      end
+      if has_faq
+        items << tag.li(link_to(open_blog_translate("faq.heading"), "##{open_blog_faq_section_id(post, body: fragment)}"), class: "ob-toc-item ob-toc-item--h2")
       end
       tag.nav(class: "ob-toc", aria: { label: open_blog_translate("navigation.toc") }, data: { controller: "open-blog--toc" }) do
         safe_join([ tag.h2(open_blog_translate("navigation.toc")), tag.ol(safe_join(items)) ])
