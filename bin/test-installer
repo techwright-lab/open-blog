@@ -127,6 +127,8 @@ class InstallerHarness
     FileUtils.cp(@options[:gem], File.join(cache, @package_spec.file_name))
     File.open(File.join(@app, "Gemfile"), "a") { |file| file.puts("\ngem \"open_blog\", \"= #{@package_spec.version}\"") }
     command("bundle", "config", "set", "--local", "path", "vendor/bundle")
+    # The build under test can share a version with a published gem; verify_package_installation compares the bytes.
+    command("bundle", "config", "set", "--local", "disable_checksum_validation", "true")
     command("bundle", "install")
   end
 

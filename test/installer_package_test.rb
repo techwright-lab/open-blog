@@ -33,7 +33,8 @@ class InstallerPackageTest < ActiveSupport::TestCase
     assert_includes File.read(File.join(app, "Gemfile")), 'gem "open_blog", "= 9.8.7"'
     refute_includes File.read(File.join(app, "Gemfile")), "path:"
     assert_includes harness.commands, [ "bundle", "config", "set", "--local", "path", "vendor/bundle" ]
-    assert_includes harness.commands, [ "bundle", "install" ]
+    checksum = harness.commands.index([ "bundle", "config", "set", "--local", "disable_checksum_validation", "true" ])
+    assert_operator checksum, :<, harness.commands.index([ "bundle", "install" ])
     refute harness.commands.flatten.include?("--path")
   end
 
