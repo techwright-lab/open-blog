@@ -4,6 +4,7 @@ require "tmpdir"
 
 class AdminSuiteOptionalLoadTest < ActiveSupport::TestCase
   test "requiring the gem in the ordinary bundle never loads AdminSuite" do
+    skip "The ordinary CI matrix verifies the bundle without AdminSuite" if Gem.loaded_specs.key?("admin_suite")
     root = OpenBlog::Engine.root.to_s
     stdout, stderr, status = Bundler.with_unbundled_env do
       Open3.capture3({ "BUNDLE_GEMFILE" => File.join(root, "Gemfile") }, Gem.ruby, "-rbundler/setup", "-Ilib", "-ropen_blog", "-e", "puts defined?(AdminSuite).inspect", chdir: root)
