@@ -96,6 +96,15 @@ class OperationInputsTest < ActiveSupport::TestCase
     assert_nil post.cover_image
   end
 
+  test "native tag assignment on a new post persists its tags and joins" do
+    author = OpenBlog::Author.create!(name: "Garden Writer", slug: "garden-writer")
+    post = OpenBlog::Post.new(title: "Planting", slug: "planting", author: author, author_name: author.name)
+    post.tags << OpenBlog::Tag.new(name: "Seeds", slug: "seeds")
+    post.save!
+    assert_equal [ "Seeds" ], post.reload.tags.pluck(:name)
+    assert_equal 1, post.taggings.count
+  end
+
   test "provenance changes retain explicit evidence or record the actor and time" do
     post = create_post("evidence")
     assign(post, provenance: "ai_assisted", provenance_evidence: "Draft tool output")

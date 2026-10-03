@@ -5,5 +5,6 @@ gem "propshaft"
 gem "importmap-rails"
 gem "tailwindcss-rails", "~> 4.0"
 gem "image_processing"
+gem "mini_magick", ">= 4.13", "< 6"
 
 gemspec

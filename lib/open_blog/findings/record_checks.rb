@@ -14,6 +14,7 @@ module OpenBlog
             check(:category_description_absent, "T21", "Add an introduction to this category.", "category.description") { |post, _| primary_categories? && post.category && post.category.description.blank? },
             check(:faq_question_duplicate, nil, "An FAQ question appears more than once.", ->(_, _, index) { "faq[#{index}].question" }) { |post, _| duplicate_question(post) },
             check(:faq_markup_in_answer, "E19", "FAQ answers display plain text; remove formatting markup.", ->(_, _, index) { "faq[#{index}].answer" }) { |post, _| markup_answer(post) },
+            check(:faq_in_body, nil, "Move this FAQ section into the post's FAQ entries to avoid duplicate content.", "body") { |post, _| post.markdown? && FaqExtraction.contains_faq_heading?(post.body_markdown) },
             check(:author_default_used, "E1", "This post uses the configured default author.", "author") { |_, context| context[:author_default_used] },
             check(:provenance_unknown, "E18", "Specify whether AI contributed to this post.", "provenance") { |post, _| post.provenance_unknown? },
             check(:approval_absent, "E18", "This revision has no approval confirming its facts.", "approval") { |post, _| approval_absent?(post) },

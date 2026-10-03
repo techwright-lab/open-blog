@@ -14,7 +14,7 @@ module OpenBlog
 
     has_many :faqs, -> { order(:position) }, autosave: true, dependent: :destroy, inverse_of: :post
     has_many :taggings, autosave: true, dependent: :destroy
-    has_many :tags, through: :taggings
+    has_many :tags, through: :taggings, autosave: false
     has_many :revisions, dependent: :restrict_with_exception
     has_many :approvals, dependent: :restrict_with_exception
     has_many :publications, dependent: :restrict_with_exception
