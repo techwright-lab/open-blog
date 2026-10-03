@@ -1,11 +1,12 @@
 module OpenBlog
   class Operation
-    def self.run(post: nil, attributes: {}, actor:, now: Time.current, context: {})
+    def self.run(post: nil, attributes: {}, actor:, now: Time.current, context: {}, authorize: nil)
       current = nil
       result = nil
       Post.transaction(requires_new: true) do
         resolved = PostIdentity.resolve(attributes, post: post)
         current = resolved.persisted? ? Post.lock.find(resolved.id) : resolved
+        authorize&.call(current)
         created = current.new_record?
         records = yield(current, created)
         label = current.destroyed? ? :none : LabelPolicy.for(current)

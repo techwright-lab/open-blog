@@ -45,6 +45,8 @@ module OpenBlog
   autoload :SitemapEntries, "open_blog/sitemap_entries"
   autoload :Doctor, "open_blog/doctor"
   autoload :Sample, "open_blog/sample"
+  autoload :Actor, "open_blog/actor"
+  autoload :Authentication, "open_blog/authentication"
 
   class << self
     def config

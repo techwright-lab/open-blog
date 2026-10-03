@@ -1,4 +1,18 @@
 OpenBlog::Engine.routes.draw do
+  namespace :api do
+    namespace :v1 do
+      patch "posts/:id", to: "posts#update"
+      resources :posts, only: [ :index, :show, :create, :destroy ] do
+        post :publish, on: :member
+        post :unpublish, on: :member
+        resources :approvals, only: :create
+        resources :connections, only: :create
+        resource :records, only: :show, controller: "records"
+        resource :findings, only: :show, controller: "findings"
+      end
+      get "doctor", to: "doctor#show"
+    end
+  end
   root "posts#index"
   get "/feed.xml", to: "feeds#show", as: :feed, format: false, defaults: { format: :xml }
   get "/sitemap.xml", to: "sitemaps#show", as: :sitemap, format: false, defaults: { format: :xml }

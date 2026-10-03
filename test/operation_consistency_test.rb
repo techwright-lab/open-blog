@@ -1,4 +1,5 @@
 require_relative "test_helper"
+require "minitest/mock"
 
 class OperationConsistencyTest < ActiveSupport::TestCase
   self.use_transactional_tests = false
@@ -147,6 +148,117 @@ class OperationConsistencyTest < ActiveSupport::TestCase
     assert_equal 1, posts.count
     assert_equal 1, posts.sole.publications.where(entry_type: "first").count
     assert_equal 1, posts.sole.revisions.count
+  end
+
+  test "authorization refuses before image preparation" do
+    post = draft
+    OpenBlog::ImageResolution.stub(:prepare, ->(**) { flunk "Unauthorized image preparation" }) do
+      result = OpenBlog::SaveDraft.call({ title: "Denied" }, post: post, actor: "writer",
+        authorize: ->(_) { raise OpenBlog::Error::ScopeRequired })
+      assert_equal :scope_required, result.error.code
+    end
+    assert_equal "Orchard notes", post.reload.title
+  end
+
+  test "preserving an omitted schedule does not release it early" do
+    due = @now + 1.day
+    post = publish(publish_at: due).post
+    result = OpenBlog::WritePost.call({ title: "Tomorrow" }, post: post, actor: "editor",
+      now: @now, publish: :preserve)
+    assert result.success?, result.error&.message
+    assert result.post.scheduled?
+    assert_equal due, result.post.publish_at
+    assert_empty result.post.publications
+  end
+
+  test "authorization sees a competing publication before applying an edit" do
+    skip "Row locking is specific to PostgreSQL" unless OpenBlog::Post.connection.adapter_name == "PostgreSQL"
+    post = draft
+    first = true
+    authorize = lambda do |current|
+      raise OpenBlog::Error::ScopeRequired unless current.draft?
+      if first
+        first = false
+        competing = Thread.new do
+          ActiveRecord::Base.connection_pool.with_connection { publish({}, post: post) }
+        end.value
+        assert competing.success?, competing.error&.message
+      end
+    end
+    result = OpenBlog::WritePost.call({ title: "Unauthorized replacement", faq: [ { question: "Why?", answer: "No." } ] },
+      post: post, actor: "writer", now: @now, publish: :preserve, authorize: authorize)
+    assert_equal :scope_required, result.error.code
+    assert_equal "Orchard notes", post.reload.title
+    assert_empty post.faqs
+    assert_equal 1, post.publications.count
+    assert_equal 1, post.revisions.count
+  end
+
+  test "authorization sees a competing schedule before applying an edit" do
+    skip "Row locking is specific to PostgreSQL" unless OpenBlog::Post.connection.adapter_name == "PostgreSQL"
+    post = draft
+    first = true
+    authorize = lambda do |current|
+      raise OpenBlog::Error::ScopeRequired unless current.draft?
+      if first
+        first = false
+        competing = Thread.new do
+          ActiveRecord::Base.connection_pool.with_connection { publish({ publish_at: @now + 1.day }, post: post) }
+        end.value
+        assert competing.success?, competing.error&.message
+      end
+    end
+    result = OpenBlog::WritePost.call({ title: "Unauthorized replacement", faq: [ { question: "Why?", answer: "No." } ] },
+      post: post, actor: "writer", now: @now, publish: :preserve, authorize: authorize)
+    assert_equal :scope_required, result.error.code
+    assert_equal "Orchard notes", post.reload.title
+    assert_empty post.faqs
+    assert_empty post.publications
+    assert_empty post.revisions
+  end
+
+  test "preserve uses the fresh state after a competing unpublish" do
+    skip "Row locking is specific to PostgreSQL" unless OpenBlog::Post.connection.adapter_name == "PostgreSQL"
+    post = publish.post
+    first = true
+    authorize = lambda do |_current|
+      if first
+        first = false
+        competing = Thread.new do
+          ActiveRecord::Base.connection_pool.with_connection { OpenBlog::Unpublish.call(post, actor: "editor", now: @now) }
+        end.value
+        assert competing.success?, competing.error&.message
+      end
+    end
+    result = OpenBlog::WritePost.call({ title: "Private revision" }, post: post, actor: "editor",
+      now: @now, publish: :preserve, authorize: authorize)
+    assert result.success?, result.error&.message
+    assert result.post.draft?
+    assert_equal "Private revision", result.post.title
+    assert_equal 1, result.post.publications.count
+    assert_nil OpenBlog::Redirect.find_by!(old_path: post.path).new_path
+  end
+
+  test "a publisher without write scope cannot edit a concurrently withdrawn post" do
+    skip "Row locking is specific to PostgreSQL" unless OpenBlog::Post.connection.adapter_name == "PostgreSQL"
+    post = publish.post
+    first = true
+    authorize = lambda do |current|
+      raise OpenBlog::Error::ScopeRequired unless current.published?
+      if first
+        first = false
+        competing = Thread.new do
+          ActiveRecord::Base.connection_pool.with_connection { OpenBlog::Unpublish.call(post, actor: "editor", now: @now) }
+        end.value
+        assert competing.success?, competing.error&.message
+      end
+    end
+    result = OpenBlog::WritePost.call({ title: "Denied" }, post: post, actor: "publisher",
+      now: @now, publish: :preserve, authorize: authorize)
+    assert_equal :scope_required, result.error.code
+    assert post.reload.draft?
+    assert_equal "Orchard notes", post.title
+    assert_equal 1, post.publications.count
   end
 
   private
