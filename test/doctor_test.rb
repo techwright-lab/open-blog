@@ -38,6 +38,17 @@ class DoctorTest < ActiveSupport::TestCase
     assert checks.all? { |check| check.keys.sort == %i[message name status] && check[:message].present? }
   end
 
+  test "authentication accepts only active tokens when there is no host hook" do
+    @config.authenticate = nil
+    assert_equal "warning", check("Authentication")[:status]
+    token, = OpenBlog::ApiToken.generate(name: "Diagnostics")
+    assert_equal "ok", check("Authentication")[:status]
+    token.update!(revoked_at: Time.current)
+    assert_equal "warning", check("Authentication")[:status]
+    token.update!(revoked_at: nil, expires_at: 1.second.ago)
+    assert_equal "warning", check("Authentication")[:status]
+  end
+
   test "configuration reports invalid and placeholder values without aborting remaining checks" do
     @config.site_name = nil
     assert_equal "error", check("Configuration")[:status]

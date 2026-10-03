@@ -1,17 +1,19 @@
 module OpenBlog
   class WritePost
-    def self.call(attributes, post:, actor:, now:, publish:)
+    def self.call(attributes, post:, actor:, now:, publish:, authorize: nil)
       attributes = PostAttributes.normalize(attributes)
       attributes = attributes.except(:external_id) if post&.persisted?
       source = post&.persisted? ? Post.find(post.id) : PostIdentity.resolve(attributes, post: post)
+      authorize&.call(source)
       images = ImageResolution.prepare(attributes: attributes, post: source)
       context = {}
-      Operation.run(post: post, attributes: attributes, actor: actor, now: now, context: context) do |current, created|
+      Operation.run(post: post, attributes: attributes, actor: actor, now: now, context: context, authorize: authorize) do |current, created|
         old_slug, was_public = current.slug, current.published?
         context[:author_default_used] = created && !attributes.key?(:author)
         approval = attributes[:approval]
         context[:approval_incomplete] = approval.is_a?(Hash) && approval.with_indifferent_access[:facts_checked] == false
-        records = new(current, attributes, actor: actor, now: now, publish: publish, images: images).call
+        release = publish == :preserve ? current.published? : publish
+        records = new(current, attributes, actor: actor, now: now, publish: release, images: images).call
         context[:slug_changed] = was_public && old_slug != current.slug
         records
       end
@@ -158,6 +160,14 @@ module OpenBlog
       if (input.keys - %i[connections third_party_paid declared_by declared_on]).any? || ![ true, false ].include?(input[:third_party_paid])
         raise Error::ValidationFailed.new(details: [ "connections" ])
       end
+      if input[:connections].is_a?(Array)
+        input[:connections].each do |entry|
+          next unless entry.is_a?(Hash)
+          unknown = entry.keys.map(&:to_s) - %w[party relation]
+          raise Error::UnknownField.new(details: unknown.map { |key| "connections.connections.#{key}" }) if unknown.any?
+        end
+      end
+      input[:declared_on] = @now.to_date unless input.key?(:declared_on)
       @post.connection_declarations.create!(**input, recorded_by: @actor, created_at: @now)
     end
 

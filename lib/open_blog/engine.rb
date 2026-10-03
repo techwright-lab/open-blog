@@ -6,6 +6,10 @@ module OpenBlog
     isolate_namespace OpenBlog
     engine_name "open_blog"
 
+    initializer "open_blog.parameter_filters" do |application|
+      application.config.filter_parameters |= [ :authorization, :token, :token_string ]
+    end
+
     initializer "open_blog.assets", before: "propshaft.assets_middleware" do |application|
       if application.config.respond_to?(:assets)
         application.config.assets.paths << root.join("app/assets/builds")

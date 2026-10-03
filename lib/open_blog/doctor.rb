@@ -14,7 +14,7 @@ module OpenBlog
       "Rate limit" => :rate_limit, "Jobs" => :jobs, "Storage" => :storage, "Policy pages" => :policy_pages,
       "Records" => :records, "Declarations" => :declarations }.freeze
     TABLES = %w[open_blog_authors open_blog_categories open_blog_series open_blog_images open_blog_posts
-      open_blog_faqs open_blog_tags open_blog_taggings open_blog_redirects open_blog_revisions
+      open_blog_api_tokens open_blog_faqs open_blog_tags open_blog_taggings open_blog_redirects open_blog_revisions
       open_blog_approvals open_blog_publications open_blog_baselines open_blog_connection_declarations
       active_storage_blobs active_storage_attachments active_storage_variant_records action_text_rich_texts].freeze
 
@@ -78,7 +78,12 @@ module OpenBlog
     end
 
     def authentication
-      @config.authenticate ? [ "ok", "Host authentication hook is configured." ] : [ "warning", "No host authentication hook or API token is configured." ]
+      return [ "ok", "Host authentication hook is configured." ] if @config.authenticate
+      if ActiveRecord::Base.connection.data_source_exists?("open_blog_api_tokens") && ApiToken.active.exists?
+        [ "ok", "An active API token is configured." ]
+      else
+        [ "warning", "No host authentication hook or active API token is configured." ]
+      end
     end
 
     def rate_limit

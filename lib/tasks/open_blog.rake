@@ -1,4 +1,13 @@
 namespace :open_blog do
+  desc "Issue an API token and print its secret once"
+  task token: :environment do
+    name = ENV.fetch("NAME") { abort "Set NAME to identify this token's actor." }
+    scopes = ENV.key?("SCOPES") ? ENV.fetch("SCOPES").split(",").map(&:strip) : OpenBlog::ApiToken::SCOPES
+    expires_at = Time.iso8601(ENV.fetch("EXPIRES_AT")) if ENV["EXPIRES_AT"].present?
+    _record, secret = OpenBlog::ApiToken.generate(name: name, scopes: scopes, expires_at: expires_at)
+    puts secret
+  end
+
   desc "Check the blog installation and report remaining setup"
   task doctor: :environment do
     checks = OpenBlog::Doctor.run
