@@ -34,7 +34,13 @@ OpenBlog::Adopt.call(article.merge(
 ), actor: "Importer")
 ```
 
-The same snapshot is accepted by `POST /adoptions` in the [JSON API]({% link api.md %}#supporting-records-and-imports) and by the `blog_adopt_post` MCP tool. Agents must follow the [import instructions]({% link mcp.md %}#import-instructions) before recording any historical evidence or declaration.
+The same snapshot is accepted by `POST /adoptions` in the [JSON API]({% link api.md %}#supporting-records-and-imports) and by the `blog_adopt_post` MCP tool.
+
+## Historical evidence
+
+Give these instructions to any agent that adopts existing articles. The packaged adopt workflow carries the same text:
+
+> Ask whether the original system has an approval record for the imported article. Use imported_approval only with its reviewer, original time, evidence, and the person confirming that it covers this content. Otherwise, record a declaration only when the user supplies the reviewer, approval time, facts_checked answer, declaration date, and their own name. Ask for a declared first publication date when historical evidence is missing, and place that answer in declaration.declared_first_published_at. Do not send approval in an adoption request or invent historical evidence or declarations.
 
 ## FAQ extraction
 

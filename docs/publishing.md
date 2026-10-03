@@ -67,7 +67,11 @@ OpenBlog::Publish.call({ title: "Spring plan", body: "Sow in March.", publish_at
 
 An approval records that a named person reviewed one exact revision and whether they checked its facts. The AI notice label clears only when the public revision has a facts-checked approval, the responsible-party policy page exists, and every image has a digest. `config.require_approval` turns the approval into a hard gate for posts that are not `human_written`; `config.before_publish` lets the host refuse with its own messages. See [configuration]({% link configuration.md %}#content-and-publishing).
 
-Agents must follow the [publishing instructions]({% link mcp.md %}#publishing-instructions): show the exact text, ask once, and never invent an approval.
+Give these instructions to any agent that publishes through the API or MCP. The packaged workflows carry the same text:
+
+> Show the final text to the user before publication and ask once whether they approve that exact version and have checked its facts. Include the preview link for unpublished content. Record approval only from an actual answer: send the user's name, facts_checked with their stated true or false value, and the reviewed draft's revision_identifier. For an approved public edit without a saved draft identifier, send the complete reviewed content and inline approval with the user's name and facts_checked answer, omitting approval.revision_identifier so the operation binds it to the new revision. Never attach the old public identifier to changed text. Compare the returned content with the reviewed version and report any unexpected difference. If no answer was given, omit approval. Never invent a review or a fact-check. When text changes after approval, show the new version and ask again.
+>
+> Set provenance to ai_assisted if AI authored or rewrote any content, or human_written only when a person wrote all of it.
 
 ## Content images and findings
 

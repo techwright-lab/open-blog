@@ -76,16 +76,8 @@ The gem ships six agent workflows in `OpenBlog::Engine.root.join("skills")`: ins
 
 ## Publishing instructions
 
-Give these instructions to any agent that publishes through the API or MCP:
-
-> Show the final text to the user before publication and ask once whether they approve that exact version and have checked its facts. Include the preview link for unpublished content. Record approval only from an actual answer: send the user's name, facts_checked with their stated true or false value, and the reviewed draft's revision_identifier. For an approved public edit without a saved draft identifier, send the complete reviewed content and inline approval with the user's name and facts_checked answer, omitting approval.revision_identifier so the operation binds it to the new revision. Never attach the old public identifier to changed text. Compare the returned content with the reviewed version and report any unexpected difference. If no answer was given, omit approval. Never invent a review or a fact-check. When text changes after approval, show the new version and ask again.
->
-> Set provenance to ai_assisted if AI authored or rewrote any content, or human_written only when a person wrote all of it.
+Every tool description already tells an agent to show the final version and ask for approval before `blog_publish_post`, `blog_update_post`, or `blog_correct_post`. The full instruction text an agent must follow, and the provenance rule, are in the [publishing guide]({% link publishing.md %}#approval-and-provenance).
 
 ## Import instructions
 
-Give these instructions to any agent that adopts existing articles:
-
-> Ask whether the original system has an approval record for the imported article. Use imported_approval only with its reviewer, original time, evidence, and the person confirming that it covers this content. Otherwise, record a declaration only when the user supplies the reviewer, approval time, facts_checked answer, declaration date, and their own name. Ask for a declared first publication date when historical evidence is missing, and place that answer in declaration.declared_first_published_at. Do not send approval in an adoption request or invent historical evidence or declarations.
-
-See [publishing]({% link publishing.md %}) for preview and scheduling behavior and [adoption]({% link adoption.md %}) for historical evidence.
+Before `blog_adopt_post`, an agent must ask about historical evidence and declarations as described in the [adoption guide]({% link adoption.md %}#historical-evidence).
