@@ -1,0 +1,9 @@
+<% search_path = "#{OpenBlog.mount_path.chomp('/')}/search" %>
+<form action="<%= search_path %>" method="get" role="search" class="ob-search" data-controller="open-blog--search" data-open-blog--search-url-value="<%= search_path %>.json">
+  <label for="open-blog-search"><%= open_blog_translate("search.label") %></label>
+  <div class="ob-search-controls">
+    <input id="open-blog-search" type="search" name="q" maxlength="100" value="<%= @query %>" data-open-blog--search-target="input" data-action="input->open-blog--search#search" autocomplete="off">
+    <button type="submit"><%= open_blog_translate("search.submit") %></button>
+  </div>
+  <ul class="ob-search-results" aria-label="<%= open_blog_translate("search.suggestions") %>" aria-live="polite" data-open-blog--search-target="results" hidden></ul>
+</form>

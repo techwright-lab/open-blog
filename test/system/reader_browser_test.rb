@@ -30,7 +30,9 @@ class ReaderBrowserTest < ApplicationSystemTestCase
         author: author, author_name: author.name, category: category, body_markdown: "Start small and observe how your plants respond.",
         cover_image: index < 2 ? image : nil, cover_alt: index < 2 ? "A green planting bed" : "", status: "published")
     end
-    @paths = [ "/blog", @post.path, "/blog/category/home-gardens", "/blog/tag/outdoors", "/blog/author/ellis-river", "/blog/missing-page" ]
+    series = OpenBlog::Series.create!(name: "Garden notebook", slug: "garden-notebook")
+    @post.update!(series: series, series_position: 1)
+    @paths = [ "/blog/series/garden-notebook", "/blog/search?q=garden", "/blog", @post.path, "/blog/category/home-gardens", "/blog/tag/outdoors", "/blog/author/ellis-river", "/blog/missing-page" ]
     visit "/blog"
     page.execute_script("localStorage.clear()")
     system_theme("light")
@@ -39,6 +41,54 @@ class ReaderBrowserTest < ApplicationSystemTestCase
   teardown do
     OpenBlog.instance_variable_set(:@config, @original_config)
     @blob&.service&.delete(@blob.key)
+  end
+
+  test "sidebar suggestions use the live search endpoint and clear short queries" do
+    visit "/blog"
+    fill_in "Search the blog", with: "garden through"
+    assert_selector ".ob-search-results a", text: @post.title
+    assert_equal @post.url, find(".ob-search-results a", match: :first)["href"]
+    fill_in "Search the blog", with: "a"
+    assert_no_selector ".ob-search-results"
+    fill_in "Search the blog", with: "garden through"
+    click_button "Search", exact: true
+    assert_current_path "/blog/search?q=garden+through"
+    assert_selector ".ob-post-card", text: @post.title
+  end
+
+  test "late suggestions cannot replace newer results or a shortened query" do
+    visit "/blog"
+    page.execute_script(<<~JS)
+      window.searchResponses = {};
+      window.fetch = url => new Promise(resolve => {
+        const query = new URL(url).searchParams.get('q');
+        document.body.dataset.searchPending = query;
+        window.searchResponses[query] = title => resolve({ ok: true, json: async () => [{ title, url: '/blog/garden-seasons' }] });
+      });
+    JS
+    fill_in "Search the blog", with: "older"
+    assert_selector "body[data-search-pending=older]"
+    fill_in "Search the blog", with: "newer"
+    assert_selector "body[data-search-pending=newer]"
+    page.execute_script("window.searchResponses.newer('Fresh <img src=x>')")
+    assert_selector ".ob-search-results a", exact_text: "Fresh <img src=x>"
+    assert_no_selector ".ob-search-results img", visible: :all
+    page.evaluate_async_script("const done = arguments[arguments.length - 1]; window.searchResponses.older('Old result'); setTimeout(() => done(true), 0)")
+    assert_selector ".ob-search-results a", exact_text: "Fresh <img src=x>"
+    fill_in "Search the blog", with: "pending"
+    assert_selector "body[data-search-pending=pending]"
+    fill_in "Search the blog", with: "a"
+    page.evaluate_async_script("const done = arguments[arguments.length - 1]; window.searchResponses.pending('Too late'); setTimeout(() => done(true), 0)")
+    assert_no_selector ".ob-search-results"
+  end
+
+  test "search remains usable when JavaScript is disabled" do
+    cdp("Emulation.setScriptExecutionDisabled", value: true)
+    visit "/blog"
+    fill_in "Search the blog", with: "garden through"
+    click_button "Search", exact: true
+    assert_current_path "/blog/search?q=garden+through"
+    assert_selector ".ob-post-card", text: @post.title
   end
 
   test "theme cycles persists and respects a fixed publisher choice" do

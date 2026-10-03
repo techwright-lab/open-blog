@@ -1,5 +1,12 @@
 en:
   open_blog:
+    search:
+      heading: "Search articles"
+      label: "Search the blog"
+      submit: "Search"
+      suggestions: "Suggested articles"
+      description: "Find articles by their title, text, or frequently asked questions."
+      empty: "No matching articles. Try another word or phrase."
     notices:
       ai_assisted: "AI helped to make this post."
       ai_unknown: "The use of AI for this post is not known."
@@ -24,6 +31,9 @@ en:
       responsible_party: "Responsible party"
       toc: "On this page"
       pagination: "Pagination"
+      series: "In this series"
+      previous_post: "Previous post"
+      next_post: "Next post"
       page: "Page %{page}"
     titles:
       preview_expired: "This preview link has stopped"
@@ -40,6 +50,8 @@ en:
       tag_page: "Page %{page} of the posts tagged %{name} — %{site_name}."
       author: "Posts by %{name} — %{site_name}."
       author_page: "Page %{page} of the posts by %{name} — %{site_name}."
+      series: "Posts in %{name} — %{site_name}."
+      series_page: "Page %{page} of the posts in %{name} — %{site_name}."
     headings:
       link: "Link to %{heading}"
       highlights: "Article highlights"

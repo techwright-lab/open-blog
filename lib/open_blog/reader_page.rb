@@ -10,8 +10,12 @@ module OpenBlog
       pagination&.page || 1
     end
 
+    def path_for(number)
+      number > 1 ? "#{path}#{path.include?("?") ? "&" : "?"}page=#{number}" : path
+    end
+
     def canonical_path
-      page_number > 1 ? "#{path}?page=#{page_number}" : path
+      path_for(page_number)
     end
   end
 end

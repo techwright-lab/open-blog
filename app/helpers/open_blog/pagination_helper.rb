@@ -8,7 +8,7 @@ module OpenBlog
         if number == pagination.page
           tag.span(number, class: "ob-pagination-current", aria: { current: "page" })
         else
-          path = number == 1 ? page.path : "#{page.path}?page=#{number}"
+          path = page.path_for(number)
           link_to(number, path, class: "ob-pagination-link", aria: { label: open_blog_translate("navigation.page", page: number) })
         end
       end

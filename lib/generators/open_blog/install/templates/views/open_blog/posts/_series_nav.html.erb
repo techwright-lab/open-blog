@@ -1,0 +1,12 @@
+<% if post.series %>
+  <% neighbors = OpenBlog::ReaderQueries.series_neighbors(post) %>
+  <nav class="ob-series-nav" aria-label="<%= open_blog_translate("navigation.series") %>">
+    <h2><%= link_to post.series.name, open_blog_list_path(:series, post.series) %></h2>
+    <% if neighbors[:previous] %>
+      <p><%= link_to "#{open_blog_translate('navigation.previous_post')}: #{neighbors[:previous].title}", neighbors[:previous].path, rel: "prev" %></p>
+    <% end %>
+    <% if neighbors[:next] %>
+      <p><%= link_to "#{open_blog_translate('navigation.next_post')}: #{neighbors[:next].title}", neighbors[:next].path, rel: "next" %></p>
+    <% end %>
+  </nav>
+<% end %>

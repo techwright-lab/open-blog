@@ -22,9 +22,10 @@ class ReaderRequestTest < ActionDispatch::IntegrationTest
     get "#{@post.path}.json"
     assert_response :not_found
     get "#{@post.path}.md"
-    assert_response :not_found
+    assert_response :success
+    assert_equal "text/markdown", response.media_type
     get "/blog/search"
-    assert_response :not_found
+    assert_response :success
   end
 
   test "published pages take precedence then redirects then missing pages" do

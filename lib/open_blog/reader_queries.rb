@@ -23,6 +23,27 @@ module OpenBlog
       "#{OpenBlog.mount_path.chomp('/')}/#{OpenBlog.config.route_segments.fetch(:author)}/#{author.slug}"
     end
 
+    def self.series_path(series)
+      "#{OpenBlog.mount_path.chomp('/')}/#{OpenBlog.config.route_segments.fetch(:series)}/#{series.slug}"
+    end
+
+    def self.series_posts(series)
+      posts.where(series_id: series.id).reorder(Arel.sql("series_position IS NULL ASC"), series_position: :asc, id: :asc)
+    end
+
+    def self.series_neighbors(post)
+      return {} unless post.series_id
+      scope = series_posts(post.series).where.not(id: post.id)
+      if post.series_position
+        previous = scope.where("series_position < ?", post.series_position).reverse_order.first
+        following = scope.where("series_position > ? OR series_position IS NULL", post.series_position).first
+      else
+        previous = scope.where("series_position IS NOT NULL OR id < ?", post.id).reverse_order.first
+        following = scope.where(series_position: nil).where("id > ?", post.id).first
+      end
+      { previous: previous, next: following }
+    end
+
     def self.sidebar
       category_counts = Post.listed.where.not(category_id: nil).group(:category_id).count
       tag_counts = Tagging.joins(:post).merge(Post.listed).group(:tag_id).count
