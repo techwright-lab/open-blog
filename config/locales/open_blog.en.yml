@@ -26,6 +26,7 @@ en:
       pagination: "Pagination"
       page: "Page %{page}"
     titles:
+      preview_expired: "This preview link has stopped"
       page: "%{title} — Page %{page}"
       tag: "Tagged: %{name}"
       not_found: "Page not found"
@@ -76,3 +77,6 @@ en:
     errors:
       not_found: "We could not find this page. Browse the latest posts below."
       gone: "This page is no longer available. Browse the latest posts below."
+    preview:
+      heading: "Draft preview"
+      stopped: "Ask the author for a new preview link."

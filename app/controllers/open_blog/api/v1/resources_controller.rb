@@ -12,7 +12,7 @@ module OpenBlog
         private
 
         def list(relation, name, serializer)
-          input = input_fields!(:page, :per_page)
+          input = input_fields!(*ApiFields::PAGE)
           page = integer_parameter(input, :page, 1)
           per_page = [ integer_parameter(input, :per_page, 25), 100 ].min
           render json: { name => relation.order(:id).offset((page - 1) * per_page).limit(per_page).map { |record| serializer.call(record) },

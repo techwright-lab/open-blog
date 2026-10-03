@@ -41,7 +41,7 @@ module OpenBlog
     end
 
     def open_blog_body(post)
-      tag.div(Renderer.render(post), class: "ob-prose", data: { open_blog_body: true })
+      tag.div(Renderer.render(post, cache: @open_blog_page&.kind != :preview), class: "ob-prose", data: { open_blog_body: true })
     end
 
     def open_blog_reading_time(post)
@@ -49,7 +49,7 @@ module OpenBlog
     end
 
     def open_blog_toc(post)
-      fragment = Nokogiri::HTML5.fragment(Renderer.render(post))
+      fragment = Nokogiri::HTML5.fragment(Renderer.render(post, cache: @open_blog_page&.kind != :preview))
       headings = fragment.css("h2, h3")
       has_faq = post.faq_list.any?
       return "".html_safe if headings.length + (has_faq ? 1 : 0) < 3

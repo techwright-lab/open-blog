@@ -22,7 +22,7 @@ module OpenBlog
         private
 
         def attributes
-          input = input_fields!(:name, :slug, :description)
+          input = input_fields!(*ApiFields::SERIES)
           text_fields!(input, :name, :slug, :description)
           input
         end

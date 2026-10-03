@@ -31,7 +31,7 @@ class ApiPostsTest < ActionDispatch::IntegrationTest
     assert_nil data.dig("records", "revision")
     id = data.dig("post", "id")
     slug = data.dig("post", "slug")
-    assert_nil data.dig("post", "preview_url")
+    assert_match %r{/blog/preview/}, data.dig("post", "preview_url")
     assert_equal "Spring.\r\nAfter frost.", data.dig("post", "faq", 0, "answer")
     [ id, slug ].each do |identity|
       get "/blog/api/v1/posts/#{identity}"

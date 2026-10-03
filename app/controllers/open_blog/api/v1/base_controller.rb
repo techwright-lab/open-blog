@@ -30,6 +30,17 @@ module OpenBlog
           end
         end
 
+        # Used by trusted Ruby callers on a fresh controller instance. This state
+        # is never read from HTTP parameters, headers or a caller-provided Rack env.
+        def dispatch_internal(action, request, response, actor:)
+          raise Error::Unauthenticated unless actor
+          @internal_actor = actor
+          dispatch(action, request, response)
+        ensure
+          @internal_actor = nil
+        end
+        private :dispatch_internal
+
         private
 
         attr_reader :actor
@@ -39,7 +50,7 @@ module OpenBlog
         end
 
         def authenticate!
-          @actor = Authentication.actor_for(request)
+          @actor = @internal_actor || Authentication.actor_for(request)
           raise Error::Unauthenticated unless actor
         end
 
@@ -48,6 +59,7 @@ module OpenBlog
         end
 
         def limit_requests!
+          return if @internal_actor
           options = { to: OpenBlog.config.api_rate_limit.fetch(:to), within: OpenBlog.config.api_rate_limit.fetch(:within),
             by: -> { actor.id }, with: -> { raise Error::RateLimited }, store: OpenBlog.config.rate_limit_store, name: nil }
           if method(:rate_limiting).parameters.any? { |kind, name| kind == :keyreq && name == :scope }

@@ -22,7 +22,7 @@ module OpenBlog
         private
 
         def attributes
-          input = input_fields!(:name, :slug, :description, :position)
+          input = input_fields!(*ApiFields::CATEGORY)
           text_fields!(input, :name, :slug, :description)
           invalid!(:position) if input.key?(:position) && (!input[:position].is_a?(Integer) || !(-2_147_483_648..2_147_483_647).cover?(input[:position]))
           input

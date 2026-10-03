@@ -99,7 +99,18 @@ module OpenBlog
         invalid!(:body_formats, "must be a nonempty array containing :markdown or :rich_text")
       end
       invalid!(:default_body_format, "must be enabled in body_formats") unless body_formats.include?(default_body_format)
+      preview_duration
+      invalid!(:mcp, "enabled must be true or false") unless [ true, false ].include?(mcp.enabled)
+      invalid!(:mcp, "max_page_size must be a positive integer") unless mcp.max_page_size.is_a?(Integer) && mcp.max_page_size.positive?
       self
+    end
+
+    def preview_duration
+      value = preview_expires_in
+      unless (value.is_a?(Numeric) || value.is_a?(ActiveSupport::Duration)) && value.to_f.finite? && value.to_f.positive?
+        invalid!(:preview_expires_in, "must be a positive finite duration")
+      end
+      value.to_f
     end
 
     private

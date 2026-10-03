@@ -4,7 +4,7 @@ module OpenBlog
       class ApprovalsController < BaseController
         def create
           require_scope!(:publish)
-          input = input_fields!(:revision_identifier, :name, :facts_checked)
+          input = input_fields!(*ApiFields::APPROVAL)
           result = Approve.call(find_post!, revision_identifier: input[:revision_identifier],
             name: input[:name], facts_checked: input[:facts_checked], actor: actor.name)
           render_result(result, status: :ok)

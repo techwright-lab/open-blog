@@ -17,7 +17,7 @@ module OpenBlog
     end
 
     def open_blog_faq_section_id(post, body: nil)
-      body ||= Nokogiri::HTML5.fragment(Renderer.render(post))
+      body ||= Nokogiri::HTML5.fragment(Renderer.render(post, cache: @open_blog_page&.kind != :preview))
       used = body.css("[id]").map { |node| node["id"] }
       identifier, suffix = "open-blog-faq", 0
       while used.include?(identifier)

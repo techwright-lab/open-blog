@@ -28,7 +28,7 @@ module OpenBlog
         external_id: @post.external_id, publish_at: timestamp(@post.publish_at),
         public_revision_identifier: @post.public_revision&.identifier,
         approved: approved?,
-        preview_url: nil, reading_time_minutes: @post.reading_time_minutes, word_count: @post.word_count,
+        preview_url: @post.previewable? ? PreviewSerializer.call(@post, base_url: @base_url)[:preview_url] : nil, reading_time_minutes: @post.reading_time_minutes, word_count: @post.word_count,
         created_at: timestamp(@post.created_at), updated_at: timestamp(@post.updated_at))
     end
 

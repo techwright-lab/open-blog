@@ -2,12 +2,8 @@ module OpenBlog
   module Api
     module V1
       class PostsController < BaseController
-        WRITE_FIELDS = (PostAttributes::CONTENT_FIELDS + PostAttributes::RECORD_FIELDS).freeze
-        NESTED_FIELDS = {
-          author: %i[name type url], approval: %i[name facts_checked revision_identifier],
-          cover_image: %i[image_id signed_id url], social_image: %i[image_id signed_id url],
-          connections: %i[connections third_party_paid declared_by declared_on], faq: %i[question answer]
-        }.freeze
+        WRITE_FIELDS = ApiFields::POST_WRITE
+        NESTED_FIELDS = ApiFields::POST_NESTED
 
         def index
           require_scope!(:read)
@@ -48,7 +44,7 @@ module OpenBlog
 
         def destroy
           require_scope!(:publish)
-          attributes = input_fields!(:redirect_to)
+          attributes = input_fields!(*ApiFields::REMOVE)
           if attributes[:redirect_to].is_a?(String) && attributes[:redirect_to].match?(Post::SLUG_PATTERN)
             attributes[:redirect_to] = "#{OpenBlog.mount_path.chomp('/')}/#{attributes[:redirect_to]}"
           end
@@ -90,6 +86,7 @@ module OpenBlog
               raise Error::UnknownField.new(details: unknown.map { |key| "connections.connections.#{key}" }) if unknown.any?
             end
           end
+          ApiFields.validate_post_images!(attributes)
           validate_connections!(attributes[:connections]) if attributes.key?(:connections)
           attributes
         end

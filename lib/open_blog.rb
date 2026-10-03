@@ -5,6 +5,7 @@ require "rouge"
 require "mcp"
 
 require_relative "open_blog/version"
+require_relative "open_blog/instructions"
 
 module OpenBlog
   FAQ_SELECTORS = { section: "[data-open-blog-faq]", entry: "[data-open-blog-faq-entry]" }.freeze
@@ -48,6 +49,8 @@ module OpenBlog
   autoload :Doctor, "open_blog/doctor"
   autoload :Sample, "open_blog/sample"
   autoload :Actor, "open_blog/actor"
+  autoload :Mcp, "open_blog/mcp"
+  autoload :ApiFields, "open_blog/api_fields"
   autoload :Authentication, "open_blog/authentication"
 
   class << self
