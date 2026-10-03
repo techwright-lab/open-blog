@@ -71,7 +71,7 @@ class SyntaxCssTest < ActiveSupport::TestCase
   end
 
   test "the installer ships only scoped syntax styles" do
-    path = File.expand_path("../lib/generators/open_blog/install/templates/syntax.css", __dir__)
+    path = File.expand_path("../lib/generators/open_blog/install/templates/theme/syntax.css", __dir__)
     assert File.file?(path)
     css = File.read(path)
     assert_includes css, "@media (prefers-color-scheme: dark)"

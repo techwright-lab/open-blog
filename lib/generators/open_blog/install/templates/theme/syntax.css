@@ -350,3 +350,9 @@ html:not([data-theme="light"]) .ob-highlight .gs {
   font-weight: bold;
 }
 }
+.ob-highlight .gr { color: #cf222e; }
+.ob-highlight .c, .ob-highlight .ch, .ob-highlight .cd, .ob-highlight .cm, .ob-highlight .cp, .ob-highlight .cpf, .ob-highlight .c1, .ob-highlight .cs, .ob-highlight .gl, .ob-highlight .gt { color: #57606a; }
+[data-theme="dark"] .ob-highlight .gh, [data-theme="dark"] .ob-highlight .gu { color: #79c0ff; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .ob-highlight .gh, html:not([data-theme="light"]) .ob-highlight .gu { color: #79c0ff; }
+}

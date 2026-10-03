@@ -77,12 +77,55 @@ jobs:
       - name: Run gem tests through the host
         run: bundle exec ruby bin/test
 
+  system:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      RAILS_VERSION: "~> 8.1.0"
+      RAILS_ENV: test
+      DB: postgres
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "4.0"
+          bundler-cache: true
+          cache-version: "~> 8.1.0"
+      - name: Install image decoder
+        run: sudo apt-get update && sudo apt-get install -y imagemagick
+      - name: Prepare host database
+        working-directory: test/dummy
+        run: bundle exec rails db:prepare
+      - name: Run browser tests
+        run: bundle exec ruby bin/test test/system/*_test.rb
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-failures
+          path: test/dummy/tmp/capybara
+          if-no-files-found: ignore
+
   test:
     if: always()
-    needs: test-matrix
+    needs: [test-matrix, system]
     runs-on: ubuntu-latest
     steps:
       - name: Require every matrix cell to pass
         env:
           MATRIX_RESULT: ${{ needs.test-matrix.result }}
-        run: test "$MATRIX_RESULT" = success
+          SYSTEM_RESULT: ${{ needs.system.result }}
+        run: test "$MATRIX_RESULT" = success && test "$SYSTEM_RESULT" = success

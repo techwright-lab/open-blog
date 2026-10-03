@@ -8,7 +8,8 @@ module OpenBlog
 
     initializer "open_blog.assets", before: "propshaft.assets_middleware" do |application|
       if application.config.respond_to?(:assets)
-        application.config.assets.paths << root.join("app/assets")
+        application.config.assets.paths << root.join("app/assets/builds")
+        application.config.assets.paths << root.join("app/assets/javascripts")
       end
     end
 

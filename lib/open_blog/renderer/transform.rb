@@ -39,7 +39,7 @@ module OpenBlog
         anchor = Nokogiri::XML::Node.new("a", node.document)
         anchor["class"] = "ob-heading-anchor"
         anchor["href"] = "##{identifier}"
-        anchor["aria-label"] = "Link to #{node.text}"
+        anchor["aria-label"] = I18n.t("open_blog.headings.link", heading: node.text, locale: OpenBlog.config.locale)
         anchor.content = "#"
         node.add_child(anchor)
       end
@@ -95,6 +95,7 @@ module OpenBlog
       def table(node)
         wrapper = Nokogiri::XML::Node.new("div", node.document)
         wrapper["class"] = "ob-table"
+        wrapper["tabindex"] = "0"
         node.replace(wrapper)
         wrapper.add_child(node)
       end

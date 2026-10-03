@@ -62,6 +62,14 @@ class RendererTest < ActiveSupport::TestCase
     assert_equal "Start", render_body("### Start\n").at_css("h2").text.delete_suffix("#").strip
   end
 
+  test "scrollable tables and code remain keyboard accessible without JavaScript" do
+    doc = render_body("| Plant | Care |\n| --- | --- |\n| Tree | Water |\n\n```ruby\nputs :garden\n```\n")
+    assert_equal "0", doc.at_css(".ob-table")["tabindex"]
+    assert_equal "0", doc.at_css("pre")["tabindex"]
+    assert doc.at_css("pre button").key?("hidden")
+    assert_equal "puts :garden\n", doc.at_css("pre code").text
+  end
+
   test "Ruby code uses Rouge and an unknown language stays plain" do
     doc = render_body("```ruby\ndef water\n  true\nend\n```\n\n```invented_language\n<tag> & value\n```\n")
     ruby = doc.at_css('pre.ob-highlight[data-lang="ruby"]')
@@ -235,7 +243,7 @@ class RendererTest < ActiveSupport::TestCase
     original_cache = Rails.cache
     Rails.cache = cache
     html = OpenBlog::Renderer.render(post)
-    configuration = Digest::SHA256.hexdigest(JSON.generate([ OpenBlog.config.markdown_hardbreaks, OpenBlog.config.public_base_url ]))
+    configuration = Digest::SHA256.hexdigest(JSON.generate([ OpenBlog.config.markdown_hardbreaks, OpenBlog.config.public_base_url, OpenBlog.config.locale.to_s ]))
     key = [ "open_blog/body", post.id, post.current_revision_identifier, OpenBlog::Renderer::VERSION, configuration ]
     assert_equal html, cache.read(key)
     post.update!(featured: true)

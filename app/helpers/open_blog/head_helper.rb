@@ -1,5 +1,7 @@
 module OpenBlog
   module HeadHelper
+    include ThemeHelper
+
     def open_blog_lang
       OpenBlog.config.locale.to_s.tr("_", "-")
     end
@@ -23,6 +25,7 @@ module OpenBlog
       end
       feed_path = page.kind == :category ? "#{page.path}/feed.xml" : "#{open_blog_index_path.chomp('/')}/feed.xml"
       tags << tag.link(rel: "alternate", type: "application/atom+xml", title: OpenBlog.config.blog_title, href: open_blog_absolute_url(feed_path, base: page.base_url))
+      tags << open_blog_theme_colors
       safe_join(tags, "\n")
     end
 

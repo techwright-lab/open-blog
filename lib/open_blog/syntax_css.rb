@@ -16,8 +16,23 @@ module OpenBlog
       light = selected.mode(:light).render(scope: LIGHT_SCOPE)
       dark = selected.mode(:dark).render(scope: DARK_SCOPE)
       system = selected.mode(:dark).render(scope: SYSTEM_SCOPE)
-      "#{light}\n\n#{dark}\n\n@media (prefers-color-scheme: dark) {\n#{system}\n}\n"
+      css = "#{light}\n\n#{dark}\n\n@media (prefers-color-scheme: dark) {\n#{system}\n}\n"
+      css += github_contrast if selected == Rouge::Themes::Github
+      css
     end
+
+    def self.github_contrast
+      comments = %w[c ch cd cm cp cpf c1 cs gl gt].map { |name| "#{LIGHT_SCOPE} .#{name}" }.join(", ")
+      <<~CSS
+        #{LIGHT_SCOPE} .gr { color: #cf222e; }
+        #{comments} { color: #57606a; }
+        #{DARK_SCOPE} .gh, #{DARK_SCOPE} .gu { color: #79c0ff; }
+        @media (prefers-color-scheme: dark) {
+          #{SYSTEM_SCOPE} .gh, #{SYSTEM_SCOPE} .gu { color: #79c0ff; }
+        }
+      CSS
+    end
+    private_class_method :github_contrast
 
     def self.write(root: Rails.root, path: nil, theme: OpenBlog.config.syntax_theme)
       root = Pathname(root)
