@@ -1,0 +1,11 @@
+<article class="ob-featured-card">
+  <%= link_to post.path, aria: { label: post.title }, class: "ob-card-media" do %><%= open_blog_card_image(post) %><% end %>
+  <div class="ob-featured-details">
+    <p class="ob-featured-label"><%= open_blog_translate("cards.featured") %></p>
+    <h2><%= link_to post.title, post.path %></h2>
+    <p class="ob-card-description"><%= post.description %></p>
+    <div class="ob-card-author"><%= open_blog_avatar(post.author, name: post.author_name) %> <%= link_to post.author_name, open_blog_list_path(:author, post.author) %></div>
+    <%= open_blog_dates(post) %>
+    <%= open_blog_reading_time(post) %>
+  </div>
+</article>

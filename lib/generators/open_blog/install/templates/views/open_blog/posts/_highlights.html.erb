@@ -1,0 +1,7 @@
+<section class="ob-highlights" aria-labelledby="ob-highlights-heading">
+  <h2 id="ob-highlights-heading"><%= open_blog_translate("headings.highlights") %></h2>
+  <ul>
+    <li><%= open_blog_reading_time(post) %></li>
+    <% if OpenBlog::ReaderDates.published_at(post) || OpenBlog::ReaderDates.modified_at(post) %><li><%= open_blog_dates(post) %></li><% end %>
+  </ul>
+</section>

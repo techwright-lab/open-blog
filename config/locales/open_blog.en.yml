@@ -3,3 +3,63 @@ en:
     notices:
       ai_assisted: "AI helped to make this post."
       ai_unknown: "The use of AI for this post is not known."
+      paid: "A third party paid for this post."
+      disclosure: "Disclosure"
+      connections_none: "The author declared no relevant connections."
+      correction: "Correction"
+    dates:
+      published: "Published"
+      updated: "Updated"
+    reading_time:
+      one: "%{count} minute read"
+      other: "%{count} minute read"
+    navigation:
+      blog: "Blog navigation"
+      footer: "Blog resources"
+      breadcrumbs: "Breadcrumbs"
+      categories: "Categories"
+      all_posts: "All posts"
+      tags: "Tags"
+      feed: "Atom feed"
+      responsible_party: "Responsible party"
+      toc: "On this page"
+      pagination: "Pagination"
+      page: "Page %{page}"
+    titles:
+      page: "%{title} — Page %{page}"
+      tag: "Tagged: %{name}"
+      not_found: "Page not found"
+      gone: "This page has been removed"
+    descriptions:
+      index: "The blog of %{site_name}."
+      index_page: "Page %{page} of the blog of %{site_name}."
+      category: "Posts about %{name} — %{site_name}."
+      category_page: "Page %{page} of the posts about %{name} — %{site_name}."
+      tag: "Posts tagged %{name} — %{site_name}."
+      tag_page: "Page %{page} of the posts tagged %{name} — %{site_name}."
+      author: "Posts by %{name} — %{site_name}."
+      author_page: "Page %{page} of the posts by %{name} — %{site_name}."
+    headings:
+      highlights: "Article highlights"
+      about_author: "About the author"
+      related: "Related posts"
+      recent: "Recent posts"
+    cards:
+      featured: "Featured"
+    lists:
+      empty: "There are no posts here yet."
+    share:
+      heading: "Share this post"
+      x: "Share on X"
+      linkedin: "Share on LinkedIn"
+      device: "Share"
+      copy: "Copy link"
+      copied: "Copied!"
+    policies:
+      responsible_party: "Responsible party"
+      corrections: "Corrections policy"
+      editorial: "Editorial policy"
+      ai_use: "AI use policy"
+    errors:
+      not_found: "We could not find this page. Browse the latest posts below."
+      gone: "This page is no longer available. Browse the latest posts below."

@@ -1,6 +1,6 @@
 # Open Blog
 
-An agentic blog engine for Rails. **Not released:** the gem currently provides a mountable engine, configuration, content models, Ruby publishing operations, and body rendering for PostgreSQL and SQLite. HTTP interfaces and reader pages are under development.
+An agentic blog engine for Rails. **Not released:** the gem provides a mountable engine, content models, Ruby publishing operations, sanitized rendering, and reader pages for PostgreSQL and SQLite. Installation tooling, the theme, and publishing HTTP interfaces are under development.
 
 Configure the engine in `config/initializers/open_blog.rb`:
 
@@ -14,7 +14,7 @@ end
 ```
 
 Mount it in `config/routes.rb` with `mount OpenBlog::Engine => "/blog"`.
-Required configuration is checked at application boot. The mounted engine currently returns 404 until reader routes are added.
+Required configuration is checked at application boot. The reader templates are provided under `lib/generators/open_blog/install/templates/views`; copy them into the host's `app/views` until the install generator is available. The templates call gem helpers for metadata, structured data, dates, and notices.
 
 Posts support Markdown or opt-in rich text, ordered FAQs, authors, categories, tags, and series. Revision identifiers are computed from normalized content; stored revisions, approvals, publication records, and images are immutable through the model APIs.
 
@@ -54,5 +54,13 @@ Render stored content with `OpenBlog::Renderer.render(post)`, or preview a strin
 Publishing and draft operations resolve body images before recording revision identities. Image manifests survive reloads and child-record edits; metadata-only updates reuse them. Native rich-text saves can import existing uploaded blobs. External image URLs remain in the body; remote image fetching is still under development, so their bytes remain unverified. Body findings report heading gaps, level-one headings, missing image descriptions, and external images.
 
 Generate syntax colors for the configured theme with `bin/rails open_blog:syntax_css`. The output includes light, explicit dark, and system dark rules scoped to code blocks. `config.syntax_theme` defaults to `"github"`; `"base16"` and `"gruvbox"` also support both modes.
+
+Reader routes include the index, posts, categories, tags, authors, Atom feeds, and a sitemap. Lists paginate with `?page=2`; unavailable pages return 404. Post redirects return 301, and recorded removals return 410. `config.primary_list_type` selects categories or tags for indexing and sitemap inclusion. Reader dates use publication history rather than database update timestamps.
+
+An adopted article with unknown historical dates omits those dates from the page and sitemap. Atom requires an update time, so it uses the adoption time until a substantive change or correction supplies a modification date. Maintenance does not advance that date.
+
+Atom is available at `/blog/feed.xml` and `/blog/category/:slug/feed.xml`; set `config.feed_content = :full` for rendered bodies instead of summaries. `OpenBlog.sitemap_entries` returns absolute URL entries for integration with a host sitemap; set `config.serve_sitemap = false` to disable the engine's `/blog/sitemap.xml` endpoint. Custom mount paths apply to all reader routes.
+
+Original images have stable URLs under `/blog/media/:sha256/:filename`. Redirect delivery caches only as long as the storage URL remains valid; `config.image_delivery = :proxy` serves immutable bytes with a one-year cache lifetime. Cards use Active Storage variants. Set `config.parent_controller` to inherit a host controller and its callbacks; the engine explicitly includes its helpers for custom parents.
 
 Licensed under the [MIT License](LICENSE.txt).

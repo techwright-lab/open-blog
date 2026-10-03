@@ -1,0 +1,10 @@
+<footer class="ob-footer">
+  <nav aria-label="<%= open_blog_translate("navigation.footer") %>">
+    <% OpenBlog.config.policy_urls.each do |kind, url| %>
+      <% if url.present? && OpenBlog::Renderer::Sanitizer.safe_url?(url) %>
+        <%= link_to open_blog_translate("policies.#{kind}"), url %>
+      <% end %>
+    <% end %>
+    <%= link_to open_blog_translate("navigation.feed"), "#{open_blog_index_path.chomp('/')}/feed.xml" %>
+  </nav>
+</footer>

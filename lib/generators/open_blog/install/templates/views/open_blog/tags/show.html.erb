@@ -1,0 +1,13 @@
+<%= render "open_blog/shared/breadcrumbs" %>
+<header class="ob-list-heading">
+  <h1><%= open_blog_translate("titles.tag", name: @open_blog_page.record.name) %></h1>
+  <p class="ob-list-description"><%= open_blog_page_description(@open_blog_page) %></p>
+</header>
+<div class="ob-list-layout">
+  <%= render "open_blog/shared/sidebar" %>
+  <div class="ob-list-main">
+    <% if @posts.empty? %><p class="ob-empty"><%= open_blog_translate("lists.empty") %></p><% end %>
+    <div class="ob-post-grid"><%= render partial: "open_blog/shared/post_card", collection: @posts, as: :post %></div>
+    <%= render "open_blog/shared/pagination" %>
+  </div>
+</div>

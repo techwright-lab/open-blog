@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="<%= open_blog_lang %>">
+  <head>
+    <meta charset="utf-8">
+    <%= open_blog_head(@open_blog_page) %>
+    <%= open_blog_structured_data(@open_blog_page) %>
+  </head>
+  <body class="ob-page">
+    <%= render "open_blog/shared/header" %>
+    <main id="open-blog-main" class="ob-main"><%= yield %></main>
+    <%= render "open_blog/shared/footer" %>
+  </body>
+</html>

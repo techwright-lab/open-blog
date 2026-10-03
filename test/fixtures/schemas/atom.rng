@@ -1,0 +1,46 @@
+<grammar xmlns="http://relaxng.org/ns/structure/1.0" ns="http://www.w3.org/2005/Atom">
+  <start>
+    <element name="feed">
+      <interleave>
+        <element name="id"><text/></element>
+        <element name="title"><text/></element>
+        <element name="updated"><text/></element>
+        <ref name="author"/>
+        <oneOrMore><ref name="link"/></oneOrMore>
+        <zeroOrMore><ref name="entry"/></zeroOrMore>
+      </interleave>
+    </element>
+  </start>
+  <define name="author">
+    <element name="author">
+      <interleave>
+        <element name="name"><text/></element>
+        <optional><element name="uri"><text/></element></optional>
+      </interleave>
+    </element>
+  </define>
+  <define name="link">
+    <element name="link">
+      <attribute name="href"><text/></attribute>
+      <attribute name="rel"><text/></attribute>
+      <attribute name="type"><text/></attribute>
+      <empty/>
+    </element>
+  </define>
+  <define name="entry">
+    <element name="entry">
+      <interleave>
+        <element name="id"><text/></element>
+        <element name="title"><text/></element>
+        <element name="updated"><text/></element>
+        <optional><element name="published"><text/></element></optional>
+        <ref name="author"/>
+        <oneOrMore><ref name="link"/></oneOrMore>
+        <choice>
+          <element name="summary"><attribute name="type"><value>text</value></attribute><text/></element>
+          <element name="content"><attribute name="type"><value>html</value></attribute><text/></element>
+        </choice>
+      </interleave>
+    </element>
+  </define>
+</grammar>

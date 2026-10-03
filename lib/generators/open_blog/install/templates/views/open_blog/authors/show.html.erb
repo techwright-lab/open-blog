@@ -1,0 +1,17 @@
+<% author = @open_blog_page.record %>
+<%= render "open_blog/shared/breadcrumbs" %>
+<header class="ob-author-heading">
+  <%= open_blog_avatar(author) %>
+  <h1><%= author.name %></h1>
+  <% if author.bio.present? %><p class="ob-author-bio"><%= author.bio %></p><% end %>
+  <% if author.profile_urls.any? %>
+    <ul class="ob-author-profiles">
+      <% author.profile_urls.each do |url| %>
+        <% if OpenBlog::Renderer::Sanitizer.safe_url?(url) %><li><%= link_to url, url, rel: "me noopener" %></li><% end %>
+      <% end %>
+    </ul>
+  <% end %>
+</header>
+<% if @posts.empty? %><p class="ob-empty"><%= open_blog_translate("lists.empty") %></p><% end %>
+<div class="ob-post-grid"><%= render partial: "open_blog/shared/post_card", collection: @posts, as: :post %></div>
+<%= render "open_blog/shared/pagination" %>
