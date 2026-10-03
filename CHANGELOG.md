@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-03
+
 ### Added
 
 - Publish searchable public documentation with installation, configuration, publishing, API, MCP, and customization guides.
@@ -15,8 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Document supported Ruby, Rails, and database versions, every configuration setting with its default, and verified Ruby, API, MCP, and reader examples.
-
-## [0.1.0]
 
 ### Added
 
@@ -49,3 +49,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reader templates are copied into the host. Run `bin/rails generate open_blog:views` to review updates; preserve local customizations and deliberately accept replacements. Refresh installed browser controllers with the install generator when upgrading from an earlier development checkout.
 - Configure the public origin, publisher identity, policy pages, storage, and authentication for your deployment. The sample article is demonstration content and has no human approval record.
 - Applications writing through bulk SQL must move to normal model saves or publishing operations to retain revision history.
+
