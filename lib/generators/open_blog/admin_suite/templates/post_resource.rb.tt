@@ -1,0 +1,58 @@
+require "open_blog/admin_suite"
+::OpenBlog::AdminSuite.install!
+
+module Admin
+  module Resources
+    module OpenBlog
+      class PostResource < ::Admin::Base::Resource
+        model ::OpenBlog::Post
+        portal :open_blog
+        section :content
+        def self.resource_name = "open_blog_post"
+
+        index do
+          searchable :title, :slug
+          sortable :updated_at, default: :updated_at, direction: :desc
+          columns do
+            column :title
+            column :status
+            column :author_name
+            column :updated_at
+          end
+        end
+
+        form do
+          field :title, required: true
+          field :slug, required: true, if: ->(post) { post.new_record? }
+          field :description, type: :textarea
+          field :author_id, type: :select, required: true, collection: -> { ::OpenBlog::Author.order(:name).pluck(:name, :id) }
+          field :author_name, required: true, label: "Byline"
+          field :category_id, type: :select, collection: -> { ::OpenBlog::Category.order(:name).pluck(:name, :id) }
+          field :body_markdown, type: :textarea, rows: 18, if: ->(post) { post.markdown? }
+          field :rich_body, type: :rich_text, if: ->(post) { post.rich_text? }
+          field :faqs_attributes, type: :open_blog_faq, help: "Each FAQ needs a unique positive position."
+          field :search_title
+          field :search_description, type: :textarea
+          field :featured, type: :toggle
+          field :status, type: :select, collection: %w[draft published archived], unless: ->(post) { post.scheduled? }
+        end
+
+        show do
+          panel :article, fields: %i[title slug status author_name published_at modified_at]
+          panel :revisions, title: "Recent revisions", association: :revisions, render: :table_from,
+            source: ->(post) { post.revisions.order(id: :desc).limit(20).map { |row| row.attributes.symbolize_keys } },
+            columns: %i[id identifier actor created_at]
+          panel :approvals, title: "Recent approvals", association: :approvals, render: :table_from,
+            source: ->(post) { post.approvals.order(id: :desc).limit(20).map { |row| row.attributes.symbolize_keys } },
+            columns: %i[id revision_id kind reviewer_name facts_checked approved_at]
+          panel :publications, title: "Recent publications", association: :publications, render: :table_from,
+            source: ->(post) { post.publications.order(id: :desc).limit(20).map { |row| row.attributes.symbolize_keys } },
+            columns: %i[id revision_id entry_type occurred_at released_by note]
+          panel :baseline, association: :baseline, render: :table_from,
+            source: ->(post) { Array(post.baseline).map { |row| row.attributes.symbolize_keys } },
+            columns: %i[id source_system source_id provenance first_published_at declared_first_published_at adopted_at]
+        end
+      end
+    end
+  end
+end

@@ -155,6 +155,17 @@ For imports:
 
 Ask whether the original system has an approval record for the imported article. Use imported_approval only with its reviewer, original time, evidence, and the person confirming that it covers this content. Otherwise, record a declaration only when the user supplies the reviewer, approval time, facts_checked answer, declaration date, and their own name. Ask for a declared first publication date when historical evidence is missing, and place that answer in declaration.declared_first_published_at. Do not send approval in an adoption request or invent historical evidence or declarations.
 
+For an optional admin interface, add AdminSuite and generate its blog resources:
+
+```sh
+bundle add admin_suite --version "~> 0.6.1"
+bin/rails generate open_blog:admin_suite
+```
+
+Configure AdminSuite authentication in the host and restart the application. The generator adds post, category, author, and policy-page resources, a blog portal, and its discovery initializer. `--dir=config/blog_admin` changes the definition directory; `open_blog:install --admin-suite` also runs this generator. Repeated runs preserve customized files unless forced.
+
+The post form edits FAQ questions, answers, and positive unique positions in the same save as the article. It can add or remove entries; invalid entries roll back the whole save. Reordering into an occupied position requires an unused intermediate position. Public content edits record one revision and a substantive release with no claimed approval or named actor. Publishing history appears in read-only panels. Rich-text editing uses the host's Action Text editor setup; the form preserves the article's existing body format. Use the publishing API for body-format changes, scheduling, URL moves, removal records, and approval workflows.
+
 Inspect live reader pages and their publishing records with `bin/rails open_blog:report SCOPE=post POST=article-slug`, the read-scoped `GET /blog/api/v1/report?scope=post&post=article-slug`, or MCP `blog_get_surface_report`. The API returns JSON; use `Accept: text/plain` or `format=text` for text. Scope `site` checks site-wide pages, feeds, lists, and redirects. Scope `post` adds one public article; `all` checks public articles in batches of 50 using `page` (or task `PAGE`). Each result includes the inspected IDs and pagination totals.
 
 Set `config.public_base_url` to the running host. Reports fetch the rendered pages and compare visible fields, metadata, dates, links, image bytes, FAQ content, approvals, and disclosures with stored records. Results distinguish `pass`, `fail`, `not applicable`, and `not verified`, and include evidence and explicit limits. They do not certify editorial quality. Missing configuration, unavailable evidence, and exhausted request budgets remain unverified. Browser layout, manual accessibility review, and field performance are listed separately as checks not run.

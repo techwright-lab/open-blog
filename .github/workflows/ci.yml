@@ -123,13 +123,34 @@ jobs:
           path: test/dummy/tmp/capybara
           if-no-files-found: ignore
 
+  test-with-admin-suite:
+    runs-on: ubuntu-latest
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/admin_suite.gemfile
+      OPEN_BLOG_TEST_ADMIN_SUITE: "1"
+      RAILS_VERSION: "~> 8.1.0"
+      RAILS_ENV: test
+      DB: sqlite
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "4.0"
+          bundler-cache: true
+      - name: Prepare optional integration database
+        working-directory: test/dummy
+        run: bundle exec rails db:prepare
+      - name: Exercise the published AdminSuite integration
+        run: bundle exec ruby bin/test test/admin_suite_integration_test.rb test/admin_suite_adapter_test.rb test/generators/admin_suite_generator_test.rb
+
   test:
     if: always()
-    needs: [test-matrix, system]
+    needs: [test-matrix, system, test-with-admin-suite]
     runs-on: ubuntu-latest
     steps:
       - name: Require every matrix cell to pass
         env:
           MATRIX_RESULT: ${{ needs.test-matrix.result }}
           SYSTEM_RESULT: ${{ needs.system.result }}
-        run: test "$MATRIX_RESULT" = success && test "$SYSTEM_RESULT" = success
+          ADMIN_RESULT: ${{ needs.test-with-admin-suite.result }}
+        run: test "$MATRIX_RESULT" = success && test "$SYSTEM_RESULT" = success && test "$ADMIN_RESULT" = success

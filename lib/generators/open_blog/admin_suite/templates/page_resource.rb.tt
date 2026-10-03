@@ -1,0 +1,32 @@
+module Admin
+  module Resources
+    module OpenBlog
+      class PageResource < ::Admin::Base::Resource
+        model ::OpenBlog::Page
+        portal :open_blog
+        section :content
+        def self.resource_name = "open_blog_page"
+
+        index do
+          searchable :title, :slug
+          sortable :updated_at, default: :updated_at, direction: :desc
+          columns do
+            column :title
+            column :kind
+            column :status
+            column :updated_at
+          end
+        end
+        form do
+          field :kind, type: :select, required: true, collection: ::OpenBlog::Page::KINDS
+          field :title, required: true
+          field :slug
+          field :body_markdown, type: :textarea, rows: 18
+          field :status, type: :select, collection: %w[draft published]
+          field :approved_by
+          field :approved_on, type: :date
+        end
+      end
+    end
+  end
+end

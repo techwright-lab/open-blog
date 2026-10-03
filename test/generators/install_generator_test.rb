@@ -40,6 +40,14 @@ class InstallGeneratorTest < Rails::Generators::TestCase
 
   teardown { FileUtils.remove_entry(destination_root) }
 
+  test "admin option invokes the optional generator without adding a runtime dependency" do
+    run_generator %w[--skip-tailwind --skip-sample --skip-migrate --admin-suite]
+    assert_file "app/admin/resources/open_blog/post_resource.rb"
+    assert_file "app/admin/portals/open_blog_portal.rb"
+    assert_file "config/initializers/open_blog_admin_suite.rb"
+    refute_includes read("Gemfile"), 'gem "admin_suite"'
+  end
+
   test "new importmap host adds Tailwind and installs both content migration sets" do
     importmap
     output = run_generator %w[--site-name=Meadow --author-name=Riley]

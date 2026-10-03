@@ -1,0 +1,16 @@
+module Admin
+  module Portals
+    class OpenBlogPortal
+      def self.register!
+        ::AdminSuite.portal :open_blog do
+          label "Blog"
+          icon "book-open"
+          section :content do
+            label "Publishing"
+          end
+        end
+      end
+      register!
+    end
+  end
+end
