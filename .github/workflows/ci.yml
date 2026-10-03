@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+      - run: bundle exec rubocop
+      - run: bundle exec ruby test/comment_policy_test.rb
+      - name: Measure comment density
+        run: |
+          git ls-files -z -- '*.rb' '*.gemspec' Gemfile Rakefile |
+            xargs -0 -r awk '
+              /[^[:space:]]/ { lines++ }
+              /^[[:space:]]*#/ { comments++ }
+              END {
+                printf "Full-line comments: %d / %d nonblank lines (%.2f%%)\n", comments, lines, lines ? 100 * comments / lines : 0
+              }
+            '
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+      - run: bundle exec ruby -e 'require "open_blog"'
+      - run: bundle exec rake test
