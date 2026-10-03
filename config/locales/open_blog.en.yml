@@ -40,6 +40,7 @@ en:
       author: "Posts by %{name} — %{site_name}."
       author_page: "Page %{page} of the posts by %{name} — %{site_name}."
     headings:
+      link: "Link to %{heading}"
       highlights: "Article highlights"
       about_author: "About the author"
       related: "Related posts"
@@ -55,6 +56,16 @@ en:
       device: "Share"
       copy: "Copy link"
       copied: "Copied!"
+      failed: "Sharing failed. Please try again."
+    theme:
+      system: "Theme: System"
+      light: "Theme: Light"
+      dark: "Theme: Dark"
+    code:
+      copy: "Copy"
+      copy_label: "Copy code"
+      copied: "Copied"
+      copy_failed: "Copy failed"
     policies:
       responsible_party: "Responsible party"
       corrections: "Corrections policy"

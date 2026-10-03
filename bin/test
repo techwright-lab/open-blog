@@ -2,7 +2,11 @@
 require "rbconfig"
 
 root = File.expand_path("..", __dir__)
-tests = ARGV.empty? ? Dir[File.join(root, "test/**/*_test.rb")] : ARGV.map { |path| File.expand_path(path) }
+tests = if ARGV.empty?
+  Dir[File.join(root, "test/**/*_test.rb")].reject { |path| path.start_with?(File.join(root, "test/system/")) }
+else
+  ARGV.map { |path| File.expand_path(path) }
+end
 abort "No test files found" if tests.empty?
 Dir.chdir(File.join(root, "test/dummy")) do
   exec RbConfig.ruby, "bin/rails", "test", *tests

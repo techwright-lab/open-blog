@@ -19,3 +19,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Render sanitized Markdown and rich text with heading links, syntax highlighting, image figures, body findings, durable image identities, and generated light/dark syntax colors.
 - Add reader routes and copied templates for the layout, header, footer, sidebar, featured and ordinary cards, pagination, breadcrumbs, sharing, author box, call to action, related posts, post highlights, table of contents, tags, index, post, category, tag, author, and missing-page views.
 - Add reader metadata, structured data, publication dates, notices, Atom feeds, sitemap entries, redirects, and stable original-image delivery.
+- Add responsive light/dark themes, configurable design tokens, accessible syntax colors, and a reproducible compiled stylesheet.
+- Add theme selection, link and code copying, device sharing, table-of-contents tracking, reading progress, and browser accessibility checks.

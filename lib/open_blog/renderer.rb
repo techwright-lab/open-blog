@@ -2,7 +2,7 @@ require "digest"
 
 module OpenBlog
   class Renderer
-    VERSION = 1
+    VERSION = 2
     autoload :Markdown, "open_blog/renderer/markdown"
     autoload :RichText, "open_blog/renderer/rich_text"
     autoload :Sanitizer, "open_blog/renderer/sanitizer"
@@ -13,7 +13,7 @@ module OpenBlog
     class << self
       def render(post)
         return render_string(post.body_for_payload, format: post.body_format, post: post) unless post.persisted?
-        options = [ OpenBlog.config.markdown_hardbreaks, OpenBlog.config.public_base_url ]
+        options = [ OpenBlog.config.markdown_hardbreaks, OpenBlog.config.public_base_url, OpenBlog.config.locale.to_s ]
         configuration = Digest::SHA256.hexdigest(JSON.generate(options))
         Rails.cache.fetch([ "open_blog/body", post.id, post.current_revision_identifier, VERSION, configuration ]) do
           render_string(post.body_for_payload, format: post.body_format, post: post)

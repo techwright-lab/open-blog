@@ -28,7 +28,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "rouge", ">= 4.7", "< 6"
   spec.add_dependency "mcp", ">= 1.6", "< 2"
 
-  spec.add_development_dependency "tailwindcss-ruby", "~> 4.1"
+  spec.add_development_dependency "tailwindcss-ruby", "4.3.3"
   spec.add_development_dependency "pg", "~> 1.6"
   spec.add_development_dependency "sqlite3", "~> 2.1"
   spec.add_development_dependency "rubocop-rails-omakase", "~> 1.1"

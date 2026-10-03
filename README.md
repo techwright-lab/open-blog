@@ -1,6 +1,6 @@
 # Open Blog
 
-An agentic blog engine for Rails. **Not released:** the gem provides a mountable engine, content models, Ruby publishing operations, sanitized rendering, and reader pages for PostgreSQL and SQLite. Installation tooling, the theme, and publishing HTTP interfaces are under development.
+An agentic blog engine for Rails. **Not released:** the gem provides a mountable engine, content models, Ruby publishing operations, sanitized rendering, and reader pages for PostgreSQL and SQLite. Installation tooling and publishing HTTP interfaces are under development.
 
 Configure the engine in `config/initializers/open_blog.rb`:
 
@@ -62,5 +62,11 @@ An adopted article with unknown historical dates omits those dates from the page
 Atom is available at `/blog/feed.xml` and `/blog/category/:slug/feed.xml`; set `config.feed_content = :full` for rendered bodies instead of summaries. `OpenBlog.sitemap_entries` returns absolute URL entries for integration with a host sitemap; set `config.serve_sitemap = false` to disable the engine's `/blog/sitemap.xml` endpoint. Custom mount paths apply to all reader routes.
 
 Original images have stable URLs under `/blog/media/:sha256/:filename`. Redirect delivery caches only as long as the storage URL remains valid; `config.image_delivery = :proxy` serves immutable bytes with a one-year cache lifetime. Cards use Active Storage variants. Set `config.parent_controller` to inherit a host controller and its callbacks; the engine explicitly includes its helpers for custom parents.
+
+Reader templates include responsive light and dark themes. `config.color_scheme` defaults to `:system`; readers can select light or dark, and their choice is saved locally in the browser. Set it to `:light` or `:dark` to fix the theme. Without JavaScript, pages remain readable and the system theme still applies.
+
+The copied layout loads the gem's compiled stylesheet. Override its tokens in the host's `app/assets/stylesheets/open_blog_theme.css` to change fonts, colors, and spacing. Tailwind source templates are available under `lib/generators/open_blog/install/templates/theme`. Maintainers rebuild the bundled stylesheet with `bin/rails open_blog:build_css`.
+
+The browser controllers live under `app/assets/javascripts/open_blog/controllers`. Register them with Stimulus using the `open-blog--` prefix to enable the theme toggle, link and code copying, device sharing, table-of-contents tracking, and reading progress. The install generator will wire them into the host's JavaScript setup; until then, the dummy application shows the importmap setup.
 
 Licensed under the [MIT License](LICENSE.txt).

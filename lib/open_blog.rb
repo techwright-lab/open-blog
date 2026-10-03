@@ -33,6 +33,7 @@ module OpenBlog
   autoload :ImageResolution, "open_blog/image_resolution"
   autoload :Renderer, "open_blog/renderer"
   autoload :SyntaxCss, "open_blog/syntax_css"
+  autoload :BuildCss, "open_blog/build_css"
   autoload :ReaderPage, "open_blog/reader_page"
   autoload :ReaderDates, "open_blog/reader_dates"
   autoload :ReaderQueries, "open_blog/reader_queries"

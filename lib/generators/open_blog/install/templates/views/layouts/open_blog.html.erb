@@ -1,8 +1,11 @@
 <!DOCTYPE html>
-<html lang="<%= open_blog_lang %>">
+<%= tag.html(lang: open_blog_lang, **open_blog_theme_attributes) do %>
   <head>
     <meta charset="utf-8">
     <%= open_blog_head(@open_blog_page) %>
+    <%= open_blog_theme_script %>
+    <%= open_blog_stylesheets %>
+    <%= javascript_importmap_tags %>
     <%= open_blog_structured_data(@open_blog_page) %>
   </head>
   <body class="ob-page">
@@ -10,4 +13,4 @@
     <main id="open-blog-main" class="ob-main"><%= yield %></main>
     <%= render "open_blog/shared/footer" %>
   </body>
-</html>
+<% end %>

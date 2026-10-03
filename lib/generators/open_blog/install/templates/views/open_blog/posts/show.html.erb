@@ -1,4 +1,7 @@
 <% post = @open_blog_page.record %>
+<div class="ob-reading-progress" hidden aria-hidden="true" data-controller="open-blog--reading-progress">
+  <div class="ob-reading-progress-fill" data-open-blog--reading-progress-target="progress"></div>
+</div>
 <%= render "open_blog/shared/breadcrumbs" %>
 <div class="ob-post">
   <% if post.category %><%= link_to post.category.name, open_blog_list_path(:category, post.category), class: "ob-post-category" %><% end %>

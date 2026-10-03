@@ -1,1 +1,10 @@
-<%# The interactive theme control is added with the theme assets. %>
+<% unless open_blog_fixed_theme %>
+  <button type="button" class="ob-theme-toggle" hidden
+    data-controller="open-blog--theme" data-action="open-blog--theme#cycle"
+    data-open-blog--theme-system-label-value="<%= open_blog_translate("theme.system") %>"
+    data-open-blog--theme-light-label-value="<%= open_blog_translate("theme.light") %>"
+    data-open-blog--theme-dark-label-value="<%= open_blog_translate("theme.dark") %>">
+    <%= open_blog_icon("monitor") %>
+    <span data-open-blog--theme-target="label"><%= open_blog_translate("theme.system") %></span>
+  </button>
+<% end %>
