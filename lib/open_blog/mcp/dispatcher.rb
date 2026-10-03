@@ -4,8 +4,8 @@ require "uri"
 module OpenBlog
   module Mcp
     class Dispatcher
-      CONTROLLERS = %w[posts approvals connections records findings doctor images categories tags authors series redirects adoptions faq_extractions previews].freeze
-      METHODS = %w[GET POST PATCH DELETE].freeze
+      CONTROLLERS = %w[posts approvals connections records findings doctor images categories tags authors series redirects adoptions faq_extractions previews pages].freeze
+      METHODS = %w[GET POST PUT PATCH DELETE].freeze
 
       def self.call(controller:, action:, method:, arguments:, actor:, route_params: {}, base_url: nil)
         raise ArgumentError, "Unknown publishing controller" unless CONTROLLERS.include?(controller.to_s)

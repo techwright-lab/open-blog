@@ -19,7 +19,7 @@ class McpApiParityTest < ActionDispatch::IntegrationTest
     @blob&.service&.delete(@blob.key)
   end
 
-  %w[list_posts search_posts get_post get_post_records check_post save_draft get_preview_link publish_post update_post correct_post approve_revision declare_connections unpublish_post remove_post upload_image list_categories save_category list_tags list_authors save_author list_series save_series list_redirects save_redirect doctor extract_faq adopt_post].each do |name|
+  %w[list_posts search_posts get_post get_post_records check_post save_draft get_preview_link publish_post update_post correct_post approve_revision declare_connections unpublish_post remove_post upload_image list_categories save_category list_tags list_authors save_author list_series save_series list_redirects save_redirect get_site_page save_site_page doctor extract_faq adopt_post].each do |name|
     test "#{name} matches its HTTP API result" do
       arguments, method, path, input = example(name)
       expected = rollback_result do
@@ -110,6 +110,13 @@ class McpApiParityTest < ActionDispatch::IntegrationTest
     when "save_redirect"
       fields = { old_path: "/blog/previous-trail", new_path: @public.path }
       [ fields, :post, "/redirects", fields ]
+    when "get_site_page", "save_site_page"
+      OpenBlog::Page.create!(kind: "editorial", title: "Editorial process", body_markdown: "Our editors review each article.")
+      if name == "get_site_page"
+        [ { kind: "editorial" }, :get, "/pages/editorial", {} ]
+      else
+        [ { kind: "editorial", body: "Editors review and check facts." }, :put, "/pages/editorial", { body: "Editors review and check facts." } ]
+      end
     when "doctor" then [ {}, :get, "/doctor", {} ]
     when "extract_faq"
       fields = { body: "## FAQ\n\n### When?\n\nAt dawn.\n" }
