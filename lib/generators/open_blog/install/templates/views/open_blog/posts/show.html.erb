@@ -1,4 +1,5 @@
 <% post = @open_blog_page.record %>
+<%= render "open_blog/posts/preview_bar" if @open_blog_page.kind == :preview %>
 <div class="ob-reading-progress" hidden aria-hidden="true" data-controller="open-blog--reading-progress">
   <div class="ob-reading-progress-fill" data-open-blog--reading-progress-target="progress"></div>
 </div>

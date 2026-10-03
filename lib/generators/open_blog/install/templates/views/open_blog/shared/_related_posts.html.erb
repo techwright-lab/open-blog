@@ -1,4 +1,4 @@
-<% cache @related_cache_key do %>
+<% cache_unless @open_blog_page.kind == :preview, @related_cache_key do %>
 <% if @related_posts.any? %>
   <section class="ob-related-posts" aria-labelledby="ob-related-heading">
     <h2 id="ob-related-heading"><%= open_blog_translate("headings.related") %></h2>

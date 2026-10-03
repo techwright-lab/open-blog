@@ -1,4 +1,6 @@
 OpenBlog::Engine.routes.draw do
+  match "/mcp", to: "mcp#create", via: [ :post, :get, :delete ]
+  get "/preview/:token", to: "previews#show", as: :preview
   namespace :api do
     namespace :v1 do
       patch "posts/:id", to: "posts#update"
@@ -7,6 +9,7 @@ OpenBlog::Engine.routes.draw do
         post :unpublish, on: :member
         resources :approvals, only: :create
         resources :connections, only: :create
+        resource :preview, only: :show, controller: "previews"
         resource :records, only: :show, controller: "records"
         resource :findings, only: :show, controller: "findings"
       end

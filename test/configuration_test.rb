@@ -65,6 +65,17 @@ class ConfigurationTest < Minitest::Test
     assert_equal true, OpenBlog::Configuration.new.mcp.enabled
   end
 
+  def test_mcp_rejects_invalid_enablement_and_page_limits
+    config = OpenBlog::Configuration.new
+    [ nil, 0, -1, "50", 1.5 ].each do |value|
+      config.mcp.max_page_size = value
+      assert_raises(OpenBlog::ConfigurationError) { config.validate_structure! }
+    end
+    config.mcp.max_page_size = 50
+    config.mcp.enabled = "false"
+    assert_raises(OpenBlog::ConfigurationError) { config.validate_structure! }
+  end
+
   def test_default_mcp_max_page_size
     assert_equal 50, OpenBlog::Configuration.new.mcp.max_page_size
   end

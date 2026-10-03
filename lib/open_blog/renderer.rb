@@ -11,8 +11,8 @@ module OpenBlog
     autoload :Highlighter, "open_blog/renderer/highlighter"
 
     class << self
-      def render(post)
-        return render_string(post.body_for_payload, format: post.body_format, post: post) unless post.persisted?
+      def render(post, cache: true)
+        return render_string(post.body_for_payload, format: post.body_format, post: post) unless post.persisted? && cache
         options = [ OpenBlog.config.markdown_hardbreaks, OpenBlog.config.public_base_url, OpenBlog.config.locale.to_s ]
         configuration = Digest::SHA256.hexdigest(JSON.generate(options))
         Rails.cache.fetch([ "open_blog/body", post.id, post.current_revision_identifier, VERSION, configuration ]) do

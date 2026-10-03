@@ -147,7 +147,7 @@ module OpenBlog
           run_host_command("bin/rails", "open_blog:install_token")
         end
         say "Publishing API: #{options[:mount_at].chomp('/')}/api/v1"
-        say "The MCP endpoint will be available in a later release."
+        say "MCP: #{options[:mount_at].chomp('/')}/mcp"
         say "AdminSuite generator is not available in this release." if options[:admin_suite]
         say "Next: set your public base URL, review publisher details and policy links, and customize the theme."
         run_host_command("bin/rails", "open_blog:doctor")

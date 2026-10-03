@@ -2,6 +2,7 @@ require "uri"
 
 module OpenBlog
   class Post < ApplicationRecord
+    include Previewable
     RESERVED_SLUGS = %w[feed search preview media policies api mcp sitemap].freeze
     SLUG_PATTERN = /\A[a-z0-9]+(?:[-_][a-z0-9]+)*\z/
 

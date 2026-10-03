@@ -4,7 +4,7 @@ module OpenBlog
       class FaqExtractionsController < BaseController
         def create
           require_scope!(:read)
-          input = input_fields!(:body, :standalone_questions)
+          input = input_fields!(*ApiFields::EXTRACTION)
           render json: ExtractionResultSerializer.call(FaqExtraction.call(body: input[:body], standalone_questions: input.fetch(:standalone_questions, [])))
         end
       end

@@ -4,7 +4,7 @@ module OpenBlog
       class ConnectionsController < BaseController
         def create
           require_scope!(:publish)
-          input = input_fields!(:connections, :third_party_paid, :declared_by, :declared_on)
+          input = input_fields!(*ApiFields::CONNECTION)
           validate_input!(input)
           now = Time.current
           result = Operation.run(post: find_post!, actor: actor.name, now: now) do |post, _created|

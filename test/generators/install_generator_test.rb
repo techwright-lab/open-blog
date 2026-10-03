@@ -55,6 +55,7 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     assert_no_file "app/assets/builds/open_blog/blog.css"
     assert_equal 5, Dir[File.join(destination_root, "app/javascript/controllers/open_blog/*_controller.js")].length
     assert_includes Recorder.host_commands, [ "bin/rails", "open_blog:install_token" ]
+    assert_includes output, "MCP: /blog/mcp"
     routes = read("config/routes.rb")
     assert_operator routes.index("/blog/host"), :<, routes.index("mount OpenBlog::Engine")
   end

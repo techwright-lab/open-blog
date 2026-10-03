@@ -9,7 +9,7 @@ module OpenBlog
 
         def create
           require_scope!(:publish)
-          input = input_fields!(:old_path, :new_path, :occurred_on, :post_id)
+          input = input_fields!(*ApiFields::REDIRECT)
           text_fields!(input, :old_path, :new_path, :occurred_on)
           old = input[:old_path]
           invalid!(:old_path) unless old.is_a?(String) && old.start_with?("/") && !old.start_with?("//") && !old.match?(/[\s?#]/)

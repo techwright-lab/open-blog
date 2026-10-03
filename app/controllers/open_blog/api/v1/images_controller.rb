@@ -4,7 +4,7 @@ module OpenBlog
       class ImagesController < BaseController
         def create
           require_scope!(:write)
-          input = input_fields!(:file, :url)
+          input = input_fields!(*ApiFields::IMAGE)
           raise Error::ImageNotPermitted unless input.size == 1
           image = if input.key?(:url)
             Image.from_url(input[:url], uploaded_by: actor.name)

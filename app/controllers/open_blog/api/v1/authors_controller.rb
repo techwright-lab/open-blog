@@ -20,7 +20,7 @@ module OpenBlog
         private
 
         def save_author(record, status:)
-          input = input_fields!(:name, :slug, :type, :bio, :url, :profile_urls, :host_reference, :avatar)
+          input = input_fields!(*ApiFields::AUTHOR)
           text_fields!(input, :name, :slug, :type, :bio, :url, :host_reference)
           if input.key?(:profile_urls)
             invalid!(:profile_urls) unless input[:profile_urls].is_a?(Array) && input[:profile_urls].all? { |url| url.is_a?(String) }

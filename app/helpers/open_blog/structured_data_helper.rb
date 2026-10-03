@@ -3,7 +3,7 @@ module OpenBlog
     def open_blog_structured_data(resource = nil)
       page = open_blog_page(resource)
       graph = [ open_blog_page_schema(page), open_blog_breadcrumb_schema(page) ]
-      if page.kind == :post && (entries = page.record.faq_list).any?
+      if %i[post preview].include?(page.kind) && (entries = page.record.faq_list).any?
         graph << { "@type" => "FAQPage", "mainEntity" => entries.map do |entry|
           { "@type" => "Question", "name" => entry[:question],
             "acceptedAnswer" => { "@type" => "Answer", "text" => entry[:answer] } }
@@ -15,7 +15,7 @@ module OpenBlog
 
     def open_blog_page_schema(page)
       case page.kind
-      when :post
+      when :post, :preview
         post = page.record
         publisher = OpenBlog.config.publisher || {}
         data = { "@type" => "BlogPosting", "headline" => post.title, "description" => post.description.to_s,

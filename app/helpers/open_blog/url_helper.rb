@@ -45,7 +45,7 @@ module OpenBlog
 
     def open_blog_canonical_url(resource = nil)
       page = open_blog_page(resource)
-      path = page.kind == :post && page.record.canonical_url.presence || page.canonical_path
+      path = %i[post preview].include?(page.kind) && page.record.canonical_url.presence || page.canonical_path
       open_blog_absolute_url(path, base: page.base_url)
     end
 

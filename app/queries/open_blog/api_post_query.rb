@@ -1,6 +1,6 @@
 module OpenBlog
   class ApiPostQuery
-    FILTERS = %i[status category tag author series q page per_page].freeze
+    FILTERS = ApiFields::POST_LIST
 
     def self.call(filters, base_url: nil)
       new(filters, base_url: base_url).call

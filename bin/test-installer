@@ -188,6 +188,7 @@ class InstallerHarness
       sleep 0.2
     end
     mount = @sample.fetch("mount")
+    verify_mcp(mount)
     paths = [ mount, *@sample.values_at("path", "author", "category") ].compact
     documents = paths.to_h { |path| [ path, html(path) ] }
     [ "#{mount}/feed.xml", "#{mount}/sitemap.xml" ].each { |path| check(request(path).is_a?(Net::HTTPSuccess), "Reader endpoint failed: #{path}") }
@@ -208,6 +209,21 @@ class InstallerHarness
       check(request(uri.request_uri).is_a?(Net::HTTPSuccess), "Broken blog navigation: #{link}")
     end
     verify_assets(documents.fetch(mount))
+  end
+
+  def verify_mcp(mount)
+    @log.flush
+    secret = File.read(@log_path)[/API token: (ob_[1-9A-HJ-NP-Za-km-z]{40})/, 1]
+    check(secret, "Installer token was not available for the MCP check")
+    request = Net::HTTP::Post.new("#{mount.chomp('/')}/mcp")
+    request["Authorization"] = "Bearer #{secret}"
+    request["Content-Type"] = "application/json"
+    request.body = JSON.generate(jsonrpc: "2.0", id: 1, method: "tools/list")
+    response = Net::HTTP.start(@base.host, @base.port, open_timeout: 3, read_timeout: 10) { |http| http.request(request) }
+    check(response.code == "200", "Authenticated MCP tools/list failed")
+    names = JSON.parse(response.body).fetch("result").fetch("tools").map { |tool| tool.fetch("name") }
+    check(%w[blog_save_draft blog_publish_post blog_get_preview_link blog_doctor].all? { |name| names.include?(name) }, "MCP tools are missing")
+    check(names.uniq == names && names.all? { |name| name.start_with?("blog_") }, "Invalid MCP tool names")
   end
 
   def html(path)
