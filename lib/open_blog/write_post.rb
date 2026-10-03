@@ -5,6 +5,7 @@ module OpenBlog
       attributes = attributes.except(:external_id) if post&.persisted?
       source = post&.persisted? ? Post.find(post.id) : PostIdentity.resolve(attributes, post: post)
       authorize&.call(source)
+      image_inputs = ImageResolution.prepare_inputs(attributes)
       images = ImageResolution.prepare(attributes: attributes, post: source)
       context = {}
       Operation.run(post: post, attributes: attributes, actor: actor, now: now, context: context, authorize: authorize) do |current, created|
@@ -13,7 +14,9 @@ module OpenBlog
         approval = attributes[:approval]
         context[:approval_incomplete] = approval.is_a?(Hash) && approval.with_indifferent_access[:facts_checked] == false
         release = publish == :preserve ? current.published? : publish
-        records = new(current, attributes, actor: actor, now: now, publish: release, images: images).call
+        records = RedirectTarget.synchronize do
+          new(current, attributes, actor: actor, now: now, publish: release, images: images, image_inputs: image_inputs).call
+        end
         context[:slug_changed] = was_public && old_slug != current.slug
         records
       end
@@ -23,9 +26,9 @@ module OpenBlog
       Operation.failure(post, Error::NotFound.new)
     end
 
-    def initialize(post, attributes, actor:, now:, publish:, images:)
+    def initialize(post, attributes, actor:, now:, publish:, images:, image_inputs: {})
       @post, @attributes, @actor, @now, @publish = post, attributes, actor, now, publish
-      @images = images
+      @images, @image_inputs = images, image_inputs
     end
 
     def call
@@ -33,10 +36,12 @@ module OpenBlog
       old_path = @post.path if @post.persisted?
       was_public = @post.published?
       previous_schedule = @post.publish_at
-      PostAttributes.assign(@post, @attributes, actor: @actor, now: @now)
+      PostAttributes.assign(@post, @attributes.except(*@image_inputs.keys), actor: @actor, now: @now)
+      @image_inputs.each { |field, prepared| @post.public_send("#{field}=", prepared.image) }
       PostIdentity.resolve({ slug: @post.slug }, post: @post)
       apply_status
       validate_records
+      @image_inputs.each { |field, prepared| @post.public_send("#{field}=", prepared.persist(uploaded_by: @actor)) }
       @images.materialize(@post, actor: @actor)
       @post.send(:compute_derived)
       validate_approval

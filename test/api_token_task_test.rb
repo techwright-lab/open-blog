@@ -27,4 +27,31 @@ class ApiTokenTaskTest < ActiveSupport::TestCase
     assert_equal %w[read write], record.scopes
     assert_equal Time.utc(2030, 1, 2, 3, 4, 5), record.expires_at
   end
+  test "installer issues one token and never replaces or reveals an existing secret" do
+    hook = OpenBlog.config.authenticate
+    OpenBlog.config.authenticate = nil
+    output, = capture_io { Rake::Task["open_blog:install_token"].invoke }
+    assert_match(/API token: ob_[1-9A-HJ-NP-Za-km-z]{40}/, output)
+    assert_equal 1, OpenBlog::ApiToken.count
+    token = OpenBlog::ApiToken.sole
+    token.update!(revoked_at: Time.current)
+    Rake::Task["open_blog:install_token"].reenable
+    repeated, = capture_io { Rake::Task["open_blog:install_token"].invoke }
+    refute_match(/ob_[1-9A-HJ-NP-Za-km-z]{40}/, repeated)
+    assert_equal 1, OpenBlog::ApiToken.count
+    assert_includes repeated, "existing"
+  ensure
+    OpenBlog.config.authenticate = hook
+  end
+
+  test "installer respects host authentication without issuing a token" do
+    hook = OpenBlog.config.authenticate
+    OpenBlog.config.authenticate = ->(_) { nil }
+    assert_no_difference "OpenBlog::ApiToken.count" do
+      output, = capture_io { Rake::Task["open_blog:install_token"].invoke }
+      assert_includes output, "host authentication"
+    end
+  ensure
+    OpenBlog.config.authenticate = hook
+  end
 end

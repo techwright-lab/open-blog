@@ -4,12 +4,8 @@ module OpenBlog
     autoload :Snapshot, "open_blog/adopt/snapshot"
 
     def self.call(attributes, actor:, now: Time.current)
-      contract = Contract.new(attributes)
-      prepared = {}
-      %i[cover_image social_image].each do |field|
-        value = contract.attributes[field]
-        prepared[field] = ImageImport.prepare(value) if value.is_a?(String) || (value.is_a?(Hash) && (value.key?(:signed_id) || value.key?("signed_id")))
-      end
+      contract = Contract.new(attributes, now: now)
+      prepared = ImageResolution.prepare_inputs(contract.attributes)
       body_images = ImageResolution.prepare(attributes: contract.content)
       current = nil
       result = nil
@@ -17,14 +13,20 @@ module OpenBlog
         baseline = Baseline.find_by(contract.attributes.slice(:source_system, :source_id))
         resolved = baseline ? baseline.post : PostIdentity.resolve(contract.attributes.slice(:external_id, :slug))
         current = resolved.persisted? ? Post.lock.find(resolved.id) : resolved
-        result = new(current, contract, prepared, actor: actor, now: now, body_images: body_images).call
+        result = RedirectTarget.synchronize do
+          new(current, contract, prepared, actor: actor, now: now, body_images: body_images).call
+        end
         raise ActiveRecord::Rollback if contract.dry_run?
       end
       result
     rescue Error => error
       failure(current, error, contract)
     rescue ActiveRecord::RecordInvalid => error
-      failure(current, Error::ValidationFailed.new(details: error.record.errors.attribute_names.map(&:to_s)), contract)
+      collision = error.record.is_a?(Baseline) && %i[source_id post_id].any? do |field|
+        error.record.errors.details[field].any? { |detail| detail[:error] == :taken }
+      end
+      refusal = collision ? Error::IdentityConflict.new : Error::ValidationFailed.new(details: error.record.errors.attribute_names.map(&:to_s))
+      failure(current, refusal, contract)
     rescue ActiveRecord::RecordNotFound
       failure(current, Error::NotFound.new, contract)
     rescue ActiveRecord::RecordNotUnique
