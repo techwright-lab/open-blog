@@ -3,6 +3,8 @@ module OpenBlog
     autoload :Definition, "open_blog/mcp/definition"
     autoload :Dispatcher, "open_blog/mcp/dispatcher"
     autoload :Registry, "open_blog/mcp/registry"
+    autoload :Schemas, "open_blog/mcp/schemas"
+    autoload :ImageInput, "open_blog/mcp/image_input"
 
     def self.definitions
       Registry.definitions

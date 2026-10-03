@@ -1,6 +1,3 @@
-require_relative "schemas"
-require_relative "image_input"
-
 module OpenBlog
   module Mcp
     module Registry
