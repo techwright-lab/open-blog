@@ -43,6 +43,8 @@ module OpenBlog
   autoload :Pagination, "open_blog/pagination"
   autoload :NotFound, "open_blog/not_found"
   autoload :SitemapEntries, "open_blog/sitemap_entries"
+  autoload :Doctor, "open_blog/doctor"
+  autoload :Sample, "open_blog/sample"
 
   class << self
     def config

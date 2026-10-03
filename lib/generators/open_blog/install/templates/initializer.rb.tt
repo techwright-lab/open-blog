@@ -1,0 +1,16 @@
+OpenBlog.configure do |config|
+  config.site_name = <%= @site_name.dump %>
+  config.public_base_url = ENV["OPEN_BLOG_PUBLIC_BASE_URL"].presence
+  config.default_author = { name: <%= @author_name.dump %>, type: :person }
+  config.publisher = { name: <%= @site_name.dump %>, url: ENV["OPEN_BLOG_PUBLIC_BASE_URL"].presence }
+  config.mount_path = <%= options[:mount_at].dump %>
+  config.body_formats = [ <%= body_formats.map { |format| ":#{format}" }.join(", ") %> ]
+  config.default_body_format = <%= ":#{body_formats.first}" %>
+  config.primary_list_type = :categories
+  config.sign_in_destinations = []
+  config.ai_label = :when_required
+end
+<% if @css == :bundler -%>
+
+Rails.application.config.assets.excluded_paths << Rails.root.join("app/assets/tailwind")
+<% end -%>

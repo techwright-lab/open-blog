@@ -1,8 +1,21 @@
 # Open Blog
 
-An agentic blog engine for Rails. **Not released:** the gem provides a mountable engine, content models, Ruby publishing operations, sanitized rendering, and reader pages for PostgreSQL and SQLite. Installation tooling and publishing HTTP interfaces are under development.
+An agentic blog engine for Rails. **Not released:** the gem provides a mountable engine, content models, Ruby publishing operations, sanitized rendering, and reader pages for PostgreSQL and SQLite. Publishing HTTP interfaces are under development.
 
-Configure the engine in `config/initializers/open_blog.rb`:
+Install into a Rails 8 application with libvips available for image processing (or ImageMagick if your host uses that backend):
+
+```sh
+bundle add open_blog --github techwright-lab/open-blog
+bin/rails generate open_blog:install --site-name="My Journal" --author-name="Example Author"
+bin/dev
+```
+
+The generator installs the tables, mounts `/blog`, copies reader views and browser controllers, and publishes one sample article. It detects importmap or a JavaScript bundler and Tailwind 4. If Tailwind is absent, its installer also changes the host's application layout and development scripts. Use `--skip-tailwind` to keep the host's CSS setup and load the gem's compiled stylesheet only in the blog layout.
+
+Options include `--mount-at=/journal`, `--mount-position=first`, `--body-format=markdown|rich_text|both`, `--skip-sample`, and `--skip-migrate`. The default mount position is last so existing host routes retain precedence. Repeating installation reuses the sample and migrations. `--skip-migrate` also defers the sample until you run the migrations. Changed files are kept in a noninteractive terminal; use `--force` to replace them. `bin/rails generate open_blog:views` refreshes only the copied views.
+
+Run `bin/rails open_blog:doctor` to inspect configuration, assets, routes, storage, and publishing records. Errors return exit status 1; warnings identify setup still needed. Set your public origin and replace any placeholder identities in `config/initializers/open_blog.rb`:
+
 
 ```ruby
 OpenBlog.configure do |config|
@@ -13,8 +26,7 @@ OpenBlog.configure do |config|
 end
 ```
 
-Mount it in `config/routes.rb` with `mount OpenBlog::Engine => "/blog"`.
-Required configuration is checked at application boot. The reader templates are provided under `lib/generators/open_blog/install/templates/views`; copy them into the host's `app/views` until the install generator is available. The templates call gem helpers for metadata, structured data, dates, and notices.
+Required configuration is checked at application boot. The copied templates live in the host's `app/views/open_blog` and call gem helpers for metadata, structured data, dates, and notices. Customize those views and `app/views/layouts/open_blog.html.erb` in your application.
 
 Posts support Markdown or opt-in rich text, ordered FAQs, authors, categories, tags, and series. Revision identifiers are computed from normalized content; stored revisions, approvals, publication records, and images are immutable through the model APIs.
 
@@ -67,8 +79,8 @@ Original images have stable URLs under `/blog/media/:sha256/:filename`. Redirect
 
 Reader templates include responsive light and dark themes. `config.color_scheme` defaults to `:system`; readers can select light or dark, and their choice is saved locally in the browser. Set it to `:light` or `:dark` to fix the theme. Without JavaScript, pages remain readable and the system theme still applies.
 
-The copied layout loads the gem's compiled stylesheet. Override its tokens in the host's `app/assets/stylesheets/open_blog_theme.css` to change fonts, colors, and spacing. Tailwind source templates are available under `lib/generators/open_blog/install/templates/theme`. Maintainers rebuild the bundled stylesheet with `bin/rails open_blog:build_css`.
+With Tailwind 4, the copied theme lives in `app/assets/tailwind/open_blog` and the blog layout loads your host build. With `--skip-tailwind` or Tailwind 3, the layout loads the gem's compiled stylesheet followed by `app/assets/stylesheets/open_blog_theme.css`, where you can change fonts, colors, and spacing. The compiled stylesheet stays in the gem. Maintainers rebuild it with `bin/rails open_blog:build_css`; `OUT=/tmp/blog.css` selects another output path.
 
-The browser controllers live under `app/assets/javascripts/open_blog/controllers`. Register them with Stimulus using the `open-blog--` prefix to enable the theme toggle, link and code copying, device sharing, table-of-contents tracking, and reading progress. The install generator will wire them into the host's JavaScript setup; until then, the dummy application shows the importmap setup.
+The installer copies browser controllers to `app/javascript/controllers/open_blog` and registers them with the `open-blog--` prefix. They enable the theme toggle, link and code copying, device sharing, table-of-contents tracking, and reading progress. If you change the blog layout to load a separate JavaScript entry point, register these controllers there too.
 
 Licensed under the [MIT License](LICENSE.txt).
