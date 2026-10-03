@@ -16,14 +16,14 @@ class BootstrapTest < Minitest::Test
     stdout, stderr, status = Open3.capture3(Gem.ruby, "-Ilib", "-e", script, chdir: ROOT)
 
     assert status.success?, stderr
-    assert_equal "0.1.0.dev\n", stdout
+    assert_equal "0.1.0\n", stdout
   end
 
   def test_gemspec_declares_identity_and_supported_versions
     spec = Gem::Specification.load(File.join(ROOT, "open_blog.gemspec"))
     refute_nil spec
     assert_equal "open_blog", spec.name
-    assert_equal "0.1.0.dev", spec.version.to_s
+    assert_equal "0.1.0", spec.version.to_s
     assert_equal [ "TechWright Labs" ], spec.authors
     assert_equal [ "engineering@techwright.io" ], Array(spec.email)
     assert_equal [ "MIT" ], spec.licenses
@@ -52,11 +52,24 @@ class BootstrapTest < Minitest::Test
 
       assert status.success?, "#{stdout}\n#{stderr}"
       refute_match(/warning/i, "#{stdout}\n#{stderr}")
-      files = Gem::Package.new(artifact).spec.files
+      package = Gem::Package.new(artifact)
+      assert_equal "0.1.0", package.spec.version.to_s
+      files = package.contents
       %w[lib/open_blog.rb lib/open_blog/version.rb LICENSE.txt README.md CHANGELOG.md].each do |file|
         assert_includes files, file
       end
-      %w[test/ docs/].each do |prefix|
+      %w[
+        app/assets/builds/open_blog/blog.css
+        lib/generators/open_blog/install/templates/theme/open_blog_theme.css
+        lib/generators/open_blog/install/templates/sample_cover.png
+        lib/generators/open_blog/install/templates/views/open_blog/posts/show.html.erb
+        lib/generators/open_blog/admin_suite/templates/post_resource.rb.tt
+        lib/open_blog/admin_suite.rb
+        skills/open-blog-install/SKILL.md skills/open-blog-publish/SKILL.md
+        skills/open-blog-update/SKILL.md skills/open-blog-adopt/SKILL.md
+        skills/open-blog-policy-pages/SKILL.md skills/open-blog-report/SKILL.md
+      ].each { |file| assert_includes files, file }
+      %w[test/ docs/ .github/ gemfiles/].each do |prefix|
         refute files.any? { |file| file.start_with?(prefix) }, "packaged development files under #{prefix}"
       end
       assert files.all? { |file| file.match?(%r{\A(?:lib/|app/|config/|db/|skills/|LICENSE\.txt\z|README\.md\z|CHANGELOG\.md\z)}) }

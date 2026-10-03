@@ -1,0 +1,168 @@
+#!/usr/bin/env ruby
+require "json"
+require "open3"
+require "net/http"
+require "tmpdir"
+require "fileutils"
+
+class OpenBlogRelease
+  class Refusal < StandardError; end
+  REPOSITORY = "techwright-lab/open-blog"
+
+  def initialize(env: ENV, directory: Dir.pwd, command: nil, http: nil)
+    @env, @directory = env, directory
+    @command = command || method(:execute)
+    @http = http || method(:fetch)
+  end
+
+  def verify!
+    identity!
+    refuse("The checkout does not match the requested commit") unless command("git", "rev-parse", "HEAD").strip == sha
+    refuse("The requested commit is no longer main") unless api("commits/main").fetch("sha") == sha
+    current = version_from(command("git", "show", "HEAD:lib/open_blog/version.rb"))
+    previous = version_from(command("git", "show", "HEAD^:lib/open_blog/version.rb"))
+    refuse("The version must match the requested release and change in this commit") unless current == version && previous && previous != version
+    %w[ci.yml installer.yml].each { |workflow| verify_workflow!(workflow) }
+    verify_tag!
+    notes = release_notes
+    File.write(notes_path, notes)
+    output("version", version)
+    output("source_date_epoch", command("git", "show", "-s", "--format=%ct", "HEAD").strip)
+  rescue KeyError, JSON::ParserError => error
+    refuse("Incomplete release evidence: #{error.class}")
+  end
+
+  def artifact!
+    identity!
+    epoch = command("git", "show", "-s", "--format=%ct", "HEAD").strip
+    refuse("The build timestamp must match the release commit") unless @env["SOURCE_DATE_EPOCH"] == epoch
+    Dir.mktmpdir("open-blog-release-build") do |temporary|
+      first = File.join(temporary, "first.gem")
+      second = File.join(temporary, "second.gem")
+      [ first, second ].each do |path|
+        command({ "SOURCE_DATE_EPOCH" => epoch }, "gem", "build", "open_blog.gemspec", "--output", path)
+      end
+      refuse("Repeated gem builds differ") unless File.binread(first) == File.binread(second)
+      FileUtils.cp(first, artifact_path)
+    end
+    output("should_publish", published_identical? ? "false" : "true")
+  end
+
+  def finish!
+    identity!
+    refuse("The published gem has not been verified") unless published_identical?
+    unless verify_tag!
+      command("git", "tag", "-a", "v#{version}", sha, "-m", "Release v#{version}")
+      command("git", "push", "origin", "refs/tags/v#{version}")
+    end
+    releases = api("releases?per_page=100", paginate: true).flatten
+    return if releases.any? { |release| release.fetch("tag_name") == "v#{version}" }
+    command("gh", "release", "create", "v#{version}", "--repo", REPOSITORY,
+      "--title", "open_blog v#{version}", "--notes-file", notes_path, "--verify-tag")
+  end
+
+  private
+
+  def identity!
+    refuse("Release dispatch must run on the upstream main branch") unless @env["GITHUB_REPOSITORY"] == REPOSITORY &&
+      @env["GITHUB_EVENT_NAME"] == "workflow_dispatch" && @env["GITHUB_REF"] == "refs/heads/main"
+    refuse("Supply a full commit SHA") unless /\A[0-9a-f]{40}\z/.match?(sha)
+    refuse("Supply a stable three-part version") unless /\A(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\z/.match?(version)
+  end
+
+  def verify_workflow!(workflow)
+    pages = api("actions/workflows/#{workflow}/runs?head_sha=#{sha}&event=push&branch=main&per_page=100", paginate: true)
+    runs = pages.flat_map { |page| page.fetch("workflow_runs") }
+    latest = runs.max_by { |run| Integer(run.fetch("id")) }
+    valid = latest && latest["head_sha"] == sha && latest["event"] == "push" && latest["head_branch"] == "main" &&
+      latest.dig("head_repository", "full_name") == REPOSITORY && latest["path"] == ".github/workflows/#{workflow}" &&
+      latest["status"] == "completed" && latest["conclusion"] == "success"
+    refuse("#{workflow} needs a successful completed main push run for this commit") unless valid
+  end
+
+  def verify_tag!
+    refs = api("git/matching-refs/tags/v#{version}")
+    tag = refs.find { |ref| ref.fetch("ref") == "refs/tags/v#{version}" }
+    return false unless tag
+    object = tag.fetch("object")
+    5.times do
+      break unless object.fetch("type") == "tag"
+      object = api("git/tags/#{object.fetch('sha')}").fetch("object")
+    end
+    refuse("The existing release tag points to another commit") unless object.fetch("type") == "commit" && object.fetch("sha") == sha
+    true
+  end
+
+  def release_notes
+    changelog = command("git", "show", "HEAD:CHANGELOG.md")
+    headings = changelog.lines.each_index.select { |index| changelog.lines[index].match?(/^## \[#{Regexp.escape(version)}\](?:\s|$)/) }
+    refuse("The changelog needs exactly one entry for this version") unless headings.one?
+    lines = changelog.lines.drop(headings.first + 1).take_while { |line| !line.start_with?("## ") }
+    notes = lines.join.strip
+    refuse("The changelog entry has no release notes") unless notes.lines.any? { |line| line.match?(/\A\s*[^#\s]/) }
+    "#{notes}\n"
+  end
+
+  def published_identical?
+    status, body = @http.call("https://rubygems.org/api/v2/rubygems/open_blog/versions/#{version}.json")
+    return false if status == 404
+    refuse("Could not verify the RubyGems version") unless status == 200
+    metadata = JSON.parse(body)
+    refuse("RubyGems returned unexpected version metadata") unless metadata.is_a?(Hash) && metadata["version"] == version && metadata["platform"] == "ruby"
+    status, bytes = @http.call("https://rubygems.org/downloads/open_blog-#{version}.gem")
+    refuse("Could not fetch the existing RubyGems artifact") unless status == 200
+    refuse("This version already exists with different contents; use a new version") unless File.binread(artifact_path) == bytes.b
+    true
+  rescue JSON::ParserError
+    refuse("RubyGems returned invalid version metadata")
+  end
+
+  def fetch(url)
+    uri = URI(url)
+    Net::HTTP.start(uri.host, uri.port, nil, use_ssl: true, open_timeout: 15, read_timeout: 30) do |http|
+      response = http.get(uri.request_uri)
+      [ response.code.to_i, response.body ]
+    end
+  end
+
+  def api(path, paginate: false)
+    args = [ "gh", "api", "repos/#{REPOSITORY}/#{path}" ]
+    args.concat([ "--paginate", "--slurp" ]) if paginate
+    JSON.parse(command(*args))
+  end
+
+  def execute(*args)
+    stdout, stderr, status = Open3.capture3(*args, chdir: @directory)
+    refuse("Release command failed: #{stderr.strip}") unless status.success?
+    stdout
+  end
+
+  def command(*args)
+    @command.call(*args)
+  end
+
+  def version = @env.fetch("RELEASE_VERSION", "")
+  def sha = @env.fetch("RELEASE_SHA", "")
+  def notes_path = File.join(@env.fetch("RUNNER_TEMP"), "open-blog-release-notes.md")
+  def artifact_path = File.join(@directory, "open_blog-#{version}.gem")
+  def version_from(source) = source[/^\s*VERSION = "([^"]+)"\s*$/, 1]
+  def refuse(message) = raise(Refusal, message)
+
+  def output(key, value)
+    File.open(@env.fetch("GITHUB_OUTPUT"), "a") { |file| file.puts("#{key}=#{value}") }
+  end
+end
+
+if $PROGRAM_NAME == __FILE__
+  begin
+    gate = OpenBlogRelease.new
+    case ARGV
+    when [ "verify" ] then gate.verify!
+    when [ "artifact" ] then gate.artifact!
+    when [ "finish" ] then gate.finish!
+    else abort "Usage: bin/release-check verify|artifact|finish"
+    end
+  rescue StandardError => error
+    abort "Release refused: #{error.message}"
+  end
+end

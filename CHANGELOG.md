@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0]
+
 ### Added
 
 - Initial gem package, runtime dependencies, tests, and continuous integration.
@@ -31,3 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Execute due publication schedules safely, count anonymous daily page views, expose view reports and a popular-post sidebar, and check internal blog links.
 - Add page and publishing-record reports with JSON, text, MCP, and Rails-task access, plus optional bounded reach checks.
 - Add an optional AdminSuite generator with isolated resources, nested FAQ editing, and read-only publishing-history panels.
+
+### Upgrade notes
+
+- This is the first packaged release. Existing Git-source installations should run `bin/rails open_blog:install:migrations` and `bin/rails db:migrate` before restarting application and job processes.
+- Reader templates are copied into the host. Run `bin/rails generate open_blog:views` to review updates; preserve local customizations and deliberately accept replacements. Refresh installed browser controllers with the install generator when upgrading from an earlier development checkout.
+- Configure the public origin, publisher identity, policy pages, storage, and authentication for your deployment. The sample article is demonstration content and has no human approval record.
+- Applications writing through bulk SQL must move to normal model saves or publishing operations to retain revision history.
