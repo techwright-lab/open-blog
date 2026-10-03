@@ -7,7 +7,36 @@ permalink: /mcp/
 
 # MCP and agents
 
-MCP is available at `/blog/mcp`, using the same Bearer authentication as the API. Send JSON-RPC requests by POST, for example `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`. Notifications return 202 without a body; GET and DELETE return 405. Browser origins must match the request origin or configured public origin, including the port. Set `config.mcp.enabled = false` to disable the endpoint. Each HTTP request uses the shared actor rate limit once.
+MCP is available at `/blog/mcp`, using the same Bearer authentication as the API. Send JSON-RPC requests by POST. Notifications return 202 without a body; GET and DELETE return 405. Browser origins must match the request origin or configured public origin, including the port. Set `config.mcp.enabled = false` to disable the endpoint. Each HTTP request uses the shared actor rate limit once.
+
+```sh
+curl -s -X POST https://example.com/blog/mcp \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+The result lists 31 tools with their titles, descriptions, and input schemas. Call one with `tools/call`:
+
+```sh
+curl -s -X POST https://example.com/blog/mcp \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"blog_save_draft","arguments":{"title":"Pruning","body":"When to prune.","external_id":"prune-1"}}}'
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "isError": false,
+    "content": [{"type": "text", "text": "{\"post\":{\"id\":229,\"slug\":\"pruning\",\"status\":\"draft\", ...}"}],
+    "structuredContent": {"post": {"id": 229, "slug": "pruning", "status": "draft", "...": "..."}, "created": true,
+                          "records": {"revision": null, "publication": null, "approval": null}, "label": "ai_unknown", "findings": ["..."]}
+  }
+}
+```
+
+Tool results contain the same JSON object in text content and structured content. A typed refusal, such as a missing scope or a missing change type, returns `isError: true` with the API error object as the structured content. The HTTP status stays 200.
 
 | MCP tools | Purpose |
 | --- | --- |
@@ -27,7 +56,19 @@ MCP is available at `/blog/mcp`, using the same Bearer authentication as the API
 
 Tools use the fields in the [JSON API reference]({% link api.md %}). Pass `id` for a specific post; publish accepts an optional ID, and draft saves use slug or external-ID upsert. Category, author, and series saves use an optional numeric ID to select an update. Redirect save creates a new record. Correction always selects the correction change type and requires a note. Image upload takes either `{url}` or `{base64, filename, content_type}`. MCP list sizes are additionally capped by `config.mcp.max_page_size` (default 50).
 
-Hosts can add `OpenBlog::Mcp.tools` to their own `MCP::Server`, supplying `actor` and optionally `base_url` in its server context. `OpenBlog::Mcp.definitions` exposes each tool's name, title, description, schema, annotations, scope, and `call(arguments, actor:, base_url: nil)` method. Use an `OpenBlog::Actor` with explicit scopes. Direct Ruby calls retain validation and permission checks; the embedding host manages its own request rate limiting. Tool results contain the same JSON object in text content and structured content, with `isError` set for typed refusals.
+## Embedding in a host MCP server
+
+Hosts can add the tools to their own `MCP::Server`, supplying `actor` and optionally `base_url` in the server context:
+
+```ruby
+server = MCP::Server.new(
+  name: "journal",
+  tools: OpenBlog::Mcp.tools,
+  server_context: { actor: OpenBlog::Actor.new(name: "Agent", scopes: %w[read write]), base_url: "https://example.com" }
+)
+```
+
+`OpenBlog::Mcp.definitions` exposes each tool's name, title, description, schema, annotations, scope, and `call(arguments, actor:, base_url: nil)` method. Direct Ruby calls retain validation and permission checks; the embedding host manages its own request rate limiting.
 
 ## Packaged agent workflows
 
@@ -35,12 +76,16 @@ The gem ships six agent workflows in `OpenBlog::Engine.root.join("skills")`: ins
 
 ## Publishing instructions
 
-Show the final text to the user before publication and ask once whether they approve that exact version and have checked its facts. Include the preview link for unpublished content. Record approval only from an actual answer: send the user's name, facts_checked with their stated true or false value, and the reviewed draft's revision_identifier. For an approved public edit without a saved draft identifier, send the complete reviewed content and inline approval with the user's name and facts_checked answer, omitting approval.revision_identifier so the operation binds it to the new revision. Never attach the old public identifier to changed text. Compare the returned content with the reviewed version and report any unexpected difference. If no answer was given, omit approval. Never invent a review or a fact-check. When text changes after approval, show the new version and ask again.
+Give these instructions to any agent that publishes through the API or MCP:
 
-Set provenance to ai_assisted if AI authored or rewrote any content, or human_written only when a person wrote all of it.
+> Show the final text to the user before publication and ask once whether they approve that exact version and have checked its facts. Include the preview link for unpublished content. Record approval only from an actual answer: send the user's name, facts_checked with their stated true or false value, and the reviewed draft's revision_identifier. For an approved public edit without a saved draft identifier, send the complete reviewed content and inline approval with the user's name and facts_checked answer, omitting approval.revision_identifier so the operation binds it to the new revision. Never attach the old public identifier to changed text. Compare the returned content with the reviewed version and report any unexpected difference. If no answer was given, omit approval. Never invent a review or a fact-check. When text changes after approval, show the new version and ask again.
+>
+> Set provenance to ai_assisted if AI authored or rewrote any content, or human_written only when a person wrote all of it.
 
 ## Import instructions
 
-Ask whether the original system has an approval record for the imported article. Use imported_approval only with its reviewer, original time, evidence, and the person confirming that it covers this content. Otherwise, record a declaration only when the user supplies the reviewer, approval time, facts_checked answer, declaration date, and their own name. Ask for a declared first publication date when historical evidence is missing, and place that answer in declaration.declared_first_published_at. Do not send approval in an adoption request or invent historical evidence or declarations.
+Give these instructions to any agent that adopts existing articles:
+
+> Ask whether the original system has an approval record for the imported article. Use imported_approval only with its reviewer, original time, evidence, and the person confirming that it covers this content. Otherwise, record a declaration only when the user supplies the reviewer, approval time, facts_checked answer, declaration date, and their own name. Ask for a declared first publication date when historical evidence is missing, and place that answer in declaration.declared_first_published_at. Do not send approval in an adoption request or invent historical evidence or declarations.
 
 See [publishing]({% link publishing.md %}) for preview and scheduling behavior and [adoption]({% link adoption.md %}) for historical evidence.
