@@ -25,4 +25,14 @@
     </nav>
   <% end %>
 <% end %>
+  <% if @popular_posts.any? %>
+    <nav class="ob-sidebar-popular" aria-label="<%= open_blog_translate("navigation.popular") %>">
+      <h2><%= open_blog_translate("navigation.popular") %></h2>
+      <ol>
+        <% @popular_posts.each do |post| %>
+          <li><%= link_to post.title, post.path %></li>
+        <% end %>
+      </ol>
+    </nav>
+  <% end %>
 </aside>

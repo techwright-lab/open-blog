@@ -43,3 +43,19 @@ namespace :open_blog do
     puts "Wrote #{OpenBlog::BuildCss.write(**options)}"
   end
 end
+
+namespace :open_blog do
+  desc "Publish scheduled posts that are due"
+  task publish_due: :environment do
+    OpenBlog::Post.where(status: "scheduled").where("publish_at <= ?", Time.current).find_each do |post|
+      OpenBlog::PublishScheduledPostJob.perform_now(post.id)
+    end
+  end
+end
+
+namespace :open_blog do
+  desc "Delete daily view totals older than the configured retention period"
+  task prune_page_views: :environment do
+    puts "Pruned #{OpenBlog::PageViews.prune!} daily view totals"
+  end
+end

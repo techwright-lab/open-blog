@@ -46,6 +46,7 @@ module OpenBlog
   autoload :MarkdownView, "open_blog/markdown_view"
   autoload :ReaderQueries, "open_blog/reader_queries"
   autoload :Search, "open_blog/search"
+  autoload :PageViews, "open_blog/page_views"
   autoload :Pagination, "open_blog/pagination"
   autoload :NotFound, "open_blog/not_found"
   autoload :SitemapEntries, "open_blog/sitemap_entries"

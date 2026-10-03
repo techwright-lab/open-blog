@@ -32,6 +32,7 @@ module OpenBlog
           endpoint("save_redirect", :publish, "redirects", :create, fields: ApiFields::REDIRECT, required: [ :old_path ]),
           site_page_definition("get_site_page", :read),
           site_page_definition("save_site_page", :write),
+          page_views_definition,
           endpoint("doctor", :read, "doctor", :show),
           endpoint("extract_faq", :read, "faq_extractions", :create, fields: ApiFields::EXTRACTION, required: [ :body ]),
           endpoint("adopt_post", :publish, "adoptions", :create, fields: ApiFields::ADOPTION,
@@ -77,6 +78,25 @@ module OpenBlog
           writing = name == "save_site_page"
           Dispatcher.call(controller: "pages", action: writing ? :update : :show, method: writing ? :put : :get,
             arguments: input, actor: actor, route_params: { kind: kind }, base_url: base_url)
+        end
+      end
+
+      def page_views_definition
+        properties = { "id" => Schemas.identifier }
+        ApiFields::VIEWS.each { |field| properties[field.to_s] = Schemas.text(nullable: true) }
+        ApiFields::TOP_VIEWS.each do |field|
+          maximum = field == :days ? 36500 : 100
+          properties[field.to_s] = { anyOf: [ { type: "integer", minimum: 1, maximum: maximum }, { type: "string", pattern: "^[1-9][0-9]*$" } ] }
+        end
+        schema = Schemas.object(properties).merge(oneOf: [
+          { required: [ "id" ], not: { anyOf: [ { required: [ "days" ] }, { required: [ "limit" ] } ] } },
+          { not: { anyOf: [ { required: [ "id" ] }, { required: [ "from" ] }, { required: [ "to" ] } ] } }
+        ])
+        definition("get_page_views", :read, schema) do |arguments, actor:, base_url:|
+          input = arguments.dup
+          id = input.delete(:id)
+          Dispatcher.call(controller: "views", action: id ? :show : :top, method: :get, arguments: input,
+            actor: actor, route_params: id ? { post_id: id } : {}, base_url: base_url)
         end
       end
 

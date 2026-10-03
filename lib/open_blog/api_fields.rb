@@ -16,6 +16,8 @@ module OpenBlog
     ADOPTION = (Adopt::Contract::CONTENT_FIELDS + Adopt::Contract::EXTRA_FIELDS).freeze
     EXTRACTION = %i[body standalone_questions].freeze
     PAGE = %i[page per_page].freeze
+    VIEWS = %i[from to].freeze
+    TOP_VIEWS = %i[days limit].freeze
     SITE_PAGE = %i[title body status slug approved_by approved_on].freeze
     IMAGE = %i[file url].freeze
     REMOVE = %i[redirect_to].freeze

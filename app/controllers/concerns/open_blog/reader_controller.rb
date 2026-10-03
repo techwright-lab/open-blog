@@ -33,6 +33,7 @@ module OpenBlog
     end
 
     def load_sidebar
+      @popular_posts = ReaderQueries.popular
       sidebar = ReaderQueries.sidebar
       @sidebar_categories, @sidebar_tags = sidebar.values_at(:categories, :tags)
       @sidebar_cache_key = ReaderQueries.sidebar_cache_key(sidebar) + [ controller_name, params[:slug] ]

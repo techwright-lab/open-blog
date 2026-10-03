@@ -10,6 +10,7 @@ OpenBlog::Engine.routes.draw do
         post :unpublish, on: :member
         resources :approvals, only: :create
         resources :connections, only: :create
+        resource :views, only: :show, controller: "views"
         resource :preview, only: :show, controller: "previews"
         resource :records, only: :show, controller: "records"
         resource :findings, only: :show, controller: "findings"
@@ -26,6 +27,7 @@ OpenBlog::Engine.routes.draw do
       get "pages", to: "pages#index"
       get "pages/:kind", to: "pages#show"
       put "pages/:kind", to: "pages#update"
+      get "views/top", to: "views#top"
       get "doctor", to: "doctor#show"
     end
   end

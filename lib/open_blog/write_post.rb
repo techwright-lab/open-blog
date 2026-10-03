@@ -28,6 +28,7 @@ module OpenBlog
 
     def initialize(post, attributes, actor:, now:, publish:, images:, image_inputs: {})
       @post, @attributes, @actor, @now, @publish = post, attributes, actor, now, publish
+      @scheduled_release = publish == :scheduled
       @images, @image_inputs = images, image_inputs
     end
 
@@ -122,6 +123,7 @@ module OpenBlog
     end
 
     def validate_change
+      return if @scheduled_release
       return unless @publish && @post.published? && @post.public_revision
       if @post.public_revision.identifier != @post.current_revision_identifier && @attributes[:change].blank?
         raise Error::ChangeTypeRequired
@@ -135,6 +137,7 @@ module OpenBlog
     end
 
     def enforce_approval_gate
+      return if @scheduled_release
       if OpenBlog.config.require_approval && !@post.provenance_human_written?
         approved = @approval && @approval[:facts_checked] == true
         approved ||= @post.approvals.joins(:revision).exists?(facts_checked: true, open_blog_revisions: { identifier: @post.current_revision_identifier }) if @post.persisted?

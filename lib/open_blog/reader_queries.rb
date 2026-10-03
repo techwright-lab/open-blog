@@ -69,6 +69,18 @@ module OpenBlog
         OpenBlog.config.locale, OpenBlog.mount_path, Digest::SHA256.hexdigest(JSON.generate([ fields, OpenBlog.config.route_segments ])) ]
     end
 
+    def self.popular
+      settings = OpenBlog.config.popular_posts
+      return [] unless settings[:enabled]
+      days, limit = settings.fetch(:days, 30), settings.fetch(:limit, 5)
+      key = [ "open_blog/popular", days, limit, OpenBlog.config.locale, OpenBlog.mount_path, OpenBlog.config.route_segments ]
+      ids = Rails.cache.fetch(key, expires_in: 1.hour) do
+        PageViews.top(days: days, limit: limit, scope: Post.listed).fetch(:posts).map { |post| post.fetch(:id) }
+      end
+      current = Post.listed.where(id: ids).index_by(&:id)
+      ids.filter_map { |id| current[id] }
+    end
+
     def self.related(post)
       scope = posts.where.not(id: post.id)
       scope = scope.where(category_id: post.category_id) if post.category_id

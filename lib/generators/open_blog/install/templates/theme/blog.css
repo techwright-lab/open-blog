@@ -65,6 +65,8 @@
 .ob-sidebar-categories li { flex-shrink: 0; }
 .ob-sidebar a { display: block; padding: 0.4rem 0.8rem; border-radius: var(--ob-radius-pill); text-decoration: none; }
 .ob-sidebar a[aria-current="page"] { color: var(--ob-accent-contrast); background: var(--ob-accent); }
+.ob-sidebar-popular { margin-top: 1.5rem; }
+.ob-sidebar-popular li + li { margin-top: 0.25rem; }
 .ob-sidebar-tags, .ob-count { display: none; }
 .ob-post-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2rem; }
 .ob-card-media { display: block; overflow: hidden; border-radius: var(--ob-radius-media); }

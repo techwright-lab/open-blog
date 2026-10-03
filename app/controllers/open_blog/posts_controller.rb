@@ -2,6 +2,7 @@ module OpenBlog
   class PostsController < ApplicationController
     before_action :require_html, only: :index
     before_action :require_post_format, only: :show
+    after_action :count_page_view, only: :show
 
     def index
       @featured = ReaderQueries.featured
@@ -40,6 +41,13 @@ module OpenBlog
     end
 
     private
+
+    def count_page_view
+      return unless @post && request.format.html? && [ 200, 304 ].include?(response.status)
+      PageViews.count!(@post, request)
+    rescue StandardError => error
+      Rails.logger.warn("OpenBlog page view count failed (#{error.class})")
+    end
 
     def require_post_format
       raise NotFound unless params[:format].blank? || %w[html md].include?(params[:format])
