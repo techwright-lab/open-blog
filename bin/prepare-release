@@ -1,0 +1,125 @@
+#!/usr/bin/env ruby
+require "date"
+require "json"
+require "open3"
+require "net/http"
+require "tmpdir"
+
+class OpenBlogPrepareRelease
+  class Refusal < StandardError; end
+  REPOSITORY = "techwright-lab/open-blog"
+  VERSION_FILE = "lib/open_blog/version.rb"
+
+  def initialize(env: ENV, directory: Dir.pwd, command: nil, http: nil, today: Date.today)
+    @env, @directory, @today = env, directory, today
+    @command = command || method(:execute)
+    @http = http || method(:fetch)
+  end
+
+  def prepare!
+    refuse("Preparation must run on upstream main") unless @env["GITHUB_REPOSITORY"] == REPOSITORY &&
+      @env["GITHUB_EVENT_NAME"] == "workflow_dispatch" && @env["GITHUB_REF"] == "refs/heads/main"
+    refuse("Supply a stable three-part version") unless /\A(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\z/.match?(version)
+    refuse("The checkout must be clean") unless command("git", "status", "--porcelain").empty?
+    base = command("git", "rev-parse", "HEAD").strip
+    refuse("The checkout is no longer main") unless api("commits/main").fetch("sha") == base
+    refuse("The version is already published on RubyGems") unless @http.call("https://rubygems.org/api/v2/rubygems/open_blog/versions/#{version}.json") == 404
+    tags = api("git/matching-refs/tags/v")
+    versions = tags.filter_map { |tag| tag.fetch("ref")[%r{\Arefs/tags/v(\d+\.\d+\.\d+)\z}, 1] }
+    refuse("The version must be newer than existing release tags") if versions.any? { |tag| Gem::Version.new(tag) >= Gem::Version.new(version) }
+    source = File.read(path(VERSION_FILE))
+    current = source[/^\s*VERSION = "([^"]+)"\s*$/, 1]
+    refuse("The version must not go backwards") unless current && Gem::Version.new(version) >= Gem::Version.new(current)
+    previous_branch = command("git", "ls-remote", "--heads", "origin", "refs/heads/#{branch}").split.first
+    release_date = @today
+    if previous_branch
+      command("git", "fetch", "origin", "refs/heads/#{branch}")
+      refuse("The release branch has diverged from main") unless command("git", "rev-parse", "FETCH_HEAD^").strip == base
+      existing = command("git", "show", "FETCH_HEAD:CHANGELOG.md")
+      date = existing[/^## \[#{Regexp.escape(version)}\] - (\d{4}-\d{2}-\d{2})$/, 1]
+      refuse("The release branch has no release date") unless date
+      release_date = Date.iso8601(date)
+    end
+    changelog = prepare_changelog(File.read(path("CHANGELOG.md")), current, release_date)
+    File.write(path(VERSION_FILE), source.sub(/VERSION = "[^"]+"/, "VERSION = \"#{version}\""))
+    File.write(path("CHANGELOG.md"), changelog)
+    command("git", "add", "--", VERSION_FILE, "CHANGELOG.md")
+    if previous_branch
+      tree = command("git", "write-tree").strip
+      refuse("The existing release branch has different contents; review it manually") unless tree == command("git", "rev-parse", "FETCH_HEAD^{tree}").strip
+      command("git", "reset", "--hard", base)
+    else
+      command("git", "checkout", "-b", branch)
+      command("git", "commit", "-m", "Prepare open_blog #{version}")
+      command("git", "push", "origin", "HEAD:refs/heads/#{branch}")
+    end
+    prs = JSON.parse(command("gh", "pr", "list", "--repo", REPOSITORY, "--head", branch, "--base", "main", "--state", "all", "--json", "url,state"))
+    refuse("This release branch has a closed or merged pull request") if prs.any? { |pr| pr.fetch("state") != "OPEN" }
+    url = prs.first&.fetch("url")
+    unless url
+      Dir.mktmpdir("open-blog-release-pr") do |temporary|
+        body = File.join(temporary, "body.md")
+        File.write(body, "Prepare open_blog #{version} by updating the gem version and dated changelog.\n\nCI, Installer, and Docs are dispatched on this branch. Merge after review and successful checks, then run Publish on the resulting main commit.\n")
+        url = command("gh", "pr", "create", "--repo", REPOSITORY, "--base", "main", "--head", branch,
+          "--title", "Prepare open_blog #{version}", "--body-file", body).strip
+      end
+    end
+    %w[ci.yml installer.yml docs.yml].each do |workflow|
+      command("gh", "workflow", "run", workflow, "--repo", REPOSITORY, "--ref", branch)
+    end
+    File.open(@env.fetch("GITHUB_OUTPUT"), "a") { |file| file.puts("pull_request=#{url}") }
+    url
+  end
+
+  private
+
+  def prepare_changelog(changelog, current, date)
+    lines = changelog.lines
+    headings = lines.each_index.select { |i| lines[i].start_with?("## ") }
+    unreleased = headings.select { |i| lines[i].strip == "## [Unreleased]" }
+    refuse("The changelog needs exactly one Unreleased section") unless unreleased.one?
+    start = unreleased.first
+    finish = headings.find { |i| i > start } || lines.length
+    notes = lines[(start + 1)...finish].join.strip
+    matching = headings.select { |i| lines[i].match?(/^## \[#{Regexp.escape(version)}\](?:\s|$)/) }
+    if current == version
+      refuse("Only an undated initial release can reuse the current version") unless matching.one? && lines[matching.first].strip == "## [#{version}]" && matching.first == finish
+      release_end = headings.find { |i| i > finish } || lines.length
+      notes = [ notes, lines[(finish + 1)...release_end].join.strip ].reject(&:empty?).join("\n\n")
+      finish = release_end
+    else
+      refuse("The changelog already contains this version") unless matching.empty?
+    end
+    refuse("Add release notes under Unreleased first") unless notes.lines.any? { |line| line.match?(/\A\s*[^#\s]/) }
+    (lines[0..start] + [ "\n## [#{version}] - #{date.iso8601}\n\n#{notes}\n\n" ] + lines[finish..]).join
+  end
+
+  def fetch(url)
+    uri = URI(url)
+    Net::HTTP.start(uri.host, uri.port, nil, use_ssl: true, open_timeout: 15, read_timeout: 30) { |http| http.get(uri.request_uri).code.to_i }
+  end
+
+  def api(endpoint)
+    JSON.parse(command("gh", "api", "repos/#{REPOSITORY}/#{endpoint}"))
+  end
+
+  def execute(*args)
+    stdout, stderr, status = Open3.capture3(*args, chdir: @directory)
+    refuse("Preparation command failed: #{stderr.strip}") unless status.success?
+    stdout
+  end
+
+  def command(*args) = @command.call(*args)
+  def version = @env.fetch("RELEASE_VERSION", "")
+  def branch = "release/#{version}"
+  def path(file) = File.join(@directory, file)
+  def refuse(message) = raise(Refusal, message)
+end
+
+if $PROGRAM_NAME == __FILE__
+  begin
+    puts OpenBlogPrepareRelease.new.prepare!
+  rescue StandardError => error
+    abort "Release preparation refused: #{error.message}"
+  end
+end

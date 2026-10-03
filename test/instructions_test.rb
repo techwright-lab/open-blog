@@ -28,7 +28,7 @@ class InstructionsTest < ActiveSupport::TestCase
       assert_includes root.join("skills/open-blog-#{name}/SKILL.md").read, OpenBlog::APPROVAL_INSTRUCTION
     end
     assert_includes root.join("skills/open-blog-adopt/SKILL.md").read, OpenBlog::ADOPTION_INSTRUCTION
-    assert_includes root.join("README.md").read, OpenBlog::APPROVAL_INSTRUCTION
-    assert_includes root.join("README.md").read, OpenBlog::ADOPTION_INSTRUCTION
+    assert_includes root.join("docs/publishing.md").read, OpenBlog::APPROVAL_INSTRUCTION
+    assert_includes root.join("docs/adoption.md").read, OpenBlog::ADOPTION_INSTRUCTION
   end
 end

@@ -1,0 +1,23 @@
+title: Open Blog
+description: A Rails blog engine with reader pages, revision history, and agent publishing interfaces.
+url: https://techwright-lab.github.io
+baseurl: /open-blog
+theme: just-the-docs
+permalink: pretty
+search_enabled: true
+heading_anchors: true
+aux_links:
+  GitHub: https://github.com/techwright-lab/open-blog
+gh_edit_link: true
+gh_edit_link_text: Edit this page on GitHub
+gh_edit_repository: https://github.com/techwright-lab/open-blog
+gh_edit_branch: main
+gh_edit_source: docs
+gh_edit_view_mode: edit
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - vendor
+  - .bundle
+  - .jekyll-cache
+  - _site

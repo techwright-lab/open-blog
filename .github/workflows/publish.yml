@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       sha:
-        description: Full main commit SHA with successful CI and Installer push runs
+        description: Full main commit SHA with successful CI, Installer, and Docs push runs
         required: true
         type: string
 
@@ -57,7 +57,7 @@ jobs:
       - name: Publish to RubyGems
         if: steps.artifact.outputs.should_publish == 'true'
         run: gem push "open_blog-${RELEASE_VERSION}.gem" --host https://rubygems.org
-      - name: Tag and create the GitHub release
+      - name: Tag and synchronize the GitHub release
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

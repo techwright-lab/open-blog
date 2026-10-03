@@ -4,6 +4,7 @@ require "open3"
 require "net/http"
 require "tmpdir"
 require "fileutils"
+require "date"
 
 class OpenBlogRelease
   class Refusal < StandardError; end
@@ -20,9 +21,9 @@ class OpenBlogRelease
     refuse("The checkout does not match the requested commit") unless command("git", "rev-parse", "HEAD").strip == sha
     refuse("The requested commit is no longer main") unless api("commits/main").fetch("sha") == sha
     current = version_from(command("git", "show", "HEAD:lib/open_blog/version.rb"))
-    previous = version_from(command("git", "show", "HEAD^:lib/open_blog/version.rb"))
-    refuse("The version must match the requested release and change in this commit") unless current == version && previous && previous != version
-    %w[ci.yml installer.yml].each { |workflow| verify_workflow!(workflow) }
+    refuse("The version must match the requested release") unless current == version
+    verify_order!
+    %w[ci.yml installer.yml docs.yml].each { |workflow| verify_workflow!(workflow) }
     verify_tag!
     notes = release_notes
     File.write(notes_path, notes)
@@ -56,7 +57,16 @@ class OpenBlogRelease
       command("git", "push", "origin", "refs/tags/v#{version}")
     end
     releases = api("releases?per_page=100", paginate: true).flatten
-    return if releases.any? { |release| release.fetch("tag_name") == "v#{version}" }
+    existing = releases.find { |release| release.fetch("tag_name") == "v#{version}" }
+    if existing
+      correct = existing.fetch("body", "").to_s.strip == File.read(notes_path).strip &&
+        existing["name"] == "open_blog v#{version}" && existing["draft"] == false && existing["prerelease"] == false
+      unless correct
+        command("gh", "release", "edit", "v#{version}", "--repo", REPOSITORY, "--notes-file", notes_path,
+          "--title", "open_blog v#{version}", "--draft=false", "--prerelease=false")
+      end
+      return
+    end
     command("gh", "release", "create", "v#{version}", "--repo", REPOSITORY,
       "--title", "open_blog v#{version}", "--notes-file", notes_path, "--verify-tag")
   end
@@ -93,14 +103,26 @@ class OpenBlogRelease
     true
   end
 
+  def verify_order!
+    tags = api("git/matching-refs/tags/v")
+    later = tags.filter_map { |tag| tag.fetch("ref")[%r{\Arefs/tags/v(\d+\.\d+\.\d+)\z}, 1] }
+      .any? { |tag| Gem::Version.new(tag) > Gem::Version.new(version) }
+    refuse("A newer release tag already exists") if later
+  end
+
   def release_notes
     changelog = command("git", "show", "HEAD:CHANGELOG.md")
     headings = changelog.lines.each_index.select { |index| changelog.lines[index].match?(/^## \[#{Regexp.escape(version)}\](?:\s|$)/) }
     refuse("The changelog needs exactly one entry for this version") unless headings.one?
+    heading = changelog.lines[headings.first].strip
+    date = heading[/\A## \[#{Regexp.escape(version)}\] - (\d{4}-\d{2}-\d{2})\z/, 1]
+    refuse("The changelog release heading needs a valid release date") unless date && Date.iso8601(date) <= Date.today
     lines = changelog.lines.drop(headings.first + 1).take_while { |line| !line.start_with?("## ") }
     notes = lines.join.strip
     refuse("The changelog entry has no release notes") unless notes.lines.any? { |line| line.match?(/\A\s*[^#\s]/) }
     "#{notes}\n"
+  rescue Date::Error
+    refuse("The changelog release date is invalid")
   end
 
   def published_identical?
