@@ -1,0 +1,7 @@
+<header class="ob-header">
+  <%= link_to OpenBlog.config.site_name, open_blog_index_path, class: "ob-site-name" %>
+  <nav aria-label="<%= open_blog_translate("navigation.blog") %>">
+    <%= link_to OpenBlog.config.blog_title, open_blog_index_path %>
+  </nav>
+  <%= render "open_blog/shared/theme_toggle" %>
+</header>

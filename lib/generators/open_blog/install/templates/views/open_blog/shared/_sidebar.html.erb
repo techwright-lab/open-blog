@@ -1,0 +1,27 @@
+<% cache @sidebar_cache_key do %>
+<aside class="ob-sidebar">
+  <nav class="ob-sidebar-categories" aria-label="<%= open_blog_translate("navigation.categories") %>">
+    <h2><%= open_blog_translate("navigation.categories") %></h2>
+    <ul>
+      <li><%= link_to open_blog_translate("navigation.all_posts"), open_blog_index_path, aria: { current: (@open_blog_page.kind == :index ? "page" : nil) } %></li>
+      <% @sidebar_categories.each do |entry| %>
+        <li>
+          <%= link_to open_blog_list_path(:category, entry[:category]), aria: { current: (@open_blog_page.kind == :category && @open_blog_page.record == entry[:category] ? "page" : nil) } do %>
+            <span><%= entry[:category].name %></span> <span class="ob-count"><%= entry[:count] %></span>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  </nav>
+  <% if @sidebar_tags.any? %>
+    <nav class="ob-sidebar-tags" aria-label="<%= open_blog_translate("navigation.tags") %>">
+      <h2><%= open_blog_translate("navigation.tags") %></h2>
+      <ul>
+        <% @sidebar_tags.each do |entry| %>
+          <li><%= link_to entry[:tag].name, open_blog_list_path(:tag, entry[:tag]), aria: { current: (@open_blog_page.kind == :tag && @open_blog_page.record == entry[:tag] ? "page" : nil) } %></li>
+        <% end %>
+      </ul>
+    </nav>
+  <% end %>
+</aside>
+<% end %>

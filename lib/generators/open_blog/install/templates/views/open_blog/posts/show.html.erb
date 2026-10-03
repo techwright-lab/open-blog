@@ -1,0 +1,23 @@
+<% post = @open_blog_page.record %>
+<%= render "open_blog/shared/breadcrumbs" %>
+<div class="ob-post">
+  <% if post.category %><%= link_to post.category.name, open_blog_list_path(:category, post.category), class: "ob-post-category" %><% end %>
+  <%= open_blog_post_content(post) do %>
+    <%= open_blog_title(post) %>
+    <% if post.description.present? %><p class="ob-lede"><%= post.description %></p><% end %>
+    <%= open_blog_notices(post) %>
+    <%= render "open_blog/posts/highlights", post: post %>
+    <%= open_blog_byline(post) %>
+    <%= open_blog_cover(post) %>
+    <%= render "open_blog/posts/toc", post: post %>
+    <%= open_blog_disclosure(post) %>
+    <%= open_blog_body(post) %>
+    <%= open_blog_corrections(post) %>
+  <% end %>
+  <%= render "open_blog/posts/tags", post: post %>
+  <%= render "open_blog/shared/share", post: post %>
+  <%= open_blog_responsible_party_link %>
+  <%= render "open_blog/shared/author_box", post: post %>
+  <%= render "open_blog/shared/call_to_action" %>
+  <%= render "open_blog/shared/related_posts" %>
+</div>

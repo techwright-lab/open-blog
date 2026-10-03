@@ -1,0 +1,13 @@
+<header class="ob-index-heading">
+  <h1><%= OpenBlog.config.blog_title %></h1>
+  <% if OpenBlog.config.blog_tagline.present? %><p class="ob-tagline"><%= OpenBlog.config.blog_tagline %></p><% end %>
+</header>
+<div class="ob-list-layout">
+  <%= render "open_blog/shared/sidebar" %>
+  <div class="ob-list-main">
+    <% if @featured %><%= render "open_blog/shared/featured_card", post: @featured %><% end %>
+    <% if @posts.empty? && !@featured %><p class="ob-empty"><%= open_blog_translate("lists.empty") %></p><% end %>
+    <div class="ob-post-grid"><%= render partial: "open_blog/shared/post_card", collection: @posts, as: :post %></div>
+    <%= render "open_blog/shared/pagination" %>
+  </div>
+</div>

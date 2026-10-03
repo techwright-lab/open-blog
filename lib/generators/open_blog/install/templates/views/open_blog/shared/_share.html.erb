@@ -1,0 +1,4 @@
+<nav class="ob-share" aria-label="<%= open_blog_translate("share.heading") %>">
+  <%= link_to open_blog_translate("share.x"), "https://twitter.com/intent/tweet?url=#{ERB::Util.url_encode(open_blog_absolute_url(post.path))}&text=#{ERB::Util.url_encode(post.title)}", rel: "noopener" %>
+  <%= link_to open_blog_translate("share.linkedin"), "https://www.linkedin.com/sharing/share-offsite/?url=#{ERB::Util.url_encode(open_blog_absolute_url(post.path))}", rel: "noopener" %>
+</nav>

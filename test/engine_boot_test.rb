@@ -31,6 +31,51 @@ class EngineBootTest < Minitest::Test
     end
   end
 
+  def test_custom_parent_renders_host_and_engine_helpers
+    with_host(setup: 'require "active_record"') do |directory|
+      FileUtils.mkdir_p(File.join(directory, "app/controllers"))
+      FileUtils.mkdir_p(File.join(directory, "app/helpers"))
+      File.write(File.join(directory, "app/controllers/reader_parent_controller.rb"), <<~RUBY)
+        class ReaderParentController < ActionController::Base
+          self.include_all_helpers = false
+        end
+      RUBY
+      File.write(File.join(directory, "app/helpers/host_brand_helper.rb"), <<~RUBY)
+        module HostBrandHelper
+          def host_brand_name
+            "Garden journal"
+          end
+        end
+      RUBY
+      File.write(File.join(directory, "app/controllers/helper_probe_controller.rb"), <<~RUBY)
+        class HelperProbeController < OpenBlog::ApplicationController
+          def show
+            render inline: '<p><%= host_brand_name %> / <%= open_blog_lang %></p>', layout: false
+          end
+        end
+      RUBY
+      File.open(File.join(directory, "config/initializers/open_blog.rb"), "a") do |file|
+        file.puts 'OpenBlog.config.parent_controller = "ReaderParentController"'
+      end
+      File.write(File.join(directory, "config/routes.rb"), <<~RUBY)
+        Rails.application.routes.draw do
+          get "/helper-probe", to: "helper_probe#show"
+          mount OpenBlog::Engine => "/journal"
+        end
+      RUBY
+      output, status = rails(directory, "runner", <<~RUBY)
+        session = ActionDispatch::Integration::Session.new(Rails.application)
+        session.get "/helper-probe"
+        abort "Response: \#{session.response.status} \#{session.response.body}" unless session.response.status == 200
+        puts session.response.body
+        puts OpenBlog::ApplicationController.superclass.name
+      RUBY
+      assert status.success?, output
+      assert_includes output, "Garden journal / en"
+      assert_includes output, "ReaderParentController"
+    end
+  end
+
   def test_production_requires_public_url
     with_host do |directory|
       output, status = rails(directory, "runner", "puts :booted", environment: "production")

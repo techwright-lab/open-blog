@@ -1,0 +1,10 @@
+<% cache @related_cache_key do %>
+<% if @related_posts.any? %>
+  <section class="ob-related-posts" aria-labelledby="ob-related-heading">
+    <h2 id="ob-related-heading"><%= open_blog_translate("headings.related") %></h2>
+    <div class="ob-post-grid">
+      <%= render partial: "open_blog/shared/post_card", collection: @related_posts, as: :post, locals: { heading: :h3 } %>
+    </div>
+  </section>
+<% end %>
+<% end %>

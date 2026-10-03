@@ -33,6 +33,12 @@ module OpenBlog
   autoload :ImageResolution, "open_blog/image_resolution"
   autoload :Renderer, "open_blog/renderer"
   autoload :SyntaxCss, "open_blog/syntax_css"
+  autoload :ReaderPage, "open_blog/reader_page"
+  autoload :ReaderDates, "open_blog/reader_dates"
+  autoload :ReaderQueries, "open_blog/reader_queries"
+  autoload :Pagination, "open_blog/pagination"
+  autoload :NotFound, "open_blog/not_found"
+  autoload :SitemapEntries, "open_blog/sitemap_entries"
 
   class << self
     def config
@@ -42,6 +48,10 @@ module OpenBlog
     def configure
       yield config
       config
+    end
+
+    def sitemap_entries(base_url: config.public_base_url)
+      SitemapEntries.call(base_url: base_url)
     end
 
     def mount_path

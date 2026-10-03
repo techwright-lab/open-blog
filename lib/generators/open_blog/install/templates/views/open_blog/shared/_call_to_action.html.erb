@@ -1,0 +1,7 @@
+<% if (cta = OpenBlog.config.call_to_action).present? && OpenBlog::Renderer::Sanitizer.safe_url?(cta[:url]) %>
+  <section class="ob-call-to-action" aria-labelledby="ob-call-to-action-heading">
+    <h2 id="ob-call-to-action-heading"><%= cta[:title] %></h2>
+    <p><%= cta[:text] %></p>
+    <%= link_to cta[:label], cta[:url] %>
+  </section>
+<% end %>

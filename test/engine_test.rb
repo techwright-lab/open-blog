@@ -1,9 +1,9 @@
 require_relative "test_helper"
 
 class EngineTest < ActionDispatch::IntegrationTest
-  test "a configured mounted engine returns not found without content routes" do
+  test "a configured mounted engine serves the reader index" do
     get "/blog"
-    assert_response :not_found
+    assert_response :success
   end
 
   test "engine is isolated and resolves its mounted path" do

@@ -1,0 +1,11 @@
+<header class="ob-error-heading">
+  <h1><%= open_blog_translate("titles.#{@open_blog_page.kind}") %></h1>
+  <p><%= open_blog_translate("errors.#{@open_blog_page.kind}") %></p>
+  <%= link_to open_blog_translate("navigation.all_posts"), open_blog_index_path %>
+</header>
+<% if @posts.any? %>
+  <section class="ob-recent-posts" aria-labelledby="ob-recent-heading">
+    <h2 id="ob-recent-heading"><%= open_blog_translate("headings.recent") %></h2>
+    <div class="ob-post-grid"><%= render partial: "open_blog/shared/post_card", collection: @posts, as: :post, locals: { heading: :h3 } %></div>
+  </section>
+<% end %>

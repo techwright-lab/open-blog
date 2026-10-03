@@ -1,0 +1,9 @@
+<article class="ob-post-card">
+  <%= link_to post.path, aria: { label: post.title }, class: "ob-card-media" do %><%= open_blog_card_image(post) %><% end %>
+  <% if post.category %><%= link_to post.category.name, open_blog_list_path(:category, post.category), class: "ob-card-category" %><% end %>
+  <%= content_tag(local_assigns.fetch(:heading, :h2), class: "ob-card-title") do %><%= link_to post.title, post.path %><% end %>
+  <p class="ob-card-description"><%= post.description %></p>
+  <div class="ob-card-author"><%= open_blog_avatar(post.author, name: post.author_name) %> <%= link_to post.author_name, open_blog_list_path(:author, post.author) %></div>
+  <%= open_blog_dates(post) %>
+  <%= open_blog_reading_time(post) %>
+</article>
