@@ -54,6 +54,8 @@ The JSON API lives under `/blog/api/v1` (or your configured mount path). Create 
 | `POST /redirects`, `DELETE /redirects/:id` | Add a URL move or removal, or remove its record | `publish` |
 | `POST /adoptions` | Import one existing article, with optional dry run | `publish` |
 | `POST /faq_extractions` | Propose FAQ pairs and source ranges without saving | `read` |
+| `GET /pages`, `GET /pages/:kind` | List or read policy pages, including drafts | `read` |
+| `PUT /pages/:kind` | Create or edit a policy page | `write`; also `publish` when publishing or changing a published page |
 
 Post IDs in these routes can also be slugs. Send JSON fields directly at the top level. For example, `POST /posts` with `{"title":"Winter garden","body":"Protect the young trees.","external_id":"garden-17"}` saves a draft. Publish it with `POST /posts/:id/publish` and an empty JSON object. Updating public content still requires the change classification described above. PATCH preserves omitted fields; supplied FAQ and tag arrays replace their lists. Unsupported fields return an error rather than being silently discarded.
 
@@ -77,6 +79,7 @@ API response fields are explicit:
 | Baseline | `post_id`, `adopted_at`, `adopted_revision_id`, `provenance`, `provenance_evidence`, `first_published_at`, `first_published_evidence`, `declared_first_published_at`, `last_modified_at`, `last_modified_evidence`, `source_system`, `source_id`, `source_body_sha256`, `adopted_by` |
 | Connection declaration | `post_id`, `connections` (a list of `{party, relation}`), `third_party_paid`, `declared_by`, `declared_on`, `recorded_by` |
 | Preview | `preview_url`, `revision_identifier`, `expires_at` |
+| Page | `kind`, `slug`, `url`, `title`, `body`, `status`, `approved_by`, `approved_on`, `updated_at` |
 | Findings | `{findings: [...]}`; each item has `code`, `rule`, `message`, `location` |
 | Doctor | `{checks: [...]}`; each item has `name`, `status` (ok, warning, or error), `message` |
 | Category | `id`, `name`, `slug`, `description`, `position`, `posts_count` |
@@ -108,6 +111,10 @@ Supporting record lists use the same pagination envelope, with the corresponding
 
 `POST /adoptions` accepts the same snapshot fields as the Ruby operation below. `dry_run: true` returns the proposed content and records without retaining rows or uploaded files. `POST /faq_extractions` accepts `body` and optional `standalone_questions`; it returns proposed text changes without applying them.
 
+Policy pages use four fixed kinds: `responsible_party`, `corrections`, `editorial`, and `ai_use`. Save `title`, Markdown `body`, and `status` (`draft` or `published`) with `PUT /pages/:kind`. Optional fields are `slug`, `approved_by`, and an ISO date `approved_on`. A supplied nonblank approver defaults the omitted date to today; approval names are never filled automatically. Omitted fields retain their values. No policy text is supplied by the gem.
+
+Published pages appear at `/blog/policies/:slug`, in the footer, and in the sitemap. Drafts return 404 publicly. `config.policy_urls[:kind]` can point to an existing host page; this overrides the local link and hides that kind's gem-hosted page. `OpenBlog.policy_url(kind)` resolves the configured URL or published local path. Publishing or withdrawing the responsible-party page immediately updates relevant post notices without changing the posts' revision records or dates. Doctor checks configured URLs and recognizes published local pages.
+
 MCP is available at `/blog/mcp`, using the same Bearer authentication as the API. Send JSON-RPC requests by POST, for example `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`. Notifications return 202 without a body; GET and DELETE return 405. Browser origins must match the request origin or configured public origin, including the port. Set `config.mcp.enabled = false` to disable the endpoint. Each HTTP request uses the shared actor rate limit once.
 
 | MCP tools | Purpose |
@@ -122,6 +129,7 @@ MCP is available at `/blog/mcp`, using the same Bearer authentication as the API
 | `blog_list_authors`, `blog_save_author`, `blog_list_series`, `blog_save_series` | Manage authors and series |
 | `blog_list_redirects`, `blog_save_redirect` | Inspect or create URL moves and removals |
 | `blog_extract_faq`, `blog_adopt_post` | Prepare FAQ extraction and import existing articles |
+| `blog_get_site_page`, `blog_save_site_page` | Read or edit a policy page by `kind` |
 
 Tools use the API fields listed above. Pass `id` for a specific post; publish accepts an optional ID, and draft saves use slug or external-ID upsert. Category, author, and series saves use an optional numeric ID to select an update. Redirect save creates a new record. Correction always selects the correction change type and requires a note. Image upload takes either `{url}` or `{base64, filename, content_type}`. MCP list sizes are additionally capped by `config.mcp.max_page_size` (default 50).
 

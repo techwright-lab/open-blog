@@ -14,7 +14,7 @@ module OpenBlog
       "Rate limit" => :rate_limit, "Jobs" => :jobs, "Storage" => :storage, "Policy pages" => :policy_pages,
       "Records" => :records, "Declarations" => :declarations }.freeze
     TABLES = %w[open_blog_authors open_blog_categories open_blog_series open_blog_images open_blog_posts
-      open_blog_api_tokens open_blog_faqs open_blog_tags open_blog_taggings open_blog_redirects open_blog_revisions
+      open_blog_api_tokens open_blog_pages open_blog_faqs open_blog_tags open_blog_taggings open_blog_redirects open_blog_revisions
       open_blog_approvals open_blog_publications open_blog_baselines open_blog_connection_declarations
       active_storage_blobs active_storage_attachments active_storage_variant_records action_text_rich_texts].freeze
 
@@ -129,7 +129,10 @@ module OpenBlog
     def policy_pages
       problems = %i[responsible_party corrections editorial ai_use].filter_map do |key|
         url = @config.policy_urls[key]
-        next "#{key}: no URL configured" if url.blank?
+        if url.blank?
+          next "#{key}: install the open_blog_pages table" unless ActiveRecord::Base.connection.data_source_exists?("open_blog_pages")
+          next OpenBlog.policy_url(key, config: @config).present? ? nil : "#{key}: no published page or URL configured"
+        end
         begin
           code = @http_get ? @http_get.call(url).to_i : policy_response(url)
           "#{key}: HTTP #{code}" unless code == 200
@@ -137,7 +140,7 @@ module OpenBlog
           "#{key}: unavailable (#{error.class})"
         end
       end
-      problems.any? ? [ "warning", problems.join("; ") ] : [ "ok", "All policy URLs respond with HTTP 200." ]
+      problems.any? ? [ "warning", problems.join("; ") ] : [ "ok", "All policies have a published page or a URL responding with HTTP 200." ]
     end
 
     def policy_response(url)

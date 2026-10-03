@@ -62,8 +62,7 @@ class ApiAcceptanceTest < ActionDispatch::IntegrationTest
   end
 
   test "deferred endpoints and unsupported verbs are not routable" do
-    paths = [ [ :get, "/pages" ],
-      [ :get, "/posts/#{@post.id}/views" ], [ :get, "/views/top" ], [ :get, "/report" ],
+    paths = [ [ :get, "/posts/#{@post.id}/views" ], [ :get, "/views/top" ], [ :get, "/report" ],
       [ :get, "/standard" ], [ :put, "/posts/#{@post.id}" ] ]
     paths.each do |method, suffix|
       route = OpenBlog::Engine.routes.recognize_path("/api/v1#{suffix}", method: method)

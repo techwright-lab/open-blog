@@ -32,6 +32,10 @@ module OpenBlog
         entry[:lastmod] = date if date
         entries << entry
       end
+      Page.published.find_each do |page|
+        next if OpenBlog.config.policy_urls[page.kind.to_sym].present?
+        entries << { loc: page.url(base: @base_url), lastmod: page.updated_at }
+      end
       if OpenBlog.config.primary_list_type == :tags
         Tag.find_each do |tag|
           entries.concat(list_pages(ReaderQueries.tag_path(tag), tag.posts.listed.count))

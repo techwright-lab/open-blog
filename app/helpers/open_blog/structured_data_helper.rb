@@ -32,6 +32,9 @@ module OpenBlog
         image = open_blog_social_image_url(page)
         data["image"] = image if image
         data.compact
+      when :page
+        { "@type" => "WebPage", "name" => page.record.title, "description" => open_blog_page_description(page),
+          "url" => open_blog_canonical_url(page), "dateModified" => page.record.updated_at.iso8601 }
       when :author
         { "@type" => "ProfilePage", "name" => page.record.name, "url" => open_blog_canonical_url(page),
           "mainEntity" => open_blog_author_schema(page.record, base: page.base_url) }

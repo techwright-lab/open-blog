@@ -30,6 +30,8 @@ module OpenBlog
           endpoint("save_series", :write, "series", :create, fields: ApiFields::SERIES, id: :optional, upsert: true),
           endpoint("list_redirects", :read, "redirects", :index, fields: ApiFields::PAGE),
           endpoint("save_redirect", :publish, "redirects", :create, fields: ApiFields::REDIRECT, required: [ :old_path ]),
+          site_page_definition("get_site_page", :read),
+          site_page_definition("save_site_page", :write),
           endpoint("doctor", :read, "doctor", :show),
           endpoint("extract_faq", :read, "faq_extractions", :create, fields: ApiFields::EXTRACTION, required: [ :body ]),
           endpoint("adopt_post", :publish, "adoptions", :create, fields: ApiFields::ADOPTION,
@@ -58,6 +60,23 @@ module OpenBlog
           method = { index: :get, show: :get, update: :patch, destroy: :delete }.fetch(selected, :post)
           Dispatcher.call(controller: controller, action: selected, method: method, arguments: arguments,
             actor: actor, route_params: identity ? { id: identity } : {}, base_url: base_url)
+        end
+      end
+
+      def site_page_definition(name, scope)
+        properties = name == "save_site_page" ? Schemas.fields(ApiFields::SITE_PAGE) : {}
+        properties["kind"] = { type: "string", enum: %w[responsible_party corrections editorial ai_use] }
+        if name == "save_site_page"
+          properties["status"] = { type: "string", enum: %w[draft published] }
+          %w[title body slug].each { |field| properties[field] = Schemas.text }
+          %w[approved_by approved_on].each { |field| properties[field] = Schemas.text(nullable: true) }
+        end
+        definition(name, scope, Schemas.object(properties, required: [ :kind ])) do |arguments, actor:, base_url:|
+          input = arguments.dup
+          kind = input.delete(:kind)
+          writing = name == "save_site_page"
+          Dispatcher.call(controller: "pages", action: writing ? :update : :show, method: writing ? :put : :get,
+            arguments: input, actor: actor, route_params: { kind: kind }, base_url: base_url)
         end
       end
 

@@ -1,0 +1,5 @@
+<%= render "open_blog/shared/breadcrumbs" %>
+<article class="ob-post">
+  <h1 class="ob-title"><%= @page.title %></h1>
+  <div class="ob-prose"><%= OpenBlog::Renderer.render_string(@page.body_markdown, format: :markdown) %></div>
+</article>

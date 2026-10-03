@@ -16,12 +16,13 @@ module OpenBlog
       return @open_blog_page if @open_blog_page && (resource.nil? || resource == @open_blog_page.record)
       kind = case resource
       when Post then :post
+      when Page then :page
       when Category then :category
       when Tag then :tag
       when Author then :author
       else :index
       end
-      path = if kind == :post
+      path = if %i[post page].include?(kind)
         resource.path
       elsif resource
         open_blog_list_path(kind, resource)
@@ -29,7 +30,7 @@ module OpenBlog
         open_blog_index_path
       end
       crumbs = [ { name: OpenBlog.config.blog_title, path: open_blog_index_path } ]
-      crumbs << { name: kind == :post ? resource.title : resource.name, path: path } if resource
+      crumbs << { name: %i[post page].include?(kind) ? resource.title : resource.name, path: path } if resource
       ReaderPage.new(kind: kind, record: resource, path: path, base_url: OpenBlog.config.public_base_url || request.base_url, breadcrumbs: crumbs)
     end
 
