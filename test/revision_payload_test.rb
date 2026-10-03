@@ -1,5 +1,7 @@
 require "minitest/autorun"
+require "minitest/mock"
 require "open_blog/revision_payload"
+require "open_blog/renderer"
 
 class RevisionPayloadTest < Minitest::Test
   def test_serialized_bytes_and_identifier
@@ -77,19 +79,23 @@ class RevisionPayloadTest < Minitest::Test
     end
   end
 
-  def test_post_mapping_uses_stored_byline_body_and_faq_with_cover_then_social
+  def test_post_mapping_uses_stored_byline_body_and_faq_with_cover_body_then_social
     image = Struct.new(:path, :sha256)
     post = Struct.new(:title, :description, :search_title, :search_description, :body_for_payload, :author_name, :faq_list, :cover_image, :cover_alt, :social_image).new(
       "Maple journal", nil, nil, nil, "Seeds sprout.\n", "Robin Vale", [],
       image.new("/notes/media/cover/seed.png", "d" * 64), "Seed packet",
       image.new("/notes/media/social/card.png", "e" * 64)
     )
+    body_image = { "role" => "body", "url" => "/notes/media/body/tree.png", "sha256" => "f" * 64, "alt" => "A maple" }
     expected = build_payload(images: [
       { role: "cover", url: post.cover_image.path, sha256: "d" * 64, alt: "Seed packet" },
+      body_image,
       { role: "social", url: post.social_image.path, sha256: "e" * 64, alt: "" }
     ])
-    assert_equal expected.to_h, OpenBlog::RevisionPayload.new(post).to_h
-    assert_equal expected.identifier, OpenBlog::RevisionPayload.new(post).identifier
+    OpenBlog::Renderer.stub(:body_images, [ body_image ]) do
+      assert_equal expected.to_h, OpenBlog::RevisionPayload.new(post).to_h
+      assert_equal expected.identifier, OpenBlog::RevisionPayload.new(post).identifier
+    end
   end
 
   private

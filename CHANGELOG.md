@@ -16,3 +16,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Record direct FAQ and rich-text changes atomically and return advisory findings and AI notice labels from publishing operations.
 - Import existing articles with source identity, historical dates, declared or imported approvals, redirects, safe repeat handling, and transactional dry runs.
 - Reuse signed Active Storage blobs for imported images and extract proposed FAQ sections from Markdown with review findings.
+- Render sanitized Markdown and rich text with heading links, syntax highlighting, image figures, body findings, durable image identities, and generated light/dark syntax colors.

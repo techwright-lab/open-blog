@@ -42,6 +42,7 @@ module OpenBlog
     def fields_from_post(post)
       images = []
       images << image_entry(post.cover_image, "cover", post.cover_alt) if post.cover_image
+      images.concat(Renderer.body_images(post))
       images << image_entry(post.social_image, "social", "") if post.social_image
       {
         title: post.title, description: post.description, search_title: post.search_title,

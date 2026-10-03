@@ -3,22 +3,27 @@ module OpenBlog
     def self.call(attributes, post:, actor:, now:, publish:)
       attributes = PostAttributes.normalize(attributes)
       attributes = attributes.except(:external_id) if post&.persisted?
+      source = post&.persisted? ? Post.find(post.id) : PostIdentity.resolve(attributes, post: post)
+      images = ImageResolution.prepare(attributes: attributes, post: source)
       context = {}
       Operation.run(post: post, attributes: attributes, actor: actor, now: now, context: context) do |current, created|
         old_slug, was_public = current.slug, current.published?
         context[:author_default_used] = created && !attributes.key?(:author)
         approval = attributes[:approval]
         context[:approval_incomplete] = approval.is_a?(Hash) && approval.with_indifferent_access[:facts_checked] == false
-        records = new(current, attributes, actor: actor, now: now, publish: publish).call
+        records = new(current, attributes, actor: actor, now: now, publish: publish, images: images).call
         context[:slug_changed] = was_public && old_slug != current.slug
         records
       end
     rescue Error => error
       Operation.failure(post, error)
+    rescue ActiveRecord::RecordNotFound
+      Operation.failure(post, Error::NotFound.new)
     end
 
-    def initialize(post, attributes, actor:, now:, publish:)
+    def initialize(post, attributes, actor:, now:, publish:, images:)
       @post, @attributes, @actor, @now, @publish = post, attributes, actor, now, publish
+      @images = images
     end
 
     def call
@@ -30,10 +35,12 @@ module OpenBlog
       PostIdentity.resolve({ slug: @post.slug }, post: @post)
       apply_status
       validate_records
+      @images.materialize(@post, actor: @actor)
       @post.send(:compute_derived)
       validate_approval
       validate_change
       enforce_gates if @publish && !cancel_schedule?
+      @images.preview(@post)
       @post.send(:compute_derived)
       validate_approval
       validate_change

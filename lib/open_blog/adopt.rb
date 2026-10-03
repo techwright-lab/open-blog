@@ -10,13 +10,14 @@ module OpenBlog
         value = contract.attributes[field]
         prepared[field] = ImageImport.prepare(value) if value.is_a?(String) || (value.is_a?(Hash) && (value.key?(:signed_id) || value.key?("signed_id")))
       end
+      body_images = ImageResolution.prepare(attributes: contract.content)
       current = nil
       result = nil
       Post.transaction(requires_new: true) do
         baseline = Baseline.find_by(contract.attributes.slice(:source_system, :source_id))
         resolved = baseline ? baseline.post : PostIdentity.resolve(contract.attributes.slice(:external_id, :slug))
         current = resolved.persisted? ? Post.lock.find(resolved.id) : resolved
-        result = new(current, contract, prepared, actor: actor, now: now).call
+        result = new(current, contract, prepared, actor: actor, now: now, body_images: body_images).call
         raise ActiveRecord::Rollback if contract.dry_run?
       end
       result
@@ -36,8 +37,9 @@ module OpenBlog
     end
     private_class_method :failure
 
-    def initialize(post, contract, prepared, actor:, now:)
+    def initialize(post, contract, prepared, actor:, now:, body_images:)
       @post, @contract, @prepared, @actor, @now = post, contract, prepared, actor, now
+      @body_images = body_images
       @created = post.new_record?
     end
 
@@ -55,6 +57,7 @@ module OpenBlog
       end
       replace_records(baseline) if baseline
       @prepared.each { |field, value| @post.public_send("#{field}=", value.persist(uploaded_by: @actor)) }
+      @body_images.materialize(@post, actor: @actor)
       @post.status = "draft"
       @post.publish_at = nil
       @post.save!
@@ -101,6 +104,7 @@ module OpenBlog
       @post.status = "published"
       description = @contract.attributes[:category_description]
       @post.category.description = description if @post.category && @post.category.description.blank? && description.present?
+      @body_images.preview(@post)
       @post.send(:compute_derived)
       @post.valid?
       raise ActiveRecord::RecordInvalid, @post if @post.errors.any?

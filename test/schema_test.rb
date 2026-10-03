@@ -23,6 +23,7 @@ class SchemaTest < ActiveSupport::TestCase
     expected = connection.adapter_name == "PostgreSQL" ? :jsonb : :json
     assert_equal expected, connection.columns(:open_blog_authors).find { |column| column.name == "profile_urls" }.type
     assert_equal expected, connection.columns(:open_blog_connection_declarations).find { |column| column.name == "connections" }.type
+    assert_equal expected, connection.columns(:open_blog_posts).find { |column| column.name == "body_image_manifest" }.type
   end
 
   test "database rejects case equivalent tag names even without model validation" do

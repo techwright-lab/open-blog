@@ -1,6 +1,6 @@
 # Open Blog
 
-An agentic blog engine for Rails. **Not released:** the gem currently provides a mountable engine, configuration, content models, and Ruby publishing operations for PostgreSQL and SQLite. HTTP interfaces and reader pages are under development.
+An agentic blog engine for Rails. **Not released:** the gem currently provides a mountable engine, configuration, content models, Ruby publishing operations, and body rendering for PostgreSQL and SQLite. HTTP interfaces and reader pages are under development.
 
 Configure the engine in `config/initializers/open_blog.rb`:
 
@@ -48,5 +48,11 @@ extraction = OpenBlog::FaqExtraction.call(body: article[:body])
 ```
 
 The extractor stores nothing and also returns `source_body_sha256` for recording the original body. Each cut range uses byte offsets with an exclusive end. Calls may provide `standalone_questions: ["How often should I water?"]` to identify specific level-two sections; these require review.
+
+Render stored content with `OpenBlog::Renderer.render(post)`, or preview a string with `OpenBlog::Renderer.render_string(text, format: :markdown)`. Both return sanitized HTML with heading links, syntax highlighting, image figures, and table wrappers. Markdown also supports task lists, footnotes, and alerts. Rich-text input cannot supply its own classes, IDs, styles, or event handlers. Rendering does not write records or fetch image bytes.
+
+Publishing and draft operations resolve body images before recording revision identities. Image manifests survive reloads and child-record edits; metadata-only updates reuse them. Native rich-text saves can import existing uploaded blobs. External image URLs remain in the body; remote image fetching is still under development, so their bytes remain unverified. Body findings report heading gaps, level-one headings, missing image descriptions, and external images.
+
+Generate syntax colors for the configured theme with `bin/rails open_blog:syntax_css`. The output includes light, explicit dark, and system dark rules scoped to code blocks. `config.syntax_theme` defaults to `"github"`; `"base16"` and `"gruvbox"` also support both modes.
 
 Licensed under the [MIT License](LICENSE.txt).

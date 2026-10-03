@@ -88,6 +88,8 @@ module OpenBlog
           existing = Image.find_by(sha256: attributes[:sha256])
           next existing if existing
           blob = ActiveStorage::Blob.lock.find(@blob.id)
+          existing = Image.find_by(sha256: attributes[:sha256])
+          next existing if existing
           fields = %w[key service_name checksum byte_size content_type]
           unless blob.attributes.slice(*fields) == @blob.attributes.slice(*fields)
             raise Error::ImageNotPermitted
@@ -101,7 +103,14 @@ module OpenBlog
         end
       rescue ActiveRecord::RecordNotUnique
         Image.find_by!(sha256: attributes[:sha256])
-      rescue ActiveRecord::RecordNotFound, ActiveRecord::RecordInvalid
+      rescue ActiveRecord::RecordInvalid => error
+        errors = error.record.errors.details
+        if error.record.is_a?(Image) && errors.keys == [ :sha256 ] && errors[:sha256].all? { |detail| detail[:error] == :taken }
+          existing = Image.find_by(sha256: attributes[:sha256])
+          return existing if existing
+        end
+        raise Error::ImageNotPermitted
+      rescue ActiveRecord::RecordNotFound
         raise Error::ImageNotPermitted
       end
     end

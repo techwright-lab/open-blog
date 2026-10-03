@@ -42,6 +42,7 @@ module OpenBlog
 
     attr_accessor :release_context, :release_records
 
+    before_save :resolve_body_images
     before_save :compute_derived
     after_save :record_release
     around_save :guard_parent_content, prepend: true
@@ -94,6 +95,10 @@ module OpenBlog
       end
     rescue URI::InvalidURIError
       errors.add(:canonical_url, "must be an absolute HTTP or HTTPS URL")
+    end
+
+    def resolve_body_images
+      ImageResolution.native!(self)
     end
 
     def compute_derived
