@@ -7,18 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Wait for RubyGems to index a pushed version before tagging the release, instead of refusing the tag.
+
 ## [0.1.0] - 2026-10-03
 
 ### Added
 
 - Publish searchable public documentation with installation, configuration, publishing, API, MCP, and customization guides.
 - Prepare release pull requests that update the version and dated changelog, then publish verified packages to RubyGems and synchronize GitHub Releases.
-
-### Changed
-
-- Document supported Ruby, Rails, and database versions, every configuration setting with its default, and verified Ruby, API, MCP, and reader examples.
-
-### Added
 
 - Initial gem package, runtime dependencies, tests, and continuous integration.
 - Add a mountable engine with validated configuration and a PostgreSQL/SQLite host test matrix.

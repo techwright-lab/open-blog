@@ -17,12 +17,14 @@ permalink: /installation/
 | Images | Active Storage with libvips (or ImageMagick if your host uses that backend) |
 | Rich text | Action Text, only when `body_formats` includes `:rich_text` |
 
-Every combination of Ruby, Rails, and database above runs in CI. Install from GitHub until a version is published on RubyGems:
+Every combination of Ruby, Rails, and database above runs in CI. Add the gem and run the installer:
 
 ```sh
-bundle add open_blog --github techwright-lab/open-blog
+bundle add open_blog
 bin/rails generate open_blog:install
 ```
+
+To run the latest unreleased source instead, use `bundle add open_blog --github techwright-lab/open-blog`.
 
 Start the host with `bin/dev` (or `bin/rails server`) and open `/blog`. Set your site and author names in the generated initializer, or pass `--site-name="My Journal" --author-name="Example Author"` to the generator.
 

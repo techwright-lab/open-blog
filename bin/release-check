@@ -9,11 +9,14 @@ require "date"
 class OpenBlogRelease
   class Refusal < StandardError; end
   REPOSITORY = "techwright-lab/open-blog"
+  INDEX_ATTEMPTS = 30
+  INDEX_INTERVAL = 10
 
-  def initialize(env: ENV, directory: Dir.pwd, command: nil, http: nil)
+  def initialize(env: ENV, directory: Dir.pwd, command: nil, http: nil, sleep: nil)
     @env, @directory = env, directory
     @command = command || method(:execute)
     @http = http || method(:fetch)
+    @sleep = sleep || method(:sleep)
   end
 
   def verify!
@@ -51,7 +54,7 @@ class OpenBlogRelease
 
   def finish!
     identity!
-    refuse("The published gem has not been verified") unless published_identical?
+    refuse("The published gem has not been verified") unless published_identical?(wait: true)
     unless verify_tag!
       command("git", "tag", "-a", "v#{version}", sha, "-m", "Release v#{version}")
       command("git", "push", "origin", "refs/tags/v#{version}")
@@ -125,8 +128,15 @@ class OpenBlogRelease
     refuse("The changelog release date is invalid")
   end
 
-  def published_identical?
-    status, body = @http.call("https://rubygems.org/api/v2/rubygems/open_blog/versions/#{version}.json")
+  # RubyGems answers 404 for a version for a few minutes after a successful push.
+  def published_identical?(wait: false)
+    attempts = wait ? INDEX_ATTEMPTS : 1
+    status = body = nil
+    attempts.times do |attempt|
+      status, body = @http.call("https://rubygems.org/api/v2/rubygems/open_blog/versions/#{version}.json")
+      break unless status == 404 && attempt < attempts - 1
+      @sleep.call(INDEX_INTERVAL)
+    end
     return false if status == 404
     refuse("Could not verify the RubyGems version") unless status == 200
     metadata = JSON.parse(body)
