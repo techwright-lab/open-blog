@@ -7,8 +7,9 @@ module OpenBlog
       image = Image.find_by!(sha256: params[:sha256])
       raise NotFound unless image.file.attached?
       if OpenBlog.config.image_delivery == :proxy
+        bytes = image.file.download
         expires_in 365.days, public: true, immutable: true
-        send_data image.file.download, type: image.content_type, filename: image.filename, disposition: "inline"
+        send_data bytes, type: image.content_type, filename: image.filename, disposition: "inline"
       else
         lifetime = [ ActiveStorage.service_urls_expire_in.to_i, 365.days.to_i ].min
         expires_in lifetime, public: true

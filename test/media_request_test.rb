@@ -34,4 +34,13 @@ class MediaRequestTest < ActionDispatch::IntegrationTest
     assert_operator lifetime, :>, 0
     assert_operator lifetime, :<=, ActiveStorage.service_urls_expire_in.to_i
   end
+
+  test "missing stored bytes do not leave an immutable cached missing page" do
+    OpenBlog.config.image_delivery = :proxy
+    @blob.service.delete(@blob.key)
+    get @image.path
+    assert_response :not_found
+    refute_includes response.headers.fetch("Cache-Control", ""), "immutable"
+    refute_includes response.headers.fetch("Cache-Control", ""), "max-age=31536000"
+  end
 end
