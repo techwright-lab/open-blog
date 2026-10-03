@@ -135,9 +135,13 @@ class PublishWorkflowTest < Minitest::Test
     git("init", "--bare", "-q", remote)
     git("remote", "add", "origin", remote)
     responses = []
-    gate = OpenBlogRelease.new(env: @env, directory: @directory, command: method(:command), http: ->(_url) { responses.shift || raise("Unexpected HTTP") })
-    responses.replace([ [ 404, "missing" ] ])
+    pauses = []
+    gate = OpenBlogRelease.new(env: @env, directory: @directory, command: method(:command),
+      http: ->(_url) { responses.shift || raise("Unexpected HTTP") }, sleep: ->(seconds) { pauses << seconds })
+    responses.replace(Array.new(OpenBlogRelease::INDEX_ATTEMPTS) { [ 404, "missing" ] })
     assert_raises(OpenBlogRelease::Refusal) { gate.finish! }
+    assert_empty responses
+    assert_equal [ OpenBlogRelease::INDEX_INTERVAL ] * (OpenBlogRelease::INDEX_ATTEMPTS - 1), pauses
     assert_empty git("tag", "--list")
     refute @commands.any? { |args| args[0, 3] == [ "gh", "release", "create" ] }
     @tags = [ { "ref" => "refs/tags/v0.1.0", "object" => { "type" => "tag", "sha" => "e" * 40 } } ]
@@ -151,8 +155,10 @@ class PublishWorkflowTest < Minitest::Test
     assert_empty git("tag", "--list")
     assert @commands.any? { |args| args[0, 3] == [ "gh", "release", "create" ] && args.include?("--verify-tag") }
     @tags = []
-    responses.replace([ [ 200, '{"version":"0.1.0","platform":"ruby"}' ], [ 200, "artifact" ] ])
+    pauses.clear
+    responses.replace([ [ 404, "indexing" ], [ 404, "indexing" ], [ 200, '{"version":"0.1.0","platform":"ruby"}' ], [ 200, "artifact" ] ])
     gate.finish!
+    assert_equal [ OpenBlogRelease::INDEX_INTERVAL ] * 2, pauses
     assert_equal @main, git("rev-parse", "v0.1.0^{commit}").strip
     assert_includes git("ls-remote", "origin", "refs/tags/v0.1.0^{}"), @main
     push = @commands.index { |args| args[0, 3] == [ "git", "push", "origin" ] }

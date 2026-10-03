@@ -27,12 +27,12 @@ Every combination of Ruby, Rails, and database above runs in CI.
 
 ## Install
 
-Install from GitHub until a version is published on RubyGems:
-
 ```sh
-bundle add open_blog --github techwright-lab/open-blog
+bundle add open_blog
 bin/rails generate open_blog:install
 ```
+
+To run the latest unreleased source instead, use `bundle add open_blog --github techwright-lab/open-blog`.
 
 Start `bin/dev` (or `bin/rails server`) and open `/blog`. The generator installs tables, mounts the engine at `/blog`, copies the reader views and browser controllers, writes `config/initializers/open_blog.rb`, and publishes a sample article. If it prints an API token, save it: the secret is shown once.
 

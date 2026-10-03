@@ -12,7 +12,7 @@ Open Blog is an agentic blog engine for Rails 8, with Markdown and rich-text art
 [Install Open Blog]({% link installation.md %}){: .btn .btn-primary }
 [Browse the source](https://github.com/techwright-lab/open-blog){: .btn }
 
-Open Blog runs on Ruby 3.2 to 4.0 with Rails 8.0 or 8.1; the [installation guide]({% link installation.md %}#requirements) lists the full requirements. Install from GitHub for the latest source. See [GitHub Releases](https://github.com/techwright-lab/open-blog/releases) for published versions and their release notes.
+Open Blog runs on Ruby 3.2 to 4.0 with Rails 8.0 or 8.1; the [installation guide]({% link installation.md %}#requirements) lists the full requirements. Released versions are on [RubyGems](https://rubygems.org/gems/open_blog); see [GitHub Releases](https://github.com/techwright-lab/open-blog/releases) for their release notes.
 
 ## Start here
 
