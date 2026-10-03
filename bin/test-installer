@@ -1,11 +1,13 @@
 #!/usr/bin/env ruby
 require "bundler"
 require "fileutils"
+require "digest"
 require "json"
 require "net/http"
 require "nokogiri"
 require "optparse"
 require "rbconfig"
+require "rubygems/package"
 require "socket"
 require "tmpdir"
 require "timeout"
@@ -27,6 +29,7 @@ class InstallerHarness
   def run
     puts "Installer case Rails #{@options[:rails]}, mode #{@options[:mode]}#{' without Tailwind' if @options[:skip_tailwind]}: #{@workspace}"
     create_host
+    verify_package_installation if @options[:gem]
     install = [ "bin/rails", "generate", "open_blog:install", "--site-name=CI", "--author-name=CI" ]
     install << "--skip-tailwind" if @options[:skip_tailwind]
     install << "--skip-sample" if @options[:skip_sample]
@@ -102,7 +105,55 @@ class InstallerHarness
     command(RbConfig.ruby, "-e", installer, directory: @workspace)
     launcher = "gem 'railties', #{requirement.inspect}; load Gem.bin_path('railties', 'rails')"
     command(RbConfig.ruby, "-e", launcher, "--", "new", @app, *MODES.fetch(@options[:mode]), directory: @workspace)
-    command("bundle", "add", "open_blog", "--path", @root)
+    install_blog
+  end
+
+  def install_blog
+    unless @options[:gem]
+      return command("bundle", "add", "open_blog", "--path", @root)
+    end
+    package = Gem::Package.new(@options[:gem])
+    @package_spec = package.spec
+    check(@package_spec.name == "open_blog", "--gem must contain the open_blog gem")
+    package.verify
+    cache = File.join(@app, "vendor/cache")
+    FileUtils.mkdir_p(cache)
+    archives = Gem.path.flat_map { |path| Dir[File.join(path, "cache/*.gem")] } + Gem.loaded_specs.values.map(&:cache_file)
+    archives.uniq.each do |archive|
+      next unless File.file?(archive)
+      next if File.basename(archive).start_with?("open_blog-")
+      FileUtils.cp(archive, cache)
+    end
+    FileUtils.cp(@options[:gem], File.join(cache, @package_spec.file_name))
+    File.open(File.join(@app, "Gemfile"), "a") { |file| file.puts("\ngem \"open_blog\", \"= #{@package_spec.version}\"") }
+    command("bundle", "config", "set", "--local", "path", "vendor/bundle")
+    command("bundle", "install")
+  end
+
+  def verify_package_installation
+    runner = <<~RUBY
+      require "json"
+      specification = Gem.loaded_specs.fetch("open_blog")
+      locked = Bundler.locked_gems.specs.find { |spec| spec.name == "open_blog" }
+      puts JSON.generate(version: specification.version.to_s, path: specification.full_gem_path,
+        source: locked.source.class.name)
+    RUBY
+    installed = JSON.parse(capture("bundle", "exec", RbConfig.ruby, "-rbundler/setup", "-e", runner))
+    check(installed.fetch("version") == @package_spec.version.to_s, "Host loaded the wrong gem version")
+    check(installed.fetch("source") == "Bundler::Source::Rubygems", "Host loaded open_blog from a path or Git source")
+    bundle_path = File.realpath(File.join(@app, "vendor/bundle")) + File::SEPARATOR
+    check(File.realpath(installed.fetch("path")).start_with?(bundle_path), "Host loaded open_blog outside its isolated package bundle")
+    Dir.mktmpdir("open-blog-package-evidence-") do |directory|
+      package = Gem::Package.new(@options[:gem])
+      package.extract_files(directory)
+      package.contents.each do |relative|
+        expected = File.join(directory, relative)
+        actual = File.join(installed.fetch("path"), relative)
+        next unless File.file?(expected)
+        check(File.file?(actual) && Digest::SHA256.file(expected).hexdigest == Digest::SHA256.file(actual).hexdigest,
+          "Installed gem file differs from the supplied package: #{relative}")
+      end
+    end
   end
 
   def verify_migrations
@@ -278,18 +329,21 @@ class InstallerHarness
   end
 end
 
-options = { rails: "8.1", mode: "A", skip_tailwind: false, skip_sample: false, keep: false }
-parser = OptionParser.new do |opts|
-  opts.banner = "Usage: bin/test-installer --rails 8.0|8.1 --mode A|B|C|D [--skip-tailwind] [--skip-sample] [--keep] [--output-dir PATH]"
-  opts.on("--rails VERSION", %w[8.0 8.1]) { |value| options[:rails] = value }
-  opts.on("--mode MODE", InstallerHarness::MODES.keys) { |value| options[:mode] = value }
-  opts.on("--skip-tailwind") { options[:skip_tailwind] = true }
-  opts.on("--skip-sample") { options[:skip_sample] = true }
-  opts.on("--keep") { options[:keep] = true }
-  opts.on("--output-dir PATH") { |value| options[:output_dir] = File.expand_path(value) }
+if $PROGRAM_NAME == __FILE__
+  options = { rails: "8.1", mode: "A", skip_tailwind: false, skip_sample: false, keep: false }
+  parser = OptionParser.new do |opts|
+    opts.banner = "Usage: bin/test-installer --rails 8.0|8.1 --mode A|B|C|D [--skip-tailwind] [--skip-sample] [--keep] [--output-dir PATH] [--gem FILE]"
+    opts.on("--rails VERSION", %w[8.0 8.1]) { |value| options[:rails] = value }
+    opts.on("--mode MODE", InstallerHarness::MODES.keys) { |value| options[:mode] = value }
+    opts.on("--skip-tailwind") { options[:skip_tailwind] = true }
+    opts.on("--skip-sample") { options[:skip_sample] = true }
+    opts.on("--gem FILE") { |value| options[:gem] = File.expand_path(value) }
+    opts.on("--keep") { options[:keep] = true }
+    opts.on("--output-dir PATH") { |value| options[:output_dir] = File.expand_path(value) }
+  end
+  parser.parse!
+  abort(parser.to_s) unless ARGV.empty?
+  abort "--skip-tailwind is supported for modes A and C" if options[:skip_tailwind] && %w[B D].include?(options[:mode])
+  FileUtils.mkdir_p(options[:output_dir]) if options[:output_dir]
+  InstallerHarness.new(options).run
 end
-parser.parse!
-abort(parser.to_s) unless ARGV.empty?
-abort "--skip-tailwind is supported for modes A and C" if options[:skip_tailwind] && %w[B D].include?(options[:mode])
-FileUtils.mkdir_p(options[:output_dir]) if options[:output_dir]
-InstallerHarness.new(options).run

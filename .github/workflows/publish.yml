@@ -1,0 +1,64 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Stable gem version to publish
+        required: true
+        type: string
+      sha:
+        description: Full main commit SHA with successful CI and Installer push runs
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: open-blog-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.repository == 'techwright-lab/open-blog' &&
+      github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      actions: read
+      contents: write
+      id-token: write
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      RELEASE_SHA: ${{ inputs.sha }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: false
+      - name: Verify release eligibility
+        id: release
+        run: ruby bin/release-check verify
+      - name: Build and compare the release artifact
+        id: artifact
+        env:
+          SOURCE_DATE_EPOCH: ${{ steps.release.outputs.source_date_epoch }}
+        run: ruby bin/release-check artifact
+      - name: Configure RubyGems trusted publishing
+        if: steps.artifact.outputs.should_publish == 'true'
+        uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
+      - name: Publish to RubyGems
+        if: steps.artifact.outputs.should_publish == 'true'
+        run: gem push "open_blog-${RELEASE_VERSION}.gem" --host https://rubygems.org
+      - name: Tag and create the GitHub release
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          ruby bin/release-check finish

@@ -1,14 +1,19 @@
 # Open Blog
 
-An agentic blog engine for Rails. **Not released:** the gem provides a mountable engine, content models, Ruby publishing operations, sanitized rendering, and reader pages for PostgreSQL and SQLite. Authenticated JSON publishing endpoints are available.
+An agentic blog engine for Rails. **0.1.0 release preparation; not yet published to RubyGems.** The gem provides a mountable engine, content models, Ruby publishing operations, sanitized rendering, and reader pages for PostgreSQL and SQLite. Authenticated JSON publishing endpoints are available.
 
 Install into a Rails 8 application with libvips available for image processing (or ImageMagick if your host uses that backend):
 
 ```sh
 bundle add open_blog --github techwright-lab/open-blog
-bin/rails generate open_blog:install --site-name="My Journal" --author-name="Example Author"
-bin/dev
+bin/rails generate open_blog:install
 ```
+
+Start the host with `bin/dev` (or `bin/rails server`) and open `/blog`. Set your site and author names in the generated initializer, or pass `--site-name="My Journal" --author-name="Example Author"` to the generator.
+
+![Default blog in the light theme](.github/images/reader-light.png)
+
+![Default blog in the dark theme](.github/images/reader-dark.png)
 
 The generator installs the tables, mounts `/blog`, copies reader views and browser controllers, and publishes one sample article. When the host has no authentication hook or existing token, it prints one API token; save the secret because repeated installation will not show it again. It detects importmap or a JavaScript bundler and Tailwind 4. If Tailwind is absent, its installer also changes the host's application layout and development scripts. Use `--skip-tailwind` to keep the host's CSS setup and load the gem's compiled stylesheet only in the blog layout.
 
@@ -34,7 +39,7 @@ FAQ records appear as expanded plain text after the article and supply its FAQ s
 
 Readers can browse an ordered series at `/blog/series/:slug`; member articles link to the previous and next published article. Search at `/blog/search?q=words` covers titles, article text, and FAQ records. Queries must contain 2–100 characters. PostgreSQL uses ranked full-text search; SQLite matches every word. The sidebar offers live suggestions from `/blog/search.json` and also works as an ordinary search form without JavaScript. Search shares `config.search_rate_limit` across HTML and JSON requests per address (default 30 per minute).
 
-Atom and JSON Feed 1.1 are available at `/blog/feed.xml` and `/blog/feed.json`, with category feeds under `/blog/category/:slug/feed.xml` and `.json`. Both use `config.feed_size` and `config.feed_content` (`:summary` or `:full`), and cache publicly for one hour. JSON summary entries include plain-text content. Unknown historical publication dates are omitted; a feed's modification date falls back to the adoption record when needed.
+Atom and JSON Feed 1.1 are available at `/blog/feed.xml` and `/blog/feed.json`, with category feeds under `/blog/category/:slug/feed.xml` and `.json`. Both use `config.feed_size` and `config.feed_content` (`:summary` or `:full`), and cache publicly for one hour. JSON summary entries include plain-text content. Unknown historical publication dates are omitted. Atom requires an `updated` value: when an adopted article has no known publication or modification date, the feed uses the recorded adoption time. This fallback describes the available record, not a claimed original publication date.
 
 Publish from Ruby with `OpenBlog::Publish.call({ title: "Garden notes", body: "Today in the garden." }, actor: "Editor")`. Every operation returns a result with `success?`, `post`, `records`, and a typed `error` on refusal. Updates to public content require `change: "substantive"`, `"correction"` (with `note`), or `"maintenance"`. Drafts use `OpenBlog::SaveDraft.call`.
 
@@ -224,5 +229,7 @@ Reader templates include responsive light and dark themes. `config.color_scheme`
 With Tailwind 4, the copied theme lives in `app/assets/tailwind/open_blog` and the blog layout loads your host build. With `--skip-tailwind` or Tailwind 3, the layout loads the gem's compiled stylesheet followed by `app/assets/stylesheets/open_blog_theme.css`, where you can change fonts, colors, and spacing. The compiled stylesheet stays in the gem. Maintainers rebuild it with `bin/rails open_blog:build_css`; `OUT=/tmp/blog.css` selects another output path.
 
 The installer copies browser controllers to `app/javascript/controllers/open_blog` and registers them with the `open-blog--` prefix. They enable the theme toggle, link and code copying, device sharing, table-of-contents tracking, and reading progress. If you change the blog layout to load a separate JavaScript entry point, register these controllers there too.
+
+Maintainers release through the manual **Publish** workflow on `main`, supplying the version from `lib/open_blog/version.rb` and the full main commit SHA. Before the first release, configure the GitHub `release` environment with an approving reviewer and register the RubyGems trusted publisher for `techwright-lab/open-blog`, workflow `publish.yml`, environment `release`. The workflow requires successful CI and installer runs for the exact commit, checks the version change, and refuses a published version with different package bytes. Merging a pull request does not publish a gem.
 
 Licensed under the [MIT License](LICENSE.txt).

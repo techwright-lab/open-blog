@@ -9,7 +9,23 @@ permissions:
   contents: read
 
 jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+      - name: Build installer package
+        run: gem build open_blog.gemspec --output open_blog.gem
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-gem
+          path: open_blog.gem
+          if-no-files-found: error
+
   fresh-app:
+    needs: package
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -22,6 +38,10 @@ jobs:
         with:
           ruby-version: "3.4"
           bundler-cache: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: installer-gem
+          path: ${{ runner.temp }}/open-blog-package
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -39,7 +59,7 @@ jobs:
           options=()
           if [[ "$INSTALLER_SETUP" == *-fallback ]]; then options+=(--skip-tailwind); fi
           if [[ "$INSTALLER_SETUP" == *-empty ]]; then options+=(--skip-sample); fi
-          bundle exec ruby bin/test-installer --rails "$INSTALLER_RAILS" --mode "$mode" "${options[@]}" --output-dir "$RUNNER_TEMP/open-blog-installer" --keep
+          bundle exec ruby bin/test-installer --gem "$RUNNER_TEMP/open-blog-package/open_blog.gem" --rails "$INSTALLER_RAILS" --mode "$mode" "${options[@]}" --output-dir "$RUNNER_TEMP/open-blog-installer" --keep
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
