@@ -9,3 +9,10 @@
 /test/dummy/storage/
 /test/dummy/db/schema.rb
 /gemfiles/*.lock
+
+/docs/.bundle/
+/docs/vendor/
+/docs/_site/
+/docs/.jekyll-cache/
+/docs/.sass-cache/
+/docs/.jekyll-metadata

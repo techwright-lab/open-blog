@@ -20,7 +20,7 @@ class PublishWorkflowTest < Minitest::Test
     commit_version("0.1.0")
     @env["RELEASE_SHA"] = git("rev-parse", "HEAD").strip
     @main = @env.fetch("RELEASE_SHA")
-    @runs = %w[ci.yml installer.yml].to_h { |workflow| [ workflow, [ workflow_run(workflow) ] ] }
+    @runs = %w[ci.yml installer.yml docs.yml].to_h { |workflow| [ workflow, [ workflow_run(workflow) ] ] }
     @tags = []
     @releases = []
     @commands = []
@@ -37,7 +37,7 @@ class PublishWorkflowTest < Minitest::Test
     assert_includes outputs, "version=0.1.0"
     assert_includes outputs, "source_date_epoch=#{git('show', '-s', '--format=%ct', 'HEAD').strip}"
     assert_equal "- Ship the reader.\n", File.read(File.join(@directory, "open-blog-release-notes.md"))
-    %w[ci.yml installer.yml].each do |workflow|
+    %w[ci.yml installer.yml docs.yml].each do |workflow|
       assert @commands.any? { |args| args.join.include?("workflows/#{workflow}/runs?head_sha=#{@main}&event=push&branch=main") }
     end
   end
@@ -59,7 +59,7 @@ class PublishWorkflowTest < Minitest::Test
     [ { "conclusion" => "failure" }, { "status" => "in_progress" }, { "event" => "pull_request" },
       { "head_branch" => "topic" }, { "head_sha" => "c" * 40 },
       { "head_repository" => { "full_name" => "another/open-blog" } } ].each do |change|
-      %w[ci.yml installer.yml].each do |workflow|
+      %w[ci.yml installer.yml docs.yml].each do |workflow|
         @runs[workflow] = [ workflow_run(workflow).merge(change) ]
         assert_raises(OpenBlogRelease::Refusal, "#{workflow}: #{change}") { @gate.verify! }
         @runs[workflow] = [ workflow_run(workflow) ]
@@ -71,10 +71,10 @@ class PublishWorkflowTest < Minitest::Test
     assert_raises(OpenBlogRelease::Refusal) { @gate.verify! }
   end
 
-  def test_unchanged_version_missing_or_empty_notes_and_tag_collision_stop_release
+  def test_later_documentation_commits_are_releasable_but_invalid_notes_and_tags_stop_release
     commit_version("0.1.0")
     sync_evidence
-    assert_raises(OpenBlogRelease::Refusal) { @gate.verify! }
+    @gate.verify!
     git("reset", "--hard", "HEAD^")
     sync_evidence
     [ "## [Unreleased]\n- Later.\n", "## [0.1.0]\n\n### Added\n", "## [0.1.0]\n- One\n## [0.1.0]\n- Two\n" ].each do |notes|
@@ -82,12 +82,23 @@ class PublishWorkflowTest < Minitest::Test
       amend_notes
       assert_raises(OpenBlogRelease::Refusal) { @gate.verify! }
     end
-    File.write(File.join(@directory, "CHANGELOG.md"), "## [0.1.0]\n- Ship the reader.\n")
+    File.write(File.join(@directory, "CHANGELOG.md"), "## [0.1.0] - 2026-01-01\n- Ship the reader.\n")
     amend_notes
     @tags = [ { "ref" => "refs/tags/v0.1.0", "object" => { "type" => "commit", "sha" => "d" * 40 } } ]
     assert_raises(OpenBlogRelease::Refusal) { @gate.verify! }
     @tags.first["object"]["sha"] = @main
     @gate.verify!
+  end
+
+  def test_older_versions_and_undated_invalid_or_future_release_notes_are_refused
+    @tags = [ { "ref" => "refs/tags/v0.2.0", "object" => { "type" => "commit", "sha" => "d" * 40 } } ]
+    assert_raises(OpenBlogRelease::Refusal) { @gate.verify! }
+    @tags = []
+    [ "## [0.1.0]", "## [0.1.0] - 2026-02-30", "## [0.1.0] - 2999-01-01" ].each do |heading|
+      File.write(File.join(@directory, "CHANGELOG.md"), "#{heading}\n- Notes\n")
+      amend_notes
+      assert_raises(OpenBlogRelease::Refusal) { @gate.verify! }
+    end
   end
 
   def test_artifact_build_is_reproducible_and_existing_bytes_must_match
@@ -148,11 +159,25 @@ class PublishWorkflowTest < Minitest::Test
     release = @commands.rindex { |args| args[0, 3] == [ "gh", "release", "create" ] }
     assert_operator push, :<, release
     @tags = [ { "ref" => "refs/tags/v0.1.0", "object" => { "type" => "commit", "sha" => @main } } ]
-    @releases = [ { "tag_name" => "v0.1.0" } ]
+    @releases = [ { "tag_name" => "v0.1.0", "body" => "- Ship the reader.\n", "name" => "open_blog v0.1.0", "draft" => false, "prerelease" => false } ]
     @commands.clear
     responses.replace([ [ 200, '{"version":"0.1.0","platform":"ruby"}' ], [ 200, "artifact" ] ])
     gate.finish!
     refute @commands.any? { |args| args[0, 3] == [ "git", "push", "origin" ] || args[0, 3] == [ "gh", "release", "create" ] }
+    refute @commands.any? { |args| args[0, 3] == [ "gh", "release", "edit" ] }
+    { "body" => "Old notes", "draft" => true, "prerelease" => true, "name" => "Old title" }.each do |field, value|
+      original = @releases.first[field]
+      @releases.first[field] = value
+      @commands.clear
+      responses.replace([ [ 200, '{"version":"0.1.0","platform":"ruby"}' ], [ 200, "artifact" ] ])
+      gate.finish!
+      edit = @commands.find { |args| args[0, 3] == [ "gh", "release", "edit" ] }
+      assert_includes edit, "--notes-file"
+      assert_includes edit, "--draft=false"
+      assert_includes edit, "--prerelease=false"
+      assert_includes edit, "open_blog v0.1.0"
+      @releases.first[field] = original
+    end
   end
 
   def test_workflow_only_dispatches_and_gates_before_credentials_and_publication
@@ -197,12 +222,12 @@ class PublishWorkflowTest < Minitest::Test
 
   def sync_evidence
     @env["RELEASE_SHA"] = @main = git("rev-parse", "HEAD").strip
-    @runs = %w[ci.yml installer.yml].to_h { |workflow| [ workflow, [ workflow_run(workflow) ] ] }
+    @runs = %w[ci.yml installer.yml docs.yml].to_h { |workflow| [ workflow, [ workflow_run(workflow) ] ] }
   end
 
   def commit_version(version)
     File.write(File.join(@directory, "lib/open_blog/version.rb"), "module OpenBlog\n  VERSION = \"#{version}\"\nend\n")
-    File.write(File.join(@directory, "CHANGELOG.md"), "## [0.1.0]\n- Ship the reader.\n")
+    File.write(File.join(@directory, "CHANGELOG.md"), "## [0.1.0] - 2026-01-01\n- Ship the reader.\n")
     git("add", ".")
     git("commit", "-qm", "Version #{version}", "--allow-empty")
   end
@@ -220,7 +245,7 @@ class PublishWorkflowTest < Minitest::Test
   def command(*args)
     @commands << args
     return execute(*args) unless args.first == "gh"
-    return "" if args[0, 3] == [ "gh", "release", "create" ]
+    return "" if args[0, 2] == [ "gh", "release" ]
     endpoint = args.fetch(2)
     case endpoint
     when /commits\/main$/ then JSON.generate("sha" => @main)

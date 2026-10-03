@@ -2,6 +2,7 @@ require "minitest/autorun"
 require "open3"
 require "rubygems/package"
 require "tmpdir"
+require_relative "../lib/open_blog/version"
 
 class BootstrapTest < Minitest::Test
   ROOT = File.expand_path("..", __dir__)
@@ -16,19 +17,22 @@ class BootstrapTest < Minitest::Test
     stdout, stderr, status = Open3.capture3(Gem.ruby, "-Ilib", "-e", script, chdir: ROOT)
 
     assert status.success?, stderr
-    assert_equal "0.1.0\n", stdout
+    assert_equal "#{OpenBlog::VERSION}\n", stdout
   end
 
   def test_gemspec_declares_identity_and_supported_versions
     spec = Gem::Specification.load(File.join(ROOT, "open_blog.gemspec"))
     refute_nil spec
     assert_equal "open_blog", spec.name
-    assert_equal "0.1.0", spec.version.to_s
+    assert_equal OpenBlog::VERSION, spec.version.to_s
+    assert_match(/\A\d+\.\d+\.\d+\z/, spec.version.to_s)
+    assert_operator spec.version, :>=, Gem::Version.new("0.1.0")
     assert_equal [ "TechWright Labs" ], spec.authors
     assert_equal [ "engineering@techwright.io" ], Array(spec.email)
     assert_equal [ "MIT" ], spec.licenses
     assert_equal REPOSITORY, spec.homepage
     assert_equal REPOSITORY, spec.metadata["source_code_uri"]
+    assert_equal "https://techwright-lab.github.io/open-blog/", spec.metadata["documentation_uri"]
     assert_equal "#{REPOSITORY}/blob/main/CHANGELOG.md", spec.metadata["changelog_uri"]
     assert_equal "true", spec.metadata["rubygems_mfa_required"]
     assert_equal Gem::Requirement.new(">= 3.2", "< 4.1"), spec.required_ruby_version
@@ -53,7 +57,7 @@ class BootstrapTest < Minitest::Test
       assert status.success?, "#{stdout}\n#{stderr}"
       refute_match(/warning/i, "#{stdout}\n#{stderr}")
       package = Gem::Package.new(artifact)
-      assert_equal "0.1.0", package.spec.version.to_s
+      assert_equal OpenBlog::VERSION, package.spec.version.to_s
       files = package.contents
       %w[lib/open_blog.rb lib/open_blog/version.rb LICENSE.txt README.md CHANGELOG.md].each do |file|
         assert_includes files, file

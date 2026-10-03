@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Publish searchable public documentation with installation, configuration, publishing, API, MCP, and customization guides.
+- Prepare release pull requests that update the version and dated changelog, then publish verified packages to RubyGems and synchronize GitHub Releases.
+
 ## [0.1.0]
 
 ### Added

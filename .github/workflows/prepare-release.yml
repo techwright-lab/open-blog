@@ -1,0 +1,47 @@
+name: Prepare Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Stable gem version to prepare from Unreleased changelog notes
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: open-blog-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: >-
+      github.repository == 'techwright-lab/open-blog' &&
+      github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+      - name: Create or reuse the release pull request and dispatch its checks
+        id: prepare
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          ruby bin/prepare-release
+      - name: Show the release pull request
+        env:
+          RELEASE_PR: ${{ steps.prepare.outputs.pull_request }}
+        run: echo "Release pull request — ${RELEASE_PR}" >> "$GITHUB_STEP_SUMMARY"
