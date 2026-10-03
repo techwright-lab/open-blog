@@ -11,6 +11,18 @@ module OpenBlog
   autoload :ConfigurationError, "open_blog/configuration_error"
   autoload :RevisionPayload, "open_blog/revision_payload"
   autoload :PlainText, "open_blog/plain_text"
+  autoload :Result, "open_blog/result"
+  autoload :Error, "open_blog/errors"
+  autoload :PostIdentity, "open_blog/post_identity"
+  autoload :PostAttributes, "open_blog/post_attributes"
+  autoload :Operation, "open_blog/operation"
+  autoload :WritePost, "open_blog/write_post"
+  autoload :SaveDraft, "open_blog/save_draft"
+  autoload :Publish, "open_blog/publish"
+  autoload :Approve, "open_blog/approve"
+  autoload :Remove, "open_blog/remove"
+  autoload :Unpublish, "open_blog/unpublish"
+  autoload :RecordRelease, "open_blog/record_release"
 
   class << self
     def config
