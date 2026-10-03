@@ -37,7 +37,7 @@ class ReaderHelpersTest < ActiveSupport::TestCase
     assert_equal "article", doc.at_css('meta[property="og:type"]')["content"]
     assert_equal "summary_large_image", doc.at_css('meta[name="twitter:card"]')["content"]
     assert_equal 1, doc.css('link[type="application/atom+xml"]').length
-    assert_empty doc.css('link[type="application/feed+json"]')
+    assert_equal 1, doc.css('link[type="application/feed+json"]').size
     assert doc.at_css('meta[name="viewport"]')
   end
 

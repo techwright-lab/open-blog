@@ -25,14 +25,13 @@ module OpenBlog
         model = Post.reflect_on_association(association).klass
         matches = model.where(slug: value).or(model.where(name: value))
         matches = matches.or(model.where(id: value.to_i)) if value.match?(/\A[1-9]\d*\z/)
-        relation = relation.joins(association).merge(matches)
+        relation = relation.where(id: Post.joins(association).merge(matches).select(:id))
       end
       if @filters.key?(:q)
         query = @filters[:q]
         invalid(:q) unless query.is_a?(String)
-        relation = relation.where("LOWER(open_blog_posts.search_text) LIKE ?", "%#{Post.sanitize_sql_like(query.downcase)}%") if query.present?
+        relation = Search.call(query, scope: relation)
       end
-      relation = relation.distinct
       total = relation.count
       posts = relation.order(created_at: :desc, id: :desc).offset((page - 1) * per_page).limit(per_page)
         .includes(:author, :category, :tags, :public_revision)

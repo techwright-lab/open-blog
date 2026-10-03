@@ -30,9 +30,13 @@ OpenBlog::Engine.routes.draw do
     end
   end
   root "posts#index"
+  get "/search", to: "search#show", as: :search
+  get "/#{OpenBlog.config.route_segments.fetch(:series)}/:slug", to: "series#show", as: :series
+  get "/feed.json", to: "feeds#show", as: :feed_json, format: false, defaults: { format: :json }
   get "/feed.xml", to: "feeds#show", as: :feed, format: false, defaults: { format: :xml }
   get "/sitemap.xml", to: "sitemaps#show", as: :sitemap, format: false, defaults: { format: :xml }
   get "/media/:sha256/:filename", to: "media#show", as: :media, format: false, constraints: { sha256: /[0-9a-f]{64}/, filename: /[^\/]+/ }
+  get "/#{OpenBlog.config.route_segments.fetch(:category)}/:slug/feed.json", to: "feeds#show", as: :category_feed_json, format: false, defaults: { format: :json }
   get "/#{OpenBlog.config.route_segments.fetch(:category)}/:slug/feed.xml", to: "feeds#show", as: :category_feed, format: false, defaults: { format: :xml }
   get "/#{OpenBlog.config.route_segments.fetch(:category)}/:slug", to: "categories#show", as: :category
   get "/#{OpenBlog.config.route_segments.fetch(:tag)}/:slug", to: "tags#show", as: :tag

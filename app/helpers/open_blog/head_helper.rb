@@ -25,6 +25,8 @@ module OpenBlog
       end
       feed_path = page.kind == :category ? "#{page.path}/feed.xml" : "#{open_blog_index_path.chomp('/')}/feed.xml"
       tags << tag.link(rel: "alternate", type: "application/atom+xml", title: OpenBlog.config.blog_title, href: open_blog_absolute_url(feed_path, base: page.base_url))
+      tags << tag.link(rel: "alternate", type: "application/feed+json", title: OpenBlog.config.blog_title,
+        href: open_blog_absolute_url(feed_path.sub(/\.xml\z/, ".json"), base: page.base_url))
       tags << open_blog_theme_colors
       safe_join(tags, "\n")
     end
@@ -33,7 +35,8 @@ module OpenBlog
       title = case page.kind
       when :post, :preview then page.record.search_title.presence || page.record.title
       when :page then page.record.title
-      when :category, :author then page.record.name
+      when :search then open_blog_translate("search.heading")
+      when :category, :author, :series then page.record.name
       when :tag then open_blog_translate("titles.tag", name: page.record.name)
       when :not_found, :gone, :preview_expired then open_blog_translate("titles.#{page.kind}")
       else OpenBlog.config.blog_title
@@ -46,13 +49,14 @@ module OpenBlog
       record = page.record
       return record.search_description.presence || record.description.to_s if %i[post preview].include?(page.kind)
       return record.title if page.kind == :page
+      return open_blog_translate("search.description") if page.kind == :search
       paginated = page.page_number > 1
       if !paginated
         return OpenBlog.config.blog_tagline if page.kind == :index && OpenBlog.config.blog_tagline.present?
-        return record.description if %i[category tag].include?(page.kind) && record.respond_to?(:description) && record.description.present?
+        return record.description if %i[category tag series].include?(page.kind) && record.respond_to?(:description) && record.description.present?
         return record.bio if page.kind == :author && record.bio.present?
       end
-      kind = %i[index category tag author].include?(page.kind) ? page.kind : :index
+      kind = %i[index category tag author series].include?(page.kind) ? page.kind : :index
       open_blog_translate("descriptions.#{kind}#{'_page' if paginated}", site_name: OpenBlog.config.site_name, name: record&.try(:name), page: page.page_number)
     end
 

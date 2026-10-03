@@ -27,3 +27,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add bounded remote image imports, deduplicated uploads, supporting-record APIs, adoption previews, FAQ extraction, redirect serialization, and one-time installer tokens.
 - Add stateless MCP publishing tools, shared API validation, revision-bound preview links, and packaged agent workflows.
 - Add editable policy pages with scoped API and MCP access, public rendering, footer and sitemap links, and live notice and diagnostic updates.
+- Add series navigation, ranked reader and API search, live search suggestions, Markdown responses, and JSON Feed 1.1.

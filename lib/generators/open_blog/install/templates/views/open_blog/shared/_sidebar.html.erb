@@ -1,5 +1,6 @@
-<% cache @sidebar_cache_key do %>
 <aside class="ob-sidebar">
+  <%= render "open_blog/shared/search" %>
+<% cache @sidebar_cache_key do %>
   <nav class="ob-sidebar-categories" aria-label="<%= open_blog_translate("navigation.categories") %>">
     <h2><%= open_blog_translate("navigation.categories") %></h2>
     <ul>
@@ -23,5 +24,5 @@
       </ul>
     </nav>
   <% end %>
-</aside>
 <% end %>
+</aside>

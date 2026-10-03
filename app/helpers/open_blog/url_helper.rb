@@ -20,6 +20,7 @@ module OpenBlog
       when Category then :category
       when Tag then :tag
       when Author then :author
+      when Series then :series
       else :index
       end
       path = if %i[post page].include?(kind)

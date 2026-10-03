@@ -53,7 +53,7 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     assert_file_includes "app/assets/tailwind/application.css", '@import "./open_blog/theme.css";'
     assert_file_includes "app/views/layouts/open_blog.html.erb", 'stylesheet_link_tag "tailwind"', "javascript_importmap_tags"
     assert_no_file "app/assets/builds/open_blog/blog.css"
-    assert_equal 5, Dir[File.join(destination_root, "app/javascript/controllers/open_blog/*_controller.js")].length
+    assert_equal 6, Dir[File.join(destination_root, "app/javascript/controllers/open_blog/*_controller.js")].length
     assert_includes Recorder.host_commands, [ "bin/rails", "open_blog:install_token" ]
     assert_includes output, "MCP: /blog/mcp"
     routes = read("config/routes.rb")
@@ -137,7 +137,7 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     run_generator arguments.dup
     run_generator arguments.dup
     manifest = read("app/javascript/controllers/index.js")
-    assert_equal 5, manifest.scan(/application.register\("open-blog--/).length
+    assert_equal 6, manifest.scan(/application.register\("open-blog--/).length
     assert_includes manifest, 'from "controllers/open_blog/theme_controller"'
     assert_file_includes "config/initializers/open_blog.rb", /body_formats = \[ :rich_text \]/, /default_body_format = :rich_text/
     routes = read("config/routes.rb")

@@ -30,7 +30,7 @@ class EngineTest < ActionDispatch::IntegrationTest
     stylesheet = document.at_css('link[rel="stylesheet"]')["href"]
     imports = JSON.parse(document.at_css('script[type="importmap"]').text).fetch("imports")
     controllers = imports.select { |name, _path| name.start_with?("controllers/open_blog/") }
-    assert_equal 5, controllers.size
+    assert_equal 6, controllers.size
     [ stylesheet, imports.fetch("application"), imports.fetch("@hotwired/stimulus"), *controllers.values ].each do |path|
       get path
       assert_response :success, path
