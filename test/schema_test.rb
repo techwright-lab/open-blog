@@ -46,6 +46,17 @@ class SchemaTest < ActiveSupport::TestCase
     end
   end
 
+  test "page view rows contain only a post day and count" do
+    columns = connection.columns(:open_blog_page_views).index_by(&:name)
+    assert_equal %w[day id post_id views], columns.keys.sort
+    %w[post_id day views].each { |name| refute columns.fetch(name).null }
+    assert_equal "0", columns.fetch("views").default.to_s
+    assert connection.foreign_key_exists?(:open_blog_page_views, :open_blog_posts, column: :post_id)
+    indexes = connection.indexes(:open_blog_page_views)
+    assert indexes.any? { |index| index.unique && index.columns == %w[post_id day] }
+    assert indexes.any? { |index| index.columns == [ "day" ] }
+  end
+
   test "database enforces unique keys used by content operations" do
     expected = {
       authors: [ [ "slug" ] ], categories: [ [ "name" ], [ "slug" ] ], series: [ [ "slug" ] ],

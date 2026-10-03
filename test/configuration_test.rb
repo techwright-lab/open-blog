@@ -61,6 +61,21 @@ class ConfigurationTest < Minitest::Test
     Rails.cache = original
   end
 
+  def test_invalid_view_settings_fail_at_configuration_validation
+    {
+      page_views: [ nil, "false", 0 ],
+      page_view_bot_pattern: [ nil, "bot" ],
+      page_view_retention_days: [ 0, -1, "30", 1.5 ],
+      popular_posts: [ nil, {}, { enabled: "true" }, { enabled: true, days: 0, limit: 5 }, { enabled: true, days: 30, limit: 101 } ]
+    }.each do |name, values|
+      values.each do |value|
+        config = OpenBlog::Configuration.new
+        config.public_send("#{name}=", value)
+        assert_raises(OpenBlog::ConfigurationError, "#{name}=#{value.inspect}") { config.validate_structure! }
+      end
+    end
+  end
+
   def test_default_mcp_enabled
     assert_equal true, OpenBlog::Configuration.new.mcp.enabled
   end

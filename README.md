@@ -134,6 +134,7 @@ MCP is available at `/blog/mcp`, using the same Bearer authentication as the API
 | `blog_list_redirects`, `blog_save_redirect` | Inspect or create URL moves and removals |
 | `blog_extract_faq`, `blog_adopt_post` | Prepare FAQ extraction and import existing articles |
 | `blog_get_site_page`, `blog_save_site_page` | Read or edit a policy page by `kind` |
+| `blog_get_page_views` | Read daily article counts or top articles |
 
 Tools use the API fields listed above. Pass `id` for a specific post; publish accepts an optional ID, and draft saves use slug or external-ID upsert. Category, author, and series saves use an optional numeric ID to select an update. Redirect save creates a new record. Correction always selects the correction change type and requires a note. Image upload takes either `{url}` or `{base64, filename, content_type}`. MCP list sizes are additionally capped by `config.mcp.max_page_size` (default 50).
 
@@ -153,7 +154,13 @@ For imports:
 
 Ask whether the original system has an approval record for the imported article. Use imported_approval only with its reviewer, original time, evidence, and the person confirming that it covers this content. Otherwise, record a declaration only when the user supplies the reviewer, approval time, facts_checked answer, declaration date, and their own name. Ask for a declared first publication date when historical evidence is missing, and place that answer in declaration.declared_first_published_at. Do not send approval in an adoption request or invent historical evidence or declarations.
 
-Future `publish_at` values store a schedule and enqueue a job after commit. Scheduled job execution is still under development.
+Future `publish_at` values store a schedule and enqueue a job after commit. The job locks and reloads the article, publishes its latest content when due, and records the actual release time. Cancelled, moved, or already completed schedules are harmless to repeat. Scheduled execution does not require a new approval; content edited after review can therefore publish with a missing-approval notice. Host publication callbacks still apply. Use a durable Active Job adapter, or run `bin/rails open_blog:publish_due` regularly as a fallback.
+
+Daily page views count successful HTML article GETs that reach Rails, including conditional 304 responses. The counter excludes common bots, missing User-Agent headers, prefetches, previews, Markdown, feeds, and redirects. It stores only article ID, UTC date, and count; it does not identify visitors or measure unique readers. Requests served entirely by a CDN or reverse-proxy cache are not counted. Counter errors are logged without interrupting the page.
+
+Set `config.page_views = false` to disable counting, or replace `config.page_view_bot_pattern` with a regular expression for your traffic. `config.page_view_retention_days` defaults to `nil`; set a positive number and schedule `bin/rails open_blog:prune_page_views` to remove older rows. Enable the sidebar with `config.popular_posts = { enabled: true, days: 30, limit: 5 }`. Rankings cache for one hour, while withdrawn articles disappear immediately.
+
+With a read-scoped API token, `GET /blog/api/v1/posts/:id/views?from=2026-01-01&to=2026-01-31` returns daily totals; omitted dates select the last 30 days. `GET /blog/api/v1/views/top?days=7&limit=3` ranks stored articles by views. MCP `blog_get_page_views` accepts either an article `id` with optional `from`/`to`, or optional `days`/`limit` for rankings. These authenticated reports can include articles that are no longer public; the public sidebar includes only currently listed articles.
 
 Import an existing published article with `OpenBlog::Adopt`. The source pair identifies the import, and adoption preserves its history without recording a new first publication:
 
@@ -182,7 +189,7 @@ The extractor stores nothing and also returns `source_body_sha256` for recording
 
 Render stored content with `OpenBlog::Renderer.render(post)`, or preview a string with `OpenBlog::Renderer.render_string(text, format: :markdown)`. Both return sanitized HTML with heading links, syntax highlighting, image figures, and table wrappers. Markdown also supports task lists, footnotes, and alerts. Rich-text input cannot supply its own classes, IDs, styles, or event handlers. Rendering does not write records or fetch image bytes.
 
-Publishing and draft operations resolve body images before recording revision identities. Image manifests survive reloads and child-record edits; metadata-only updates reuse them. Native rich-text saves can import existing uploaded blobs. External body image URLs remain unchanged. The gem downloads their bytes once when preparing changed content to record a digest; a refused or failed download leaves the image unverified and does not refuse the article. Metadata-only edits reuse the stored digest. Body findings report heading gaps, level-one headings, missing image descriptions, and external images.
+Publishing and draft operations resolve body images before recording revision identities. Image manifests survive reloads and child-record edits; metadata-only updates reuse them. Native rich-text saves can import existing uploaded blobs. External body image URLs remain unchanged. The gem downloads their bytes once when preparing changed content to record a digest; a refused or failed download leaves the image unverified and does not refuse the article. Metadata-only edits reuse the stored digest. Body findings report heading gaps, level-one headings, missing image descriptions, and external images. They also flag unavailable links within the blog mount using local routes and records, without making network requests. Links outside the mount are not checked by this finding.
 
 Generate syntax colors for the configured theme with `bin/rails open_blog:syntax_css`. The output includes light, explicit dark, and system dark rules scoped to code blocks. `config.syntax_theme` defaults to `"github"`; `"base16"` and `"gruvbox"` also support both modes.
 

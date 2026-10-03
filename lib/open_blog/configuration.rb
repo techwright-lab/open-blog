@@ -4,6 +4,7 @@ require "uri"
 require "active_support/core_ext/numeric/time"
 require "active_support/core_ext/numeric/bytes"
 require "open_blog/configuration_error"
+require "open_blog/page_views"
 
 module OpenBlog
   class Configuration
@@ -49,7 +50,7 @@ module OpenBlog
       @feed_size = 20
       @serve_sitemap = true
       @page_views = true
-      @page_view_bot_pattern = /bot|crawler|spider|slurp|preview|monitor|curl|wget|headless/i
+      @page_view_bot_pattern = PageViews::BOT_PATTERN
       @popular_posts = { enabled: false, days: 30, limit: 5 }
       @preview_expires_in = 7.days
       @image_delivery = :redirect
@@ -100,6 +101,7 @@ module OpenBlog
       end
       invalid!(:default_body_format, "must be enabled in body_formats") unless body_formats.include?(default_body_format)
       preview_duration
+      validate_view_settings!
       invalid!(:mcp, "enabled must be true or false") unless [ true, false ].include?(mcp.enabled)
       invalid!(:mcp, "max_page_size must be a positive integer") unless mcp.max_page_size.is_a?(Integer) && mcp.max_page_size.positive?
       self
@@ -114,6 +116,21 @@ module OpenBlog
     end
 
     private
+
+    def validate_view_settings!
+      invalid!(:page_views, "must be true or false") unless [ true, false ].include?(page_views)
+      invalid!(:page_view_bot_pattern, "must be a regular expression") unless page_view_bot_pattern.is_a?(Regexp)
+      unless page_view_retention_days.nil? || (page_view_retention_days.is_a?(Integer) && page_view_retention_days.positive?)
+        invalid!(:page_view_retention_days, "must be nil or a positive integer")
+      end
+      unless popular_posts.is_a?(Hash) && [ true, false ].include?(popular_posts[:enabled])
+        invalid!(:popular_posts, "must include an enabled boolean")
+      end
+      { days: 36500, limit: 100 }.each do |key, maximum|
+        value = popular_posts.fetch(key, key == :days ? 30 : 5)
+        invalid!(:popular_posts, "#{key} must be an integer from 1 to #{maximum}") unless value.is_a?(Integer) && value.between?(1, maximum)
+      end
+    end
 
     def validate_identity!(key, identity)
       return if identity.nil?

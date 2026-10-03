@@ -2,7 +2,7 @@ require_relative "test_helper"
 require "minitest/mock"
 
 class McpRegistryTest < ActiveSupport::TestCase
-  NAMES = %w[list_posts search_posts get_post get_post_records check_post save_draft get_preview_link publish_post update_post correct_post approve_revision declare_connections unpublish_post remove_post upload_image list_categories save_category list_tags list_authors save_author list_series save_series list_redirects save_redirect get_site_page save_site_page doctor extract_faq adopt_post].map { |name| "blog_#{name}" }.freeze
+  NAMES = %w[list_posts search_posts get_post get_post_records check_post save_draft get_preview_link publish_post update_post correct_post approve_revision declare_connections unpublish_post remove_post upload_image list_categories save_category list_tags list_authors save_author list_series save_series list_redirects save_redirect get_site_page save_site_page get_page_views doctor extract_faq adopt_post].map { |name| "blog_#{name}" }.freeze
 
   test "registry exposes exactly the implemented tools with strict object schemas" do
     definitions = OpenBlog::Mcp.definitions

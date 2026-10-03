@@ -30,6 +30,8 @@ class ReaderBrowserTest < ApplicationSystemTestCase
         author: author, author_name: author.name, category: category, body_markdown: "Start small and observe how your plants respond.",
         cover_image: index < 2 ? image : nil, cover_alt: index < 2 ? "A green planting bed" : "", status: "published")
     end
+    OpenBlog.config.popular_posts = { enabled: true, days: 30, limit: 5 }
+    OpenBlog::PageView.create!(post: @post, day: Time.current.utc.to_date, views: 10)
     series = OpenBlog::Series.create!(name: "Garden notebook", slug: "garden-notebook")
     @post.update!(series: series, series_position: 1)
     @paths = [ "/blog/series/garden-notebook", "/blog/search?q=garden", "/blog", @post.path, "/blog/category/home-gardens", "/blog/tag/outdoors", "/blog/author/ellis-river", "/blog/missing-page" ]

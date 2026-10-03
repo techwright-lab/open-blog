@@ -2,6 +2,7 @@ require_relative "findings/check"
 require_relative "findings/registry"
 require_relative "findings/record_checks"
 require_relative "findings/body_checks"
+require_relative "findings/link_check"
 
 module OpenBlog
   module Findings
@@ -10,6 +11,7 @@ module OpenBlog
         @registry ||= Registry.new.tap do |registry|
           RecordChecks.build.each { |check| registry.register(check) }
           BodyChecks.build.each { |check| registry.register(check) }
+          registry.register(LinkCheck.new)
         end
       end
 
