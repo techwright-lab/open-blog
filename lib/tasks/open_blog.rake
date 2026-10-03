@@ -59,3 +59,13 @@ namespace :open_blog do
     puts "Pruned #{OpenBlog::PageViews.prune!} daily view totals"
   end
 end
+
+namespace :open_blog do
+  desc "Inspect public pages and publishing records"
+  task report: :environment do
+    puts OpenBlog::SurfaceReport.run(scope: ENV.fetch("SCOPE", "site"), post: ENV["POST"],
+      page: ENV.fetch("PAGE", "1"), reach: ENV.fetch("REACH", "false")).to_text
+  rescue OpenBlog::Error => error
+    abort "#{error.code}: #{error.details.join(', ')}"
+  end
+end

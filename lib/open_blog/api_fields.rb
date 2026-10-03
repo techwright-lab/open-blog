@@ -1,5 +1,6 @@
 module OpenBlog
   module ApiFields
+    REPORT = %i[scope post page reach].freeze
     POST_WRITE = (PostAttributes::CONTENT_FIELDS + PostAttributes::RECORD_FIELDS).freeze
     POST_LIST = %i[status category tag author series q page per_page].freeze
     POST_NESTED = {

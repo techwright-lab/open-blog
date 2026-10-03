@@ -28,6 +28,7 @@ OpenBlog::Engine.routes.draw do
       get "pages/:kind", to: "pages#show"
       put "pages/:kind", to: "pages#update"
       get "views/top", to: "views#top"
+      get "report", to: "report#show"
       get "doctor", to: "doctor#show"
     end
   end

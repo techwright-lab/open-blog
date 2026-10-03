@@ -50,6 +50,7 @@ module OpenBlog
   autoload :Pagination, "open_blog/pagination"
   autoload :NotFound, "open_blog/not_found"
   autoload :SitemapEntries, "open_blog/sitemap_entries"
+  autoload :SurfaceReport, "open_blog/surface_report"
   autoload :Doctor, "open_blog/doctor"
   autoload :Sample, "open_blog/sample"
   autoload :Actor, "open_blog/actor"
