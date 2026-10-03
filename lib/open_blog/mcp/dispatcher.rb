@@ -4,7 +4,7 @@ require "uri"
 module OpenBlog
   module Mcp
     class Dispatcher
-      CONTROLLERS = %w[posts approvals connections records findings doctor images categories tags authors series redirects adoptions faq_extractions previews pages views].freeze
+      CONTROLLERS = %w[posts approvals connections records findings doctor images categories tags authors series redirects adoptions faq_extractions previews pages views report].freeze
       METHODS = %w[GET POST PUT PATCH DELETE].freeze
 
       def self.call(controller:, action:, method:, arguments:, actor:, route_params: {}, base_url: nil)

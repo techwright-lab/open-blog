@@ -29,3 +29,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add editable policy pages with scoped API and MCP access, public rendering, footer and sitemap links, and live notice and diagnostic updates.
 - Add series navigation, ranked reader and API search, live search suggestions, Markdown responses, and JSON Feed 1.1.
 - Execute due publication schedules safely, count anonymous daily page views, expose view reports and a popular-post sidebar, and check internal blog links.
+- Add page and publishing-record reports with JSON, text, MCP, and Rails-task access, plus optional bounded reach checks.

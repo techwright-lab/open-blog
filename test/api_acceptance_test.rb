@@ -62,8 +62,7 @@ class ApiAcceptanceTest < ActionDispatch::IntegrationTest
   end
 
   test "deferred endpoints and unsupported verbs are not routable" do
-    paths = [ [ :get, "/report" ],
-      [ :get, "/standard" ], [ :put, "/posts/#{@post.id}" ] ]
+    paths = [ [ :get, "/standard" ], [ :put, "/posts/#{@post.id}" ] ]
     paths.each do |method, suffix|
       route = OpenBlog::Engine.routes.recognize_path("/api/v1#{suffix}", method: method)
       refute route[:controller].to_s.start_with?("open_blog/api/"), "Unexpected API route: #{method} #{suffix}"

@@ -4,7 +4,7 @@ require "zlib"
 
 class McpApiParityTest < ActionDispatch::IntegrationTest
   setup do
-    @settings = %i[authenticate api_rate_limit rate_limit_store].to_h { |key| [ key, OpenBlog.config.public_send(key) ] }
+    @settings = %i[authenticate api_rate_limit rate_limit_store public_base_url].to_h { |key| [ key, OpenBlog.config.public_send(key) ] }
     OpenBlog.config.authenticate = ->(_) { OpenBlog::Actor.new(name: "Parity editor") }
     OpenBlog.config.api_rate_limit = { to: 10000, within: 1.minute }
     OpenBlog.config.rate_limit_store = ActiveSupport::Cache::MemoryStore.new
@@ -19,7 +19,7 @@ class McpApiParityTest < ActionDispatch::IntegrationTest
     @blob&.service&.delete(@blob.key)
   end
 
-  %w[list_posts search_posts get_post get_post_records check_post save_draft get_preview_link publish_post update_post correct_post approve_revision declare_connections unpublish_post remove_post upload_image list_categories save_category list_tags list_authors save_author list_series save_series list_redirects save_redirect get_site_page save_site_page get_page_views doctor extract_faq adopt_post].each do |name|
+  %w[list_posts search_posts get_post get_post_records check_post save_draft get_preview_link publish_post update_post correct_post approve_revision declare_connections unpublish_post remove_post upload_image list_categories save_category list_tags list_authors save_author list_series save_series list_redirects save_redirect get_site_page save_site_page get_page_views get_surface_report doctor extract_faq adopt_post].each do |name|
     test "#{name} matches its HTTP API result" do
       arguments, method, path, input = example(name)
       expected = rollback_result do
@@ -120,6 +120,9 @@ class McpApiParityTest < ActionDispatch::IntegrationTest
       else
         [ { kind: "editorial", body: "Editors review and check facts." }, :put, "/pages/editorial", { body: "Editors review and check facts." } ]
       end
+    when "get_surface_report" then
+      OpenBlog.config.public_base_url = nil
+      [ { scope: "post", post: @public.id }, :get, "/report", { scope: "post", post: @public.id } ]
     when "doctor" then [ {}, :get, "/doctor", {} ]
     when "extract_faq"
       fields = { body: "## FAQ\n\n### When?\n\nAt dawn.\n" }

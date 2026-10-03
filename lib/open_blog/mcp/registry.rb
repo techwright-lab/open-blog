@@ -33,6 +33,7 @@ module OpenBlog
           site_page_definition("get_site_page", :read),
           site_page_definition("save_site_page", :write),
           page_views_definition,
+          report_definition,
           endpoint("doctor", :read, "doctor", :show),
           endpoint("extract_faq", :read, "faq_extractions", :create, fields: ApiFields::EXTRACTION, required: [ :body ]),
           endpoint("adopt_post", :publish, "adoptions", :create, fields: ApiFields::ADOPTION,
@@ -78,6 +79,15 @@ module OpenBlog
           writing = name == "save_site_page"
           Dispatcher.call(controller: "pages", action: writing ? :update : :show, method: writing ? :put : :get,
             arguments: input, actor: actor, route_params: { kind: kind }, base_url: base_url)
+        end
+      end
+
+      def report_definition
+        properties = { "scope" => { type: "string", enum: %w[site post all] }, "post" => Schemas.identifier,
+          "page" => { anyOf: [ { type: "integer", minimum: 1, maximum: 1_000_000 }, { type: "string", pattern: "^[1-9][0-9]*$" } ] },
+          "reach" => { anyOf: [ { type: "boolean" }, { type: "string", enum: %w[true false] } ] } }
+        definition("get_surface_report", :read, Schemas.object(properties)) do |arguments, actor:, base_url:|
+          Dispatcher.call(controller: "report", action: :show, method: :get, arguments: arguments, actor: actor, base_url: base_url)
         end
       end
 
