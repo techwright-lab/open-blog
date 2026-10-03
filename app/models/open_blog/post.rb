@@ -13,7 +13,7 @@ module OpenBlog
     belongs_to :public_revision, class_name: "OpenBlog::Revision", optional: true
 
     has_many :faqs, -> { order(:position) }, autosave: true, dependent: :destroy, inverse_of: :post
-    has_many :taggings, dependent: :destroy
+    has_many :taggings, autosave: true, dependent: :destroy
     has_many :tags, through: :taggings
     has_many :revisions, dependent: :restrict_with_exception
     has_many :approvals, dependent: :restrict_with_exception
@@ -40,7 +40,10 @@ module OpenBlog
 
     scope :listed, -> { where(status: "published") }
 
+    attr_accessor :release_context, :release_records
+
     before_save :compute_derived
+    after_save :record_release
 
     def path
       "#{OpenBlog.mount_path.chomp('/')}/#{slug}"
@@ -68,6 +71,13 @@ module OpenBlog
     end
 
     private
+
+    def record_release
+      republishing = saved_change_to_status? && status_before_last_save != "published"
+      self.release_records = RecordRelease.call(self, **(release_context || {}), republishing: republishing)
+    ensure
+      self.release_context = nil
+    end
 
     def canonical_url_is_absolute
       return if canonical_url.nil?
