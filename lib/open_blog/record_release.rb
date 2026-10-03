@@ -3,7 +3,11 @@ module OpenBlog
     def self.call(post, change: nil, note: nil, description: nil, actor: nil, now: Time.current, made_by_ai: nil, republishing: false)
       post.class.transaction do
         stored = post.class.lock.find(post.id)
-        next { revision: nil, publication: nil, approval: nil } unless stored.published?
+        unless stored.published?
+          stored.send(:compute_derived)
+          post.update_columns(stored.attributes.slice("current_revision_identifier", "word_count", "reading_time_minutes", "search_text"))
+          next { revision: nil, publication: nil, approval: nil }
+        end
 
         new(stored, post, change: change, note: note, description: description, actor: actor,
           now: now, made_by_ai: made_by_ai, republishing: republishing).call

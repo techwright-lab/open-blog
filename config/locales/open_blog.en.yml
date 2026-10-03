@@ -1,2 +1,5 @@
 en:
-  open_blog: {}
+  open_blog:
+    notices:
+      ai_assisted: "AI helped to make this post."
+      ai_unknown: "The use of AI for this post is not known."

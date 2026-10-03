@@ -17,6 +17,7 @@ module OpenBlog
     end
 
     config.to_prepare do
+      ActionText::RichText.include(OpenBlog::RichTextGuard) if defined?(ActionText::RichText)
       if defined?(ActiveStorage::Attachment)
         ActiveStorage::Attachment.include(OpenBlog::ImmutableImageAttachment)
       end

@@ -23,6 +23,10 @@ module OpenBlog
   autoload :Remove, "open_blog/remove"
   autoload :Unpublish, "open_blog/unpublish"
   autoload :RecordRelease, "open_blog/record_release"
+  autoload :ContentGuard, "open_blog/content_guard"
+  autoload :RichTextGuard, "open_blog/rich_text_guard"
+  autoload :LabelPolicy, "open_blog/label_policy"
+  autoload :Findings, "open_blog/findings"
 
   class << self
     def config

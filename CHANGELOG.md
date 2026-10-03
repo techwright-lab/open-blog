@@ -13,3 +13,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add a mountable engine with validated configuration and a PostgreSQL/SQLite host test matrix.
 - Add content models, reversible database migrations, deterministic revision identifiers, and immutable publishing records.
 - Add transactional draft, publish, approve, unpublish, and remove operations with publication history and scheduled enqueueing.
+- Record direct FAQ and rich-text changes atomically and return advisory findings and AI notice labels from publishing operations.

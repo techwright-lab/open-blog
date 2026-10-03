@@ -27,7 +27,7 @@ class PublishingOperationsTest < ActiveSupport::TestCase
     assert_equal "Editor", result.post.public_revision.actor
     assert_equal "Editor", result.post.publications.first.released_by
     assert_equal :ai_unknown, result.label
-    assert_empty result.findings
+    assert_includes result.findings.pluck(:code).map(&:to_sym), :provenance_unknown
     again = publish({}, post: result.post)
     assert again.success?
     assert_equal 1, result.post.publications.count
