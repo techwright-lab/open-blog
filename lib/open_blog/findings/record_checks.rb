@@ -20,7 +20,7 @@ module OpenBlog
             check(:approval_absent, "E18", "This revision has no approval confirming its facts.", "approval") { |post, _| approval_absent?(post) },
             check(:approval_incomplete, "E18", "The supplied approval says its facts were not checked.", "approval.facts_checked") { |_, context| context[:approval_incomplete] },
             check(:connections_not_declared, "E21, E22", "Record any relevant relationships, including an explicit declaration of none.", "connections") { |post, _| !post.connection_declarations.exists? },
-            check(:responsible_party_absent, "E4", "Configure a page naming the person or organization responsible for the blog.") { |_, _| OpenBlog.config.policy_urls[:responsible_party].blank? },
+            check(:responsible_party_absent, "E4", "Configure a page naming the person or organization responsible for the blog.") { |_, _| OpenBlog.policy_url(:responsible_party).blank? },
             check(:canonical_off_site, "T5", "This canonical URL points outside the blog's configured origin.", "canonical_url") { |post, _| canonical_off_site?(post) },
             check(:slug_changed, "T4", "The previous public URL now redirects to this post.", "slug") { |_, context| context[:slug_changed] },
             check(:social_image_absent, "T17", "Choose a social image, cover image, or blog default image.", "social_image") { |post, _| post.cover_image_id.nil? && post.social_image_id.nil? && OpenBlog.config.default_social_image_url.blank? }

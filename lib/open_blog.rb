@@ -29,6 +29,7 @@ module OpenBlog
   autoload :RecordRelease, "open_blog/record_release"
   autoload :ContentGuard, "open_blog/content_guard"
   autoload :RichTextGuard, "open_blog/rich_text_guard"
+  autoload :PolicyUrl, "open_blog/policy_url"
   autoload :LabelPolicy, "open_blog/label_policy"
   autoload :Findings, "open_blog/findings"
   autoload :Adopt, "open_blog/adopt"
@@ -61,6 +62,10 @@ module OpenBlog
     def configure
       yield config
       config
+    end
+
+    def policy_url(kind, config: self.config)
+      PolicyUrl.call(kind, config: config)
     end
 
     def sitemap_entries(base_url: config.public_base_url)

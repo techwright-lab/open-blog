@@ -35,7 +35,7 @@ module OpenBlog
     end
 
     def open_blog_responsible_party_link
-      url = OpenBlog.config.policy_urls[:responsible_party]
+      url = OpenBlog.policy_url(:responsible_party)
       return "".html_safe unless url.present? && Renderer::Sanitizer.safe_url?(url)
       link_to(open_blog_translate("navigation.responsible_party"), url, class: "ob-responsible-party")
     end

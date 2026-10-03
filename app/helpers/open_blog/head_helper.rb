@@ -32,6 +32,7 @@ module OpenBlog
     def open_blog_page_title(page = open_blog_page)
       title = case page.kind
       when :post, :preview then page.record.search_title.presence || page.record.title
+      when :page then page.record.title
       when :category, :author then page.record.name
       when :tag then open_blog_translate("titles.tag", name: page.record.name)
       when :not_found, :gone, :preview_expired then open_blog_translate("titles.#{page.kind}")
@@ -44,6 +45,7 @@ module OpenBlog
     def open_blog_page_description(page = open_blog_page)
       record = page.record
       return record.search_description.presence || record.description.to_s if %i[post preview].include?(page.kind)
+      return record.title if page.kind == :page
       paginated = page.page_number > 1
       if !paginated
         return OpenBlog.config.blog_tagline if page.kind == :index && OpenBlog.config.blog_tagline.present?
@@ -56,7 +58,7 @@ module OpenBlog
 
     def open_blog_robots(page = open_blog_page)
       return "noindex, nofollow" if %i[not_found gone preview preview_expired].include?(page.kind)
-      return "index, follow" if %i[index post].include?(page.kind)
+      return "index, follow" if %i[index post page].include?(page.kind)
       primary = OpenBlog.config.primary_list_type.to_s.singularize.to_sym
       page.kind == primary ? "index, follow" : "noindex, follow"
     end

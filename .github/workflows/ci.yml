@@ -76,7 +76,7 @@ jobs:
       - name: Verify content migrations roll back
         working-directory: test/dummy
         run: |
-          bundle exec rails db:rollback STEP=15
+          bundle exec rails db:rollback STEP=16
           bundle exec rails db:migrate
       - name: Run gem tests through the host
         run: bundle exec ruby bin/test

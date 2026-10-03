@@ -200,6 +200,40 @@ class DoctorTest < ActiveSupport::TestCase
     assert_equal "error", check("Records")[:status]
   end
 
+  test "published local policies are checked without HTTP and draft policies warn" do
+    @config.policy_urls = {}
+    pages = create_policy_pages
+    probe = ->(*) { flunk "Local policy pages must not trigger HTTP" }
+    assert_equal "ok", policy_check(probe)[:status]
+    pages.first.update!(status: "draft")
+    result = policy_check(probe)
+    assert_equal "warning", result[:status]
+    assert_includes result[:message], "responsible_party"
+  end
+
+  test "configured policy overrides are probed even when a published local page exists" do
+    create_policy_pages
+    @config.policy_urls = { responsible_party: "https://editor.example/about" }
+    requests = []
+    result = policy_check(->(url) { requests << url; 404 })
+    assert_equal [ "https://editor.example/about" ], requests
+    assert_equal "warning", result[:status]
+    assert_includes result[:message], "responsible_party: HTTP 404"
+    refute_includes result[:message], "corrections"
+  end
+
+  test "missing policy table is reported without trying to query or fetch internal pages" do
+    @config.policy_urls = {}
+    connection = ActiveRecord::Base.connection
+    original = connection.method(:data_source_exists?)
+    connection.stub(:data_source_exists?, ->(name) { name.to_s == "open_blog_pages" ? false : original.call(name) }) do
+      result = policy_check(->(*) { flunk "Missing local pages must not trigger HTTP" })
+      assert_equal "warning", result[:status]
+      assert_includes result[:message], "open_blog_pages"
+      assert_includes check("Migrations")[:message], "open_blog_pages"
+    end
+  end
+
   test "policy response only reads headers and has a total deadline" do
     closed = false
     http = Object.new
@@ -239,6 +273,16 @@ class DoctorTest < ActiveSupport::TestCase
   end
 
   private
+
+  def create_policy_pages
+    OpenBlog::Page::KINDS.map do |kind|
+      OpenBlog::Page.create!(kind: kind, title: "Editorial information", body_markdown: "Contact the editorial desk.", status: "published")
+    end
+  end
+
+  def policy_check(probe)
+    OpenBlog::Doctor.run(application: @application, config: @config, http_get: probe).find { |row| row[:name] == "Policy pages" }
+  end
 
   def check(name)
     OpenBlog::Doctor.run(application: @application, config: @config, http_get: ->(_url) { 200 }).find { |row| row[:name] == name }

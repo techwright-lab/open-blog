@@ -12,7 +12,7 @@ module OpenBlog
       return :none if @post.provenance_human_written?
       notice = @post.provenance_ai_assisted? ? :ai_assisted : :ai_unknown
       return notice if @post.provenance_ai_assisted? && OpenBlog.config.ai_label == :always
-      return notice unless OpenBlog.config.policy_urls[:responsible_party].present?
+      return notice unless OpenBlog.policy_url(:responsible_party).present?
       return notice unless revision && @post.current_revision_identifier == revision.identifier
       return notice unless image_digests_present?
       return notice unless @post.approvals.where(revision_id: revision.id, facts_checked: true).exists?

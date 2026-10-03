@@ -1,6 +1,7 @@
 OpenBlog::Engine.routes.draw do
   match "/mcp", to: "mcp#create", via: [ :post, :get, :delete ]
   get "/preview/:token", to: "previews#show", as: :preview
+  get "/policies/:slug", to: "pages#show", as: :policy_page, format: false
   namespace :api do
     namespace :v1 do
       patch "posts/:id", to: "posts#update"
@@ -22,6 +23,9 @@ OpenBlog::Engine.routes.draw do
       resources :redirects, only: [ :index, :create, :destroy ]
       resources :adoptions, only: :create
       resources :faq_extractions, only: :create
+      get "pages", to: "pages#index"
+      get "pages/:kind", to: "pages#show"
+      put "pages/:kind", to: "pages#update"
       get "doctor", to: "doctor#show"
     end
   end

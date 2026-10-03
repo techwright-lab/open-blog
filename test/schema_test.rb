@@ -26,6 +26,19 @@ class SchemaTest < ActiveSupport::TestCase
     assert_equal expected, connection.columns(:open_blog_posts).find { |column| column.name == "body_image_manifest" }.type
   end
 
+  test "policy pages have no seeded content and only an update timestamp" do
+    columns = connection.columns(:open_blog_pages).index_by(&:name)
+    assert_equal %w[approved_by approved_on body_markdown id kind slug status title updated_at], columns.keys.sort
+    assert_equal "", columns.fetch("body_markdown").default
+    assert_equal "draft", columns.fetch("status").default
+    %w[kind slug title body_markdown status updated_at].each { |name| refute columns.fetch(name).null }
+    assert columns.fetch("approved_by").null
+    assert columns.fetch("approved_on").null
+    unique = connection.indexes(:open_blog_pages).select(&:unique).map(&:columns)
+    assert_includes unique, [ "kind" ]
+    assert_includes unique, [ "slug" ]
+  end
+
   test "database rejects case equivalent tag names even without model validation" do
     insert_tag("Rails", "rails")
     assert_raises(ActiveRecord::RecordNotUnique) do
