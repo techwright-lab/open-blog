@@ -17,6 +17,14 @@ class ReaderBrowserTest < ApplicationSystemTestCase
       author: author, author_name: author.name, category: category, cover_image: image, cover_alt: "A green planting bed",
       body_markdown: "![A green planting bed](#{image.path})\n\n#{article_body}", status: "published", featured: true)
     @post.tags << OpenBlog::Tag.create!(name: "Outdoors", slug: "outdoors")
+    @faq_questions = [ "Can I write <strong>labels</strong>?", "Where can I learn more?", "Should I remove every fallen leaf?" ]
+    @faq_url = "https://garden.example/notes/#{'seasonal-care-' * 18}?shade=green&size=small"
+    @faq_answers = [ "Keep **bold** and <em>gentle</em> as written. A & B both work.",
+      "Begin with a small bed.\r\n\r\nWatch how the plants grow.\r\n#{@faq_url}",
+      'Leave some for shelter. Text such as <img src=x onerror="alert(1)"> is just text.' ]
+    @faq_questions.zip(@faq_answers).each_with_index do |(question, answer), position|
+      @post.faqs.create!(question: question, answer: answer, position: position + 1)
+    end
     [ "Choosing a planter", "Watering young roots", "Saving seeds for spring" ].each_with_index do |title, index|
       OpenBlog::Post.create!(title: title, slug: title.parameterize, description: "A practical note for your next afternoon outdoors.",
         author: author, author_name: author.name, category: category, body_markdown: "Start small and observe how your plants respond.",
@@ -141,6 +149,7 @@ class ReaderBrowserTest < ApplicationSystemTestCase
           assert_selector "h1", count: 1
           assert_selector ".ob-post-grid .ob-post-card", count: 3 if path == "/blog"
           assert_selector ".ob-related-posts .ob-post-card", count: 3 if path == @post.path
+          assert_selector "[data-open-blog-content] [data-open-blog-faq-entry]", count: 3 if path == @post.path
           assert_selector "html[data-theme='#{theme}']"
           assert_equal width, page.evaluate_script("innerWidth")
           assert page.evaluate_script("document.documentElement.scrollWidth <= innerWidth"), "#{path}, #{theme}, #{width}px overflows"
@@ -161,6 +170,10 @@ class ReaderBrowserTest < ApplicationSystemTestCase
           if (path == "/blog" && width == 1280) || (path == @post.path && width == 320)
             name = path == "/blog" ? "index-desktop" : "post-mobile"
             save_screenshot(Rails.root.join("tmp/capybara/reader-#{name}-#{theme}.png"))
+          end
+          if path == @post.path
+            page.execute_script("document.querySelector('[data-open-blog-faq]').scrollIntoView({ block: 'start' })")
+            save_screenshot(Rails.root.join("tmp/capybara/reader-faq-#{width}-#{theme}.png"))
           end
         end
       end
@@ -184,6 +197,8 @@ class ReaderBrowserTest < ApplicationSystemTestCase
     end
     visit @post.path
     assert_selector "[data-open-blog-body]", text: "Preparing the soil"
+    assert_selector "[data-open-blog-faq-entry]", count: 3
+    assert_selector "[data-open-blog-faq]", text: "Keep **bold** and <em>gentle</em> as written."
     find(".ob-toc a", match: :first).click
     assert_includes current_url, "#preparing-the-soil"
   end
@@ -213,6 +228,20 @@ class ReaderBrowserTest < ApplicationSystemTestCase
     assert_selector '.ob-toc a[href="#winter-plans"][aria-current="location"]'
     progressed = page.evaluate_script("parseFloat(document.querySelector('.ob-reading-progress-fill').style.width)")
     assert_operator progressed, :>, initial
+  end
+
+  test "FAQ entries stay expanded and preserve literal text paragraphs and links" do
+    visit @post.path
+    section = find("[data-open-blog-content] [data-open-blog-faq]")
+    assert_equal @faq_questions, section.all("[data-open-blog-faq-entry] h3").map(&:text)
+    entries = section.all("[data-open-blog-faq-entry]")
+    assert_equal @faq_answers.map { |text| text.gsub(/\s+/, " ").strip }, entries.map { |entry| entry.all("p").map(&:text).join(" ").gsub(/\s+/, " ").strip }
+    assert_equal 2, entries[1].all("p").length
+    assert_equal 1, entries[1].all("br", visible: :all).length
+    assert_equal @faq_url, entries[1].find("a")["href"]
+    assert_no_selector "[data-open-blog-faq] strong, [data-open-blog-faq] em, [data-open-blog-faq] img, [data-open-blog-faq] script", visible: :all
+    assert_no_selector "[data-open-blog-faq] details, [data-open-blog-faq] button", visible: :all
+    assert_selector ".ob-toc a[href='##{section.find('h2')[:id]}']", text: I18n.t("open_blog.faq.heading"), count: 1
   end
 
   private

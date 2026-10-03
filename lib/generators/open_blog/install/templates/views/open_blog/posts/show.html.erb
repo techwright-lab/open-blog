@@ -16,6 +16,7 @@
     <%= open_blog_disclosure(post) %>
     <%= open_blog_body(post) %>
     <%= open_blog_corrections(post) %>
+    <%= render "open_blog/posts/faq", post: post %>
   <% end %>
   <%= render "open_blog/posts/tags", post: post %>
   <%= render "open_blog/shared/share", post: post %>
