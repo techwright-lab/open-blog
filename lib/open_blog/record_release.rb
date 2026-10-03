@@ -3,9 +3,10 @@ module OpenBlog
     def self.call(post, change: nil, note: nil, description: nil, actor: nil, now: Time.current, made_by_ai: nil, republishing: false)
       post.class.transaction do
         stored = post.class.lock.find(post.id)
+        ImageResolution.native!(stored)
         unless stored.published?
           stored.send(:compute_derived)
-          post.update_columns(stored.attributes.slice("current_revision_identifier", "word_count", "reading_time_minutes", "search_text"))
+          post.update_columns(stored.attributes.slice("current_revision_identifier", "word_count", "reading_time_minutes", "search_text", "body_image_manifest", "body_image_source_digest"))
           next { revision: nil, publication: nil, approval: nil }
         end
 
@@ -31,7 +32,7 @@ module OpenBlog
         Publication.create!(post: @post, revision: revision, entry_type: type, occurred_at: @context[:now],
           released_by: @context[:actor], note: @context[:note], description: description(changed))
       end
-      attributes = @post.attributes.slice("current_revision_identifier", "word_count", "reading_time_minutes", "search_text")
+      attributes = @post.attributes.slice("current_revision_identifier", "word_count", "reading_time_minutes", "search_text", "body_image_manifest", "body_image_source_digest")
       attributes.merge!(public_revision_id: revision.id, published_at: published_at, modified_at: modified_at)
       @original.update_columns(attributes)
       @original.association(:public_revision).reset

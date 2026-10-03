@@ -30,6 +30,9 @@ module OpenBlog
   autoload :Adopt, "open_blog/adopt"
   autoload :FaqExtraction, "open_blog/faq_extraction"
   autoload :ImageImport, "open_blog/image_import"
+  autoload :ImageResolution, "open_blog/image_resolution"
+  autoload :Renderer, "open_blog/renderer"
+  autoload :SyntaxCss, "open_blog/syntax_css"
 
   class << self
     def config
