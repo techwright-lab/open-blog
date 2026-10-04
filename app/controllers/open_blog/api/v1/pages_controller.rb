@@ -30,12 +30,12 @@ module OpenBlog
               [ current, created ]
             end
           rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid => error
-            collision = error.is_a?(ActiveRecord::RecordNotUnique) ||
-              (error.record.new_record? && error.record.errors.details[:kind].any? { |detail| detail[:error] == :taken })
-            raise unless collision
+            # A concurrent first write can commit between the two uniqueness checks, so only the slug reports taken.
+            collision = error.is_a?(ActiveRecord::RecordNotUnique) || (error.record.new_record? &&
+              %i[kind slug].any? { |field| error.record.errors.of_kind?(field, :taken) })
             attempts += 1
-            retry if attempts == 1
-            raise Error::ValidationFailed.new(details: [ "kind" ])
+            retry if collision && attempts == 1
+            raise
           end
           render json: PageSerializer.call(page, base_url: request.base_url), status: created ? :created : :ok
         end
