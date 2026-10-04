@@ -6,8 +6,8 @@
   data-open-blog--share-copied-label-value="<%= open_blog_translate("share.copied") %>"
   data-open-blog--share-error-label-value="<%= open_blog_translate("share.failed") %>">
   <button type="button" class="ob-share-button" hidden data-open-blog--share-target="device" data-action="open-blog--share#share"><%= open_blog_icon("share") %> <%= open_blog_translate("share.device") %></button>
-  <%= link_to open_blog_translate("share.x"), "https://twitter.com/intent/tweet?url=#{ERB::Util.url_encode(open_blog_absolute_url(post.path))}&text=#{ERB::Util.url_encode(post.title)}", rel: "noopener" %>
-  <%= link_to open_blog_translate("share.linkedin"), "https://www.linkedin.com/sharing/share-offsite/?url=#{ERB::Util.url_encode(open_blog_absolute_url(post.path))}", rel: "noopener" %>
+  <%= link_to open_blog_translate("share.x_short"), "https://twitter.com/intent/tweet?url=#{ERB::Util.url_encode(open_blog_absolute_url(post.path))}&text=#{ERB::Util.url_encode(post.title)}", rel: "noopener", class: "ob-share-link", aria: { label: open_blog_translate("share.x") } %>
+  <%= link_to open_blog_translate("share.linkedin_short"), "https://www.linkedin.com/sharing/share-offsite/?url=#{ERB::Util.url_encode(open_blog_absolute_url(post.path))}", rel: "noopener", class: "ob-share-link", aria: { label: open_blog_translate("share.linkedin") } %>
   <button type="button" class="ob-share-button" hidden data-open-blog--share-target="copy" data-action="open-blog--share#copy"><%= open_blog_icon("copy") %> <%= open_blog_translate("share.copy") %></button>
   <span class="ob-share-status" data-open-blog--share-target="status" aria-live="polite"></span>
 </nav>

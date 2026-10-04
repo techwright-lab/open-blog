@@ -7,6 +7,7 @@ module OpenBlog
     LIGHT_SCOPE = ".ob-highlight"
     DARK_SCOPE = '[data-theme="dark"] .ob-highlight'
     SYSTEM_SCOPE = 'html:not([data-theme="light"]) .ob-highlight'
+    PRESET_SCOPE = ":root[data-ob-theme] .ob-highlight"
 
     def self.render(theme: OpenBlog.config.syntax_theme)
       selected = Rouge::Theme.find(theme)
@@ -16,7 +17,8 @@ module OpenBlog
       light = selected.mode(:light).render(scope: LIGHT_SCOPE)
       dark = selected.mode(:dark).render(scope: DARK_SCOPE)
       system = selected.mode(:dark).render(scope: SYSTEM_SCOPE)
-      css = "#{light}\n\n#{dark}\n\n@media (prefers-color-scheme: dark) {\n#{system}\n}\n"
+      preset = selected.mode(:dark).render(scope: PRESET_SCOPE)
+      css = "#{light}\n\n#{dark}\n\n@media (prefers-color-scheme: dark) {\n#{system}\n}\n\n#{preset}\n"
       css += github_contrast if selected == Rouge::Themes::Github
       css
     end
@@ -26,7 +28,7 @@ module OpenBlog
       <<~CSS
         #{LIGHT_SCOPE} .gr { color: #cf222e; }
         #{comments} { color: #57606a; }
-        #{DARK_SCOPE} .gh, #{DARK_SCOPE} .gu { color: #79c0ff; }
+        #{DARK_SCOPE} .gh, #{DARK_SCOPE} .gu, #{PRESET_SCOPE} .gh, #{PRESET_SCOPE} .gu { color: #79c0ff; }
         @media (prefers-color-scheme: dark) {
           #{SYSTEM_SCOPE} .gh, #{SYSTEM_SCOPE} .gu { color: #79c0ff; }
         }

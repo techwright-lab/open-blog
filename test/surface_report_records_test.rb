@@ -54,6 +54,19 @@ class SurfaceReportRecordsTest < ActionDispatch::IntegrationTest
     assert_equal "not verified", result("E22")[:result]
   end
 
+  test "the author image and the share controls in the byline are not article content" do
+    blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("Unprocessed image bytes"), filename: "avery.png", content_type: "image/png", identify: false)
+    @post.author.avatar.attach(blob)
+    get @post.path
+    assert_select "[data-open-blog-content] .ob-byline img.ob-avatar[src*='/representations/']", count: 1
+    assert_select "[data-open-blog-content] .ob-byline .ob-share a", count: 2
+    @context.post_page(@post).body = response.body
+    run_checks
+    assert_equal "pass", result("E19")[:result], result("E19").inspect
+  ensure
+    blob&.service&.delete(blob.key)
+  end
+
   test "the FAQ part agrees for collapsed and expanded entries" do
     { true => "details", false => "div" }.each do |collapsed, element|
       OpenBlog.config.faq_collapsed = collapsed

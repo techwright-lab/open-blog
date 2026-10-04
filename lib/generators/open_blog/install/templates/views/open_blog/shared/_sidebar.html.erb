@@ -35,4 +35,11 @@
       </ol>
     </nav>
   <% end %>
+  <nav class="ob-sidebar-feeds" aria-label="<%= open_blog_translate("navigation.subscribe") %>">
+    <h2><%= open_blog_translate("navigation.subscribe") %></h2>
+    <ul>
+      <li><%= link_to open_blog_translate("navigation.feed"), open_blog_feed_path %></li>
+      <li><%= link_to open_blog_translate("navigation.json_feed"), open_blog_feed_path(:json) %></li>
+    </ul>
+  </nav>
 </aside>

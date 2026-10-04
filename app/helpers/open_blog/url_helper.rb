@@ -11,6 +11,10 @@ module OpenBlog
       "#{open_blog_index_path.chomp('/')}/#{segment}/#{record.slug}"
     end
 
+    def open_blog_feed_path(format = :xml)
+      "#{open_blog_index_path.chomp('/')}/feed.#{format}"
+    end
+
     def open_blog_page(resource = nil)
       return resource if resource.is_a?(ReaderPage)
       return @open_blog_page if @open_blog_page && (resource.nil? || resource == @open_blog_page.record)

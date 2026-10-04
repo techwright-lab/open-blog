@@ -10,15 +10,19 @@ module OpenBlog
       tag.h1(post.title, class: "ob-post-title")
     end
 
-    def open_blog_byline(post)
+    def open_blog_byline(post, &block)
+      author = link_to(post.author_name, open_blog_list_path(:author, post.author), class: "ob-byline-author")
+      details = safe_join([ open_blog_dates(post), open_blog_reading_time(post) ], " ")
       tag.div(class: "ob-byline") do
-        safe_join([ link_to(post.author_name, open_blog_list_path(:author, post.author), class: "ob-byline-author"), open_blog_dates(post) ], " ")
+        safe_join([ open_blog_avatar(post.author, name: post.author_name),
+          tag.div(safe_join([ author, tag.div(details, class: "ob-byline-details") ]), class: "ob-byline-text"),
+          (capture(&block) if block) ].compact)
       end
     end
 
     def open_blog_cover(post)
-      return "".html_safe unless post.cover_image
       image = post.cover_image
+      return open_blog_placeholder(:figure, "ob-cover ob-cover--placeholder") unless image
       tag.figure(class: "ob-cover") do
         tag.img(src: image.path, alt: post.cover_alt.to_s, width: image.width, height: image.height)
       end
@@ -26,9 +30,17 @@ module OpenBlog
 
     def open_blog_card_image(post)
       image = post.cover_image
-      return tag.div(class: "ob-card-placeholder", aria: { hidden: true }) unless image
+      return open_blog_placeholder(:div, "ob-card-placeholder") unless image
       source = image.file.attached? ? main_app.url_for(image.file.variant(resize_to_fill: [ 640, 360 ])) : image.path
       tag.img(src: source, alt: post.cover_alt.to_s, width: 640, height: 360, loading: "lazy", class: "ob-card-image")
+    end
+
+    def open_blog_placeholder(element, classes)
+      content_tag(element, safe_join(Array.new(3) { tag.span }), class: "ob-placeholder #{classes}", aria: { hidden: true })
+    end
+
+    def open_blog_post_count
+      @open_blog_post_count ||= Post.listed.count
     end
 
     def open_blog_avatar(author, name: nil)

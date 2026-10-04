@@ -114,18 +114,74 @@ class ThemeBuildTest < ActiveSupport::TestCase
     assert_includes blog, ".ob-page summary:focus-visible"
   end
 
-  test "every effective GitHub syntax text color meets normal code contrast in both themes" do
+  test "every effective GitHub syntax text color meets normal code contrast in both themes without a preset" do
     generated = OpenBlog::SyntaxCss.render(theme: "github")
     packaged = theme_source("syntax.css").read
-    [ generated, packaged ].each { |css| assert_syntax_contrast(css) }
+    [ generated, packaged ].each do |css|
+      rules = syntax_colors(css)
+      %i[light dark].each { |mode| assert_syntax_contrast(rules.fetch(mode), mode) }
+    end
   end
 
-  test "GitHub syntax colors stay readable on the code background of every preset" do
-    css = theme_source("syntax.css").read
+  test "every preset shows the dark GitHub syntax colors on its code background in both modes" do
+    rules = syntax_colors(theme_source("syntax.css").read)
+    assert_equal rules.fetch(:dark), rules.fetch(:preset)
     OpenBlog::Themes.names.each do |name|
       preset = OpenBlog::Themes.fetch(name)
-      assert_syntax_contrast(css, backgrounds: { light: preset.light.fetch("code-bg"), dark: preset.dark.fetch("code-bg") })
+      %i[light dark].each do |mode|
+        colors = preset.public_send(mode)
+        assert_operator OpenBlog::Themes.contrast("#ffffff", colors.fetch("code-bg")), :>=, 12, "#{name} #{mode} code background must be dark"
+        assert_syntax_contrast(rules.fetch(:preset), "#{name} #{mode}", background: colors.fetch("code-bg"), text: colors.fetch("code-text"))
+      end
     end
+  end
+
+  test "copy and language labels on a code block use the code text color" do
+    blog = theme_source("blog.css").read
+    assert_match(/^\.ob-code-copy \{[^}]*background: transparent; color: var\(--ob-code-text, var\(--ob-heading\)\)/, blog)
+    assert_match(/^\.ob-code-language \{[^}]*color: var\(--ob-code-text, var\(--ob-heading\)\)/, blog)
+    OpenBlog::Themes.names.each do |name|
+      preset = OpenBlog::Themes.fetch(name)
+      %i[light dark].each do |mode|
+        colors = preset.public_send(mode)
+        assert_contrast colors.fetch("heading"), colors.fetch("surface-sunken"), "#{name} #{mode} inline code"
+      end
+    end
+  end
+
+  test "preset controls that pair tokens outside the declared pairs keep text contrast" do
+    blog = theme_source("blog.css").read
+    pairs = {
+      signal: { ".ob-call-to-action a" => %w[accent-contrast accent-2] },
+      ink: { ".ob-call-to-action a" => %w[code-bg accent-2], ".ob-code-copy" => %w[code-bg accent-2],
+        ".ob-subscribe" => %w[surface heading], ".ob-pagination-current" => %w[surface heading] }
+    }
+    pairs.each do |name, rules|
+      preset = OpenBlog::Themes.fetch(name)
+      rules.each do |selector, (foreground, background)|
+        rule = blog[/^:root\[data-ob-theme="#{name}"\] #{Regexp.escape(selector)} \{([^}]*)\}/, 1]
+        assert rule, "#{name} #{selector}"
+        assert_includes rule, "background: var(--ob-#{background});"
+        assert_includes rule, "color: var(--ob-#{foreground});" unless name == :signal
+        %i[light dark].each do |mode|
+          colors = preset.public_send(mode)
+          assert_contrast colors.fetch(foreground), colors.fetch(background), "#{name} #{mode} #{selector}"
+        end
+      end
+    end
+    assert_match(/^\.ob-page \.ob-subscribe \{[^}]*background: var\(--ob-accent\); color: var\(--ob-accent-contrast\)/, blog)
+    assert_match(/^\.ob-page \.ob-call-to-action a \{[^}]*background: var\(--ob-accent\); color: var\(--ob-accent-contrast\)/, blog)
+  end
+
+  test "placeholders brand marks and the Ink joins are built from tokens" do
+    blog = theme_source("blog.css").read
+    assert_match(/^\.ob-placeholder span:nth-child\(2\) \{[^}]*background: var\(--ob-accent\)/, blog)
+    assert_match(/^\.ob-brand-mark \{ display: none;/, blog)
+    OpenBlog::Themes.names.each { |name| assert_match(/^:root\[data-ob-theme="#{name}"\] \.ob-brand-mark \{/, blog) }
+    assert_includes blog, ':root[data-ob-theme="ink"] .ob-search-controls { gap: 0; }'
+    assert_includes blog, ':root[data-ob-theme="ink"] .ob-pagination { gap: 0;'
+    assert_includes blog, ':root[data-ob-theme="ink"] .ob-index-heading { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }'
+    assert_match(/\.ob-code-copy, \.ob-theme-toggle, \.ob-share-button, [^{]*\.ob-subscribe \{[^}]*min-width: 2\.75rem; min-height: 2\.75rem;/, blog)
   end
 
   test "copied views contain no literal colors or unprefixed palette utilities" do
@@ -141,26 +197,28 @@ class ThemeBuildTest < ActiveSupport::TestCase
     OpenBlog::Engine.root.join("lib/generators/open_blog/install/templates/theme", name)
   end
 
-  def assert_syntax_contrast(css, backgrounds: {})
-    colors = { light: {}, dark: {} }
+  def syntax_colors(css)
+    colors = { light: {}, dark: {}, preset: {} }
     css.scan(/([^{}]+)\{([^{}]*)\}/m).each do |selector_group, body|
       values = declarations(body)
       next unless values["color"] || values["background-color"]
       selector_group.split(",").each do |selector|
         selector = selector.strip
-        mode = selector.include?("data-theme") ? :dark : :light
-        selector = selector.sub(/\A(?:\[data-theme="dark"\]|html:not\(\[data-theme="light"\]\))\s+/, "")
+        mode = selector.include?("data-ob-theme") ? :preset : selector.include?("data-theme") ? :dark : :light
+        selector = selector.sub(/\A(?:\[data-theme="dark"\]|html:not\(\[data-theme="light"\]\)|:root\[data-ob-theme\])\s+/, "")
         colors[mode][selector] ||= {}
         colors[mode][selector].merge!(values)
       end
     end
-    colors.each do |mode, rules|
-      base = rules.fetch(".ob-highlight")
-      assert_operator rules.length, :>, 25
-      rules.each do |selector, values|
-        background = values.fetch("background-color", backgrounds.fetch(mode, base.fetch("background-color")))
-        assert_contrast values.fetch("color", base.fetch("color")), background, "#{mode} #{selector}"
-      end
+    colors
+  end
+
+  def assert_syntax_contrast(rules, label, background: nil, text: nil)
+    base = rules.fetch(".ob-highlight")
+    assert_operator rules.length, :>, 25
+    rules.each do |selector, values|
+      foreground = selector == ".ob-highlight" ? text || values.fetch("color") : values.fetch("color", text || base.fetch("color"))
+      assert_contrast foreground, values.fetch("background-color", background || base.fetch("background-color")), "#{label} #{selector}"
     end
   end
 

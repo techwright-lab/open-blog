@@ -9,9 +9,8 @@
   <%= open_blog_post_content(post) do %>
     <%= open_blog_title(post) %>
     <% if post.description.present? %><p class="ob-lede"><%= post.description %></p><% end %>
+    <%= open_blog_byline(post) do %><%= render "open_blog/shared/share", post: post %><% end %>
     <%= open_blog_notices(post) %>
-    <%= render "open_blog/posts/highlights", post: post %>
-    <%= open_blog_byline(post) %>
     <%= open_blog_cover(post) %>
     <%= render "open_blog/posts/toc", post: post %>
     <%= open_blog_disclosure(post) %>
@@ -20,10 +19,9 @@
     <%= render "open_blog/posts/faq", post: post %>
   <% end %>
   <%= render "open_blog/posts/tags", post: post %>
-  <%= render "open_blog/shared/share", post: post %>
   <%= open_blog_responsible_party_link %>
   <%= render "open_blog/shared/author_box", post: post %>
   <%= render "open_blog/posts/series_nav", post: post %>
   <%= render "open_blog/shared/call_to_action" %>
-  <%= render "open_blog/shared/related_posts" %>
 </div>
+<%= render "open_blog/shared/related_posts" %>

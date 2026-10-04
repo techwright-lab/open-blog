@@ -161,8 +161,10 @@ class DoctorTest < ActiveSupport::TestCase
 
   test "a Tailwind layout must load the preset stylesheet unless the theme is none" do
     write("app/assets/tailwind/application.css", '@import "tailwindcss"; @import "./open_blog/theme.css";')
-    %w[theme syntax].each { |name| write("app/assets/tailwind/open_blog/#{name}.css", "") }
-    FileUtils.cp(OpenBlog::Engine.root.join("lib/generators/open_blog/install/templates/theme/blog.css"), @root.join("app/assets/tailwind/open_blog/blog.css"))
+    write("app/assets/tailwind/open_blog/theme.css", "")
+    %w[blog syntax].each do |name|
+      FileUtils.cp(OpenBlog::Engine.root.join("lib/generators/open_blog/install/templates/theme/#{name}.css"), @root.join("app/assets/tailwind/open_blog/#{name}.css"))
+    end
     layout = @root.join("app/views/layouts/open_blog.html.erb")
     source = layout.read
     layout.write(source.sub("open_blog_stylesheets", 'stylesheet_link_tag "tailwind"'))
@@ -198,6 +200,14 @@ class DoctorTest < ActiveSupport::TestCase
     assert_includes check("Theme")[:message], "blog.css has no collapsed FAQ rules. Delete it, then run"
     FileUtils.cp(OpenBlog::Engine.root.join("lib/generators/open_blog/install/templates/theme/blog.css"), @root.join("app/assets/tailwind/open_blog/blog.css"))
     @config.theme = :signal
+    result = check("Theme")
+    assert_equal "warning", result[:status]
+    assert_equal "app/assets/tailwind/open_blog/syntax.css has no preset rules, so code blocks show light-mode syntax colours on the dark code background. Run bin/rails open_blog:syntax_css.", result[:message]
+    @config.theme = :none
+    assert_equal "ok", check("Theme")[:status], check("Theme")[:message]
+    @config.theme = :signal
+    OpenBlog::SyntaxCss.write(root: @root, theme: "gruvbox")
+    assert_includes @root.join("app/assets/tailwind/open_blog/syntax.css").read, ":root[data-ob-theme] .ob-highlight"
     assert_equal "ok", check("Theme")[:status], check("Theme")[:message]
   end
 

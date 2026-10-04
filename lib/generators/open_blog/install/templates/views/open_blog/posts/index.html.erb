@@ -1,5 +1,8 @@
 <header class="ob-index-heading">
-  <h1><%= OpenBlog.config.blog_title %></h1>
+  <div class="ob-index-title">
+    <p class="ob-eyebrow"><%= open_blog_translate("index.eyebrow", site_name: OpenBlog.config.site_name, posts: open_blog_translate("index.posts", count: open_blog_post_count)) %></p>
+    <h1><%= OpenBlog.config.blog_title %></h1>
+  </div>
   <% if OpenBlog.config.blog_tagline.present? %><p class="ob-tagline"><%= OpenBlog.config.blog_tagline %></p><% end %>
 </header>
 <div class="ob-list-layout">

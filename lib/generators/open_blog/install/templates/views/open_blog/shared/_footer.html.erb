@@ -1,11 +1,14 @@
 <footer class="ob-footer">
-  <nav aria-label="<%= open_blog_translate("navigation.footer") %>">
-    <% OpenBlog::Page::KINDS.each do |kind| %>
-      <% url = OpenBlog.policy_url(kind) %>
-      <% if url.present? && OpenBlog::Renderer::Sanitizer.safe_url?(url) %>
-        <%= link_to open_blog_translate("policies.#{kind}"), url %>
+  <div class="ob-footer-inner">
+    <p class="ob-footer-copyright"><%= open_blog_translate("footer.copyright", year: Time.current.year, site_name: OpenBlog.config.site_name, publisher: OpenBlog.config.publisher[:name]) %></p>
+    <nav aria-label="<%= open_blog_translate("navigation.footer") %>">
+      <% OpenBlog::Page::KINDS.each do |kind| %>
+        <% url = OpenBlog.policy_url(kind) %>
+        <% if url.present? && OpenBlog::Renderer::Sanitizer.safe_url?(url) %>
+          <%= link_to open_blog_translate("policies.#{kind}"), url %>
+        <% end %>
       <% end %>
-    <% end %>
-    <%= link_to open_blog_translate("navigation.feed"), "#{open_blog_index_path.chomp('/')}/feed.xml" %>
-  </nav>
+      <%= link_to open_blog_translate("navigation.feed"), open_blog_feed_path %>
+    </nav>
+  </div>
 </footer>

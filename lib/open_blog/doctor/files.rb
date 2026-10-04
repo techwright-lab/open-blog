@@ -42,8 +42,7 @@ module OpenBlog
         warnings << "theme_colors has no effect with theme :none." if preset.nil? && colors.values.any?(&:any?)
         low = preset ? low_contrast(preset, colors) : []
         warnings << "Theme colours below #{Themes::MIN_CONTRAST}:1 contrast: #{low.join(', ')}." if low.any?
-        stale = stale_component_styles(preset)
-        warnings << stale if stale
+        warnings.concat([ stale_component_styles(preset), stale_syntax_styles(preset) ].compact)
         if Dir[@root.join("app/views/layouts/**/*")].select { |path| File.file?(path) }.any? { |path| File.read(path).match?(/stylesheet_link_tag\s*(?:\(?\s*):all\b/) }
           warnings << "Replace stylesheet_link_tag :all to avoid loading the blog reset on other pages."
         end
@@ -70,6 +69,12 @@ module OpenBlog
         absent << "collapsed FAQ" if @config.faq_collapsed && !source.include?("details.ob-faq-entry")
         return if absent.empty?
         "#{path} has no #{absent.join(' or ')} rules. Delete it#{' and theme.css in the same directory' if preset}, then run bin/rails generate open_blog:install."
+      end
+
+      def stale_syntax_styles(preset)
+        path = "app/assets/tailwind/open_blog/syntax.css"
+        return if preset.nil? || layout_source.include?("open_blog_stylesheets") || read(path).include?("data-ob-theme")
+        "#{path} has no preset rules, so code blocks show light-mode syntax colours on the dark code background. Run bin/rails open_blog:syntax_css."
       end
 
       def theme_files(preset)

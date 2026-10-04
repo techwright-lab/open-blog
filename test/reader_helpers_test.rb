@@ -121,6 +121,16 @@ class ReaderHelpersTest < ActiveSupport::TestCase
     assert_equal "Growing trees", html(@view.open_blog_title(@post)).at_css("h1").text
     assert html(@view.open_blog_post_content(@post) { "Contents" }).at_css("article[data-open-blog-content]")
     assert html(@view.open_blog_byline(@post)).at_css('a[href="/blog/author/alex-green"]')
+    byline = html(@view.open_blog_byline(@post) { @view.tag.nav("Share", class: "ob-share") }).at_css(".ob-byline")
+    assert_equal [ "ob-avatar ob-avatar--initials", "ob-byline-text", "ob-share" ], byline.element_children.map { |node| node["class"] }
+    assert_equal "true", byline.at_css(".ob-avatar")["aria-hidden"]
+    assert_equal %w[ob-date ob-reading-time], byline.css(".ob-byline-details > *").map { |node| node["class"].split.first }.uniq
+    assert_empty html(@view.open_blog_byline(@post)).css(".ob-share")
+    @post.cover_image = nil
+    placeholder = html(@view.open_blog_cover(@post)).at_css("figure.ob-cover.ob-cover--placeholder.ob-placeholder")
+    assert_equal [ "true", 3, 0 ], [ placeholder["aria-hidden"], placeholder.css("span").length, placeholder.css("img").length ]
+    assert_equal [ "/blog/feed.xml", "/blog/feed.json" ], [ @view.open_blog_feed_path, @view.open_blog_feed_path(:json) ]
+    assert_equal OpenBlog::Post.listed.count, @view.open_blog_post_count
     toc = html(@view.open_blog_toc(@post))
     assert_equal %w[#soil #water #roots], toc.css("a").map { |node| node["href"] }
     assert_equal [ "Soil", "Water", "Roots" ], toc.css("a").map(&:text)

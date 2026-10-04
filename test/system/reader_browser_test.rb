@@ -284,35 +284,99 @@ class ReaderBrowserTest < ApplicationSystemTestCase
     assert_operator progressed, :>, initial
   end
 
-  test "each preset renders its fonts and colours and passes accessibility in both color schemes" do
+  test "each preset renders its fonts and colours and passes accessibility in both color schemes at phone and desktop widths" do
+    OpenBlog.config.call_to_action = { title: "Grow with us", text: "A monthly planting letter.", url: "https://publisher.example/join", label: "Join the letter" }
     OpenBlog::Themes.names.each do |name|
       OpenBlog.config.theme = name
       preset = OpenBlog::Themes.fetch(name)
       %w[light dark].each do |scheme|
         system_theme(scheme)
-        [ "/blog", @post.path ].each do |path|
-          visit path
-          assert_selector "html[data-ob-theme='#{name}']"
-          assert_no_selector "html[data-theme]"
-          assert_equal rgb(preset.public_send(scheme).fetch("surface")), page.evaluate_script("getComputedStyle(document.body).backgroundColor")
-          assert_equal preset.public_send(scheme).fetch("surface"), find("meta[name='theme-color'][media='(prefers-color-scheme: #{scheme})']", visible: :all)["content"]
-          families = %w[font-display font-body].map { |token| preset.tokens.fetch(token)[/"([^"]+)"/, 1] }
-          assert_equal families, [ "h1", "body" ].map { |selector| page.evaluate_script("getComputedStyle(document.querySelector('#{selector}')).fontFamily").split(",").first.delete('"') }
-          loaded = page.evaluate_async_script(<<~JS, families)
-            const done = arguments[arguments.length - 1];
-            document.fonts.ready.then(() => done(arguments[0].map(family => document.fonts.check(`16px "${family}"`))));
-          JS
-          assert_equal [ true, true ], loaded, "#{name} #{path}: #{families.inspect}"
-          assert_accessible
-          next unless path == @post.path
-          page.execute_script("document.querySelectorAll('[data-open-blog-faq-entry]').forEach(entry => { entry.open = true })")
-          assert_selector "[data-open-blog-faq-entry] p", minimum: 3
-          assert_accessible
-          page.execute_script("document.querySelector('[data-open-blog-faq]').scrollIntoView({ block: 'start' })")
-          save_screenshot(Rails.root.join("tmp/capybara/reader-preset-#{name}-#{scheme}.png"))
+        colors = preset.public_send(scheme)
+        [ 390, 1280 ].each do |width|
+          viewport(width)
+          [ "/blog", @post.path ].each do |path|
+            visit path
+            label = "#{name} #{scheme} #{width}px #{path}"
+            assert_selector "html[data-ob-theme='#{name}']"
+            assert_no_selector "html[data-theme]"
+            assert page.evaluate_script("document.documentElement.scrollWidth <= innerWidth"), "#{label} overflows"
+            assert_equal rgb(colors.fetch("surface")), page.evaluate_script("getComputedStyle(document.body).backgroundColor")
+            assert_equal colors.fetch("surface"), find("meta[name='theme-color'][media='(prefers-color-scheme: #{scheme})']", visible: :all)["content"]
+            families = %w[font-display font-body].map { |token| preset.tokens.fetch(token)[/"([^"]+)"/, 1] }
+            assert_equal families, [ "h1", "body" ].map { |selector| page.evaluate_script("getComputedStyle(document.querySelector('#{selector}')).fontFamily").split(",").first.delete('"') }
+            loaded = page.evaluate_async_script(<<~JS, families)
+              const done = arguments[arguments.length - 1];
+              document.fonts.ready.then(() => done(arguments[0].map(family => document.fonts.check(`16px "${family}"`))));
+            JS
+            assert_equal [ true, true ], loaded, "#{label}: #{families.inspect}"
+            assert_operator box(".ob-brand-mark")["width"], :>=, 12, label
+            assert_equal width >= 640, page.evaluate_script("getComputedStyle(document.querySelector('.ob-header-nav')).display") != "none", label
+            controls = ".ob-theme-toggle, .ob-subscribe, .ob-search button, .ob-share-link, .ob-share-button:not([hidden]), .ob-call-to-action a"
+            page.evaluate_script("Array.from(document.querySelectorAll(#{controls.to_json})).map(node => [node.className, node.getBoundingClientRect().width, node.getBoundingClientRect().height])").each do |classes, wide, high|
+              assert_operator [ wide, high ].min, :>=, 44, "#{label}: #{classes}"
+            end
+            assert_accessible
+            if path == "/blog"
+              columns = page.evaluate_script("getComputedStyle(document.querySelector('.ob-index-heading')).gridTemplateColumns").split.length
+              assert_equal((name == :ink && width == 1280 ? 2 : 1), columns, label)
+              assert_selector ".ob-post-card .ob-card-placeholder", visible: :all, count: 1
+              if name == :ink
+                assert_in_delta box(".ob-search input")["right"], box(".ob-search button")["left"], 0.5, label
+              end
+              next
+            end
+            assert_equal rgb(colors.fetch("code-bg")), page.evaluate_script("getComputedStyle(document.querySelector('pre.ob-highlight')).backgroundColor")
+            assert_operator OpenBlog::Themes.contrast(colors.fetch("code-bg"), "#ffffff"), :>=, 12, label
+            assert_equal rgb("#a5d6ff"), page.evaluate_script("getComputedStyle(document.querySelector('pre.ob-highlight .s2')).color"), label
+            assert_selector ".ob-code-copy", text: /\Acopy\z/i
+            assert_selector ".ob-byline .ob-share [data-open-blog--share-target='copy']", text: /copy link/i
+            related, article = box(".ob-related-posts"), box(".ob-post")
+            tops = page.evaluate_script("Array.from(document.querySelectorAll('.ob-related-posts .ob-post-card')).map(node => Math.round(node.getBoundingClientRect().top))")
+            if width == 1280
+              assert_operator related["width"], :>, article["width"] + 200, label
+              assert_equal 1, tops.uniq.length, label
+            else
+              assert_equal 3, tops.uniq.length, label
+            end
+            page.execute_script("document.querySelectorAll('[data-open-blog-faq-entry]').forEach(entry => { entry.open = true })")
+            assert_selector "[data-open-blog-faq-entry] p", minimum: 3
+            assert_accessible
+            page.execute_script("document.querySelector('[data-open-blog-faq]').scrollIntoView({ block: 'start' })")
+            save_screenshot(Rails.root.join("tmp/capybara/reader-preset-#{name}-#{scheme}-#{width}.png"))
+          end
         end
       end
     end
+  end
+
+  test "Ink joins the pager cells and a post without a cover shows the placeholder in every preset" do
+    OpenBlog.config.posts_per_page = 1
+    plain = OpenBlog::Post.find_by!(slug: "saving-seeds-for-spring")
+    OpenBlog::Themes.names.each do |name|
+      OpenBlog.config.theme = name
+      visit plain.path
+      assert_selector "figure.ob-cover--placeholder[aria-hidden=true]", visible: :all
+      assert_operator box(".ob-cover--placeholder")["height"], :>, 100
+      assert_no_selector "[data-open-blog-content] img", visible: :all
+      assert_accessible
+      visit "/blog"
+      cells = page.evaluate_script("Array.from(document.querySelectorAll('.ob-pagination > *')).map(node => { const box = node.getBoundingClientRect(); return [box.left, box.right] })")
+      assert_operator cells.length, :>=, 3
+      gaps = cells.each_cons(2).map { |(_, right), (left, _)| left - right }
+      name == :ink ? gaps.each { |gap| assert_operator gap, :<=, 0 } : gaps.each { |gap| assert_operator gap, :>, 0 }
+      assert_accessible
+    end
+  end
+
+  test "without a preset code blocks keep the light syntax palette in light mode" do
+    OpenBlog.config.theme = :none
+    visit @post.path
+    assert_no_selector "html[data-ob-theme]"
+    assert_equal rgb("#0a3069"), page.evaluate_script("getComputedStyle(document.querySelector('pre.ob-highlight .s2')).color")
+    assert_no_selector ".ob-brand-mark"
+    system_theme("dark")
+    visit @post.path
+    assert_equal rgb("#a5d6ff"), page.evaluate_script("getComputedStyle(document.querySelector('pre.ob-highlight .s2')).color")
   end
 
   test "no preset leaves the tokens to the host and colour overrides reach the page" do
@@ -384,6 +448,10 @@ class ReaderBrowserTest < ApplicationSystemTestCase
   end
 
   private
+
+  def box(selector)
+    page.evaluate_script("document.querySelector(#{selector.to_json}).getBoundingClientRect().toJSON()")
+  end
 
   def rgb(hex)
     "rgb(#{hex.delete_prefix('#').scan(/../).map(&:hex).join(', ')})"

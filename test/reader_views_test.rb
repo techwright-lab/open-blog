@@ -26,18 +26,69 @@ class ReaderViewsTest < ActionDispatch::IntegrationTest
     doc = document
     article = doc.at_css("article[data-open-blog-content]")
     assert article
-    selectors = [ "h1", ".ob-lede", ".ob-notice--ai", ".ob-highlights", ".ob-byline", ".ob-cover", ".ob-toc", ".ob-disclosure", "[data-open-blog-body]", ".ob-correction" ]
+    selectors = [ "h1", ".ob-lede", ".ob-byline", ".ob-notice--ai", ".ob-cover", ".ob-toc", ".ob-disclosure", "[data-open-blog-body]", ".ob-correction" ]
     nodes = selectors.map { |selector| article.at_css(selector).tap { |node| assert node, selector } }
     assert_equal nodes, article.css(selectors.join(",")).to_a
     assert_equal article.at_css("[data-open-blog-body]"), article.at_css(".ob-disclosure").next_element
-    outside = %w[.ob-breadcrumbs .ob-tags .ob-share .ob-responsible-party .ob-author-box .ob-call-to-action .ob-related-posts]
+    byline = article.at_css(".ob-byline")
+    assert_equal %w[ob-avatar ob-byline-text ob-share], byline.element_children.map { |node| node["class"].split.first }
+    assert_equal [ "Morgan Reed" ], byline.css(".ob-byline-text > a.ob-byline-author").map(&:text)
+    assert byline.at_css(".ob-byline-details .ob-date--published time")
+    assert byline.at_css(".ob-byline-details .ob-reading-time")
+    assert_equal 1, doc.css(".ob-share").length
+    assert_equal [ "Share on X", "Share on LinkedIn" ], byline.css(".ob-share a").map { |node| node["aria-label"] }
+    assert_equal 2, byline.css(".ob-share button[type=button][hidden]").length
+    assert_empty doc.css(".ob-highlights")
+    outside = %w[.ob-breadcrumbs .ob-post-category .ob-tags .ob-responsible-party .ob-author-box .ob-call-to-action .ob-related-posts]
     outside.each do |selector|
       assert doc.at_css(selector), selector
       assert_empty article.css(selector), selector
     end
+    assert_equal article, doc.at_css(".ob-post-category").next_element
+    assert_empty doc.css(".ob-post .ob-related-posts")
+    assert doc.at_css("main > .ob-related-posts .ob-post-grid .ob-post-card")
+    assert doc.at_css(".ob-author-box .ob-author-details > a.ob-author-name[href='/blog/author/morgan-reed']")
+    assert doc.at_css(".ob-call-to-action > .ob-call-to-action-text + a[href='https://publisher.example/join']")
     assert_equal image.path, article.at_css(".ob-cover img")["src"]
     assert_equal "800", article.at_css(".ob-cover img")["width"]
     assert_empty article.css('img[src*="representations"]')
+  end
+
+  test "a post without a cover shows decorative placeholders and no image" do
+    get @post.path
+    figure = document.at_css("article[data-open-blog-content] figure.ob-cover.ob-cover--placeholder[aria-hidden=true]")
+    assert_equal 3, figure.css("> span").length
+    assert_empty document.css("article[data-open-blog-content] img")
+    make_post("more-pots")
+    get "/blog"
+    assert_select ".ob-featured-card .ob-card-media > .ob-placeholder.ob-card-placeholder[aria-hidden=true] > span", count: 3
+    assert_select ".ob-post-card .ob-card-media > .ob-card-placeholder[aria-hidden=true] > span", count: 3
+    assert_select ".ob-post-card .ob-card-meta > .ob-card-author + .ob-date + .ob-reading-time"
+  end
+
+  test "header brand subscribe hero count and footer copyright come from configuration" do
+    get "/blog"
+    header = document.at_css("header.ob-header > .ob-header-inner")
+    assert_equal %w[ob-site-name ob-header-nav ob-header-tools], header.element_children.map { |node| node["class"] }
+    assert_equal "/blog", header.at_css("a.ob-site-name")["href"]
+    assert_equal OpenBlog.config.site_name, header.at_css("a.ob-site-name").text
+    assert_empty header.at_css("a.ob-site-name > span.ob-brand-mark[aria-hidden=true]").text
+    subscribe = header.at_css(".ob-header-tools > a.ob-subscribe:last-child")
+    assert_equal [ "Subscribe", "/blog/feed.xml", "application/atom+xml" ], [ subscribe.text, subscribe["href"], subscribe["type"] ]
+    assert header.at_css(".ob-header-tools > button.ob-theme-toggle")
+    assert_select ".ob-index-heading > .ob-index-title > .ob-eyebrow + h1", text: OpenBlog.config.blog_title
+    assert_select ".ob-eyebrow", text: "#{OpenBlog.config.site_name} · 1 post"
+    assert_select ".ob-sidebar-feeds a", count: 2
+    assert_select ".ob-sidebar-feeds a[href='/blog/feed.json']", text: "JSON feed"
+    footer = document.at_css("footer.ob-footer > .ob-footer-inner")
+    assert_equal "© #{Time.current.year} #{OpenBlog.config.site_name} · Published by #{OpenBlog.config.publisher[:name]}", footer.at_css("> p.ob-footer-copyright").text
+    assert_equal [ "Responsible party", "Atom feed" ], footer.css("> nav a").map(&:text)
+    make_post("more-pots")
+    make_post("draft-pots", status: "draft")
+    get "/blog"
+    assert_select ".ob-eyebrow", text: "#{OpenBlog.config.site_name} · 2 posts"
+    get "/blog/feed.xml"
+    assert_response :success
   end
 
   test "index has a featured post once twelve other cards and published sidebar counts" do

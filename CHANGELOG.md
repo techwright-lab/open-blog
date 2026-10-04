@@ -15,10 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add the `--theme=signal|editorial|ink` installer option.
 - Collapse FAQ entries into `<details>` elements by default; `config.faq_collapsed = false` keeps every answer visible.
 - Add a Themes guide with the presets, palette overrides, the token reference, and fonts.
+- Add a brand mark and a Subscribe link to the header, a post count above the index title, a copyright line with the publisher in the footer, feed links in the sidebar, and decorative placeholders for posts without a cover image.
+- Doctor warns when a Tailwind 4 host has a copied `syntax.css` without the preset rules.
 
 ### Changed
 
 - The default look is the Signal preset in place of the blue slate theme.
+- With a preset, code blocks are dark in light mode too and use the dark colors of `config.syntax_theme` in both modes. With `config.theme = :none` they follow the mode as before.
+- The post byline shows the author image or initials, the dates, the reading time, and the share controls in one row. The share controls are now inside the post content element, and the "Article highlights" list is no longer rendered by default.
+- Related posts use the full page width below the article. The table of contents is numbered and has the label "In this post".
 - The copied token file is now an override stub. Token values come from the preset stylesheet `open_blog/themes.css`, which the gem serves in every host setup.
 
 ### Fixed
@@ -30,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The default look of a 0.1.0 host changes to the Signal preset. A `--skip-tailwind` or Tailwind 3 host gets it when the gem is updated. A Tailwind 4 host gets it after its copied stylesheets and layout are refreshed, as the next two notes show. A host that edited its copied tokens sets `config.theme = :none` to keep them, or moves its hex values to `config.theme_colors`.
 - In a Tailwind 4 host, the copied `app/assets/tailwind/open_blog/blog.css` and `theme.css` are the 0.1.0 files, with no preset rules and no styles for the collapsed FAQ. `bin/rails generate open_blog:install` keeps files that exist, so delete these two files and then run it; doctor gives a warning until `blog.css` is replaced. Do not use `--force` on a configured host, because it also replaces `config/initializers/open_blog.rb`.
 - In a Tailwind 4 host, the blog layout must call `open_blog_theme_stylesheets` before the host stylesheet tag, or `bin/rails open_blog:doctor` reports an error. `bin/rails generate open_blog:views --force` writes that layout.
+- The copied reader views changed. `bin/rails generate open_blog:views` refreshes them; it keeps each file that you changed unless you pass `--force`.
+- In a Tailwind 4 host, run `bin/rails open_blog:syntax_css` to write the syntax colors for the dark code blocks.
 - FAQ entries are now collapsed. Set `config.faq_collapsed = false` for the 0.1.0 markup.
 - The [Themes guide](https://techwright-lab.github.io/open-blog/themes/#upgrade-from-010) lists each step.
 

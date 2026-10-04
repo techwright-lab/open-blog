@@ -34,7 +34,7 @@ module OpenBlog
         light: %w[
           #ffffff #f6fbfa #eaf4f2 #0b1f22 #2b3f42 #4d6165 #5f7579 #cfe0dd #5f8a84
           #0f766e #115e59 #d9f0ec #ffffff #b45309 #fdebd3
-          #f6fbfa #0b1f22 #b3cfca #fff7e8 #f0b35b #6b3f0a #1d5fa8 #166534 #92400e
+          #0b1f22 #e6f1ef #0b1f22 #fff7e8 #f0b35b #6b3f0a #1d5fa8 #166534 #92400e
         ],
         dark: %w[
           #071a1c #0d2528 #041214 #eaf6f4 #c9dedb #a3bdb9 #8ba8a4 #1f4145 #5f8a84
@@ -50,7 +50,7 @@ module OpenBlog
         light: %w[
           #fbf7f1 #f4ede2 #ece3d4 #1f1a16 #3a322c #5c524a #6b6158 #dccfbd #8c7b66
           #8a2d2d #6f2222 #f1dedb #ffffff #b7791f #f4e6c9
-          #f9f4ec #1f1a16 #c9b9a3 #f6efe4 #d0b58a #5a4420 #2c5282 #2f6b3a #8a5a0b
+          #2a2320 #f3ebdf #2a2320 #f6efe4 #d0b58a #5a4420 #2c5282 #2f6b3a #8a5a0b
         ],
         dark: %w[
           #1a1512 #241d18 #120e0c #f6eee2 #ddd2c3 #b9ab9a #a39483 #3d332b #8c7b66
@@ -66,7 +66,7 @@ module OpenBlog
         light: %w[
           #ffffff #f5f5f4 #ececea #0a0a0a #262626 #525252 #636363 #d4d4d4 #0a0a0a
           #1f3bd6 #172c9f #e3e8ff #ffffff #c6f432 #f1fbc9
-          #fafafa #0a0a0a #0a0a0a #fffbe6 #0a0a0a #0a0a0a #1f3bd6 #166534 #8a4b00
+          #0a0a0a #f5f5f5 #0a0a0a #fffbe6 #0a0a0a #0a0a0a #1f3bd6 #166534 #8a4b00
         ],
         dark: %w[
           #000000 #111111 #1a1a1a #ffffff #e5e5e5 #b5b5b5 #9a9a9a #333333 #ffffff

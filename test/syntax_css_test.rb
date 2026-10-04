@@ -11,6 +11,8 @@ class SyntaxCssTest < ActiveSupport::TestCase
     assert css.start_with?(light)
     assert_includes css, explicit
     assert_includes css, "@media (prefers-color-scheme: dark) {\n#{system}\n}"
+    preset = Rouge::Themes::Github.mode(:dark).render(scope: ":root[data-ob-theme] .ob-highlight")
+    assert_operator css.index(preset), :>, css.index(system)
     assert_scoped(css)
   end
 
@@ -22,6 +24,7 @@ class SyntaxCssTest < ActiveSupport::TestCase
       assert_equal original, theme.mode
       assert_includes css, theme.mode(:light).render(scope: ".ob-highlight")
       assert_includes css, theme.mode(:dark).render(scope: '[data-theme="dark"] .ob-highlight')
+      assert_includes css, theme.mode(:dark).render(scope: ":root[data-ob-theme] .ob-highlight")
       assert_scoped(css)
     end
   end
@@ -70,10 +73,11 @@ class SyntaxCssTest < ActiveSupport::TestCase
     Rake.application = previous
   end
 
-  test "the installer ships only scoped syntax styles" do
+  test "the installer ships the current scoped syntax styles" do
     path = File.expand_path("../lib/generators/open_blog/install/templates/theme/syntax.css", __dir__)
     assert File.file?(path)
     css = File.read(path)
+    assert_equal OpenBlog::SyntaxCss.render(theme: "github"), css
     assert_includes css, "@media (prefers-color-scheme: dark)"
     assert_scoped(css)
   end
@@ -84,7 +88,7 @@ class SyntaxCssTest < ActiveSupport::TestCase
     selectors = css.scan(/([^{}]+)\{/).flatten.map(&:strip).reject { |selector| selector.start_with?("@media") }
     assert selectors.any?
     unscoped = selectors.flat_map { |selector| selector.split(",") }.reject do |selector|
-      selector.strip.match?(/\A(?:\.ob-highlight|\[data-theme="dark"\] \.ob-highlight|html:not\(\[data-theme="light"\]\) \.ob-highlight)(?:\s|\z)/)
+      selector.strip.match?(/\A(?:\.ob-highlight|\[data-theme="dark"\] \.ob-highlight|html:not\(\[data-theme="light"\]\) \.ob-highlight|:root\[data-ob-theme\] \.ob-highlight)(?:\s|\z)/)
     end
     assert_empty unscoped
   end

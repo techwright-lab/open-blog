@@ -1,6 +1,8 @@
 <section class="ob-author-box" aria-labelledby="ob-author-heading">
   <h2 id="ob-author-heading"><%= open_blog_translate("headings.about_author") %></h2>
   <%= open_blog_avatar(post.author, name: post.author_name) %>
-  <%= link_to post.author_name, open_blog_list_path(:author, post.author) %>
-  <% if post.author.bio.present? %><p class="ob-author-bio"><%= post.author.bio %></p><% end %>
+  <div class="ob-author-details">
+    <%= link_to post.author_name, open_blog_list_path(:author, post.author), class: "ob-author-name" %>
+    <% if post.author.bio.present? %><p class="ob-author-bio"><%= post.author.bio %></p><% end %>
+  </div>
 </section>

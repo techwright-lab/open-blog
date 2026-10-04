@@ -29,8 +29,10 @@ en:
       popular: "Popular articles"
       tags: "Tags"
       feed: "Atom feed"
+      json_feed: "JSON feed"
+      subscribe: "Subscribe"
       responsible_party: "Responsible party"
-      toc: "On this page"
+      toc: "In this post"
       pagination: "Pagination"
       series: "In this series"
       previous_post: "Previous post"
@@ -59,6 +61,13 @@ en:
       about_author: "About the author"
       related: "Related posts"
       recent: "Recent posts"
+    index:
+      eyebrow: "%{site_name} · %{posts}"
+      posts:
+        one: "%{count} post"
+        other: "%{count} posts"
+    footer:
+      copyright: "© %{year} %{site_name} · Published by %{publisher}"
     cards:
       featured: "Featured"
     faq:
@@ -69,6 +78,8 @@ en:
       heading: "Share this post"
       x: "Share on X"
       linkedin: "Share on LinkedIn"
+      x_short: "X"
+      linkedin_short: "LinkedIn"
       device: "Share"
       copy: "Copy link"
       copied: "Copied!"

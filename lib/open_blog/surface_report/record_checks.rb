@@ -5,7 +5,7 @@ require_relative "expected_content"
 module OpenBlog
   class SurfaceReport
     class RecordChecks
-      GENERATED = ".ob-notice, .ob-highlights, .ob-date, .ob-toc, .ob-correction, .ob-disclosure, [data-open-blog-preview]".freeze
+      GENERATED = ".ob-notice, .ob-highlights, .ob-date, .ob-reading-time, .ob-avatar, .ob-share, .ob-toc, .ob-correction, .ob-disclosure, [data-open-blog-preview]".freeze
 
       def initialize(context)
         @context = context
@@ -106,7 +106,7 @@ module OpenBlog
         parts["B"] = mark(text(project(expected)) == text(project(actual)))
         parts["C"] = mark(links(project(expected)) == links(project(actual)))
         images = payload.fetch("images").select { |image| %w[cover body].include?(image["role"]) }
-        parts["D"] = mark(actual.css("img").map { |node| [ node["src"], node["alt"].to_s ] } == images.map { |image| image.values_at("url", "alt") })
+        parts["D"] = mark(actual.css("img:not(.ob-avatar)").map { |node| [ node["src"], node["alt"].to_s ] } == images.map { |image| image.values_at("url", "alt") })
         parts["E"] = image_files(images)
         parts["F"] = head(page, payload)
         faq = actual.css("[data-open-blog-faq-entry]").map do |entry|

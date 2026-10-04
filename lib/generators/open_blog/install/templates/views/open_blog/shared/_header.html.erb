@@ -1,7 +1,12 @@
 <header class="ob-header">
-  <%= link_to OpenBlog.config.site_name, open_blog_index_path, class: "ob-site-name" %>
-  <nav aria-label="<%= open_blog_translate("navigation.blog") %>">
-    <%= link_to OpenBlog.config.blog_title, open_blog_index_path %>
-  </nav>
-  <%= render "open_blog/shared/theme_toggle" %>
+  <div class="ob-header-inner">
+    <%= link_to open_blog_index_path, class: "ob-site-name" do %><span class="ob-brand-mark" aria-hidden="true"></span><%= OpenBlog.config.site_name %><% end %>
+    <nav class="ob-header-nav" aria-label="<%= open_blog_translate("navigation.blog") %>">
+      <%= link_to OpenBlog.config.blog_title, open_blog_index_path %>
+    </nav>
+    <div class="ob-header-tools">
+      <%= render "open_blog/shared/theme_toggle" %>
+      <%= link_to open_blog_translate("navigation.subscribe"), open_blog_feed_path, class: "ob-subscribe", type: "application/atom+xml" %>
+    </div>
+  </div>
 </header>

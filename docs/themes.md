@@ -21,17 +21,23 @@ A preset is a named set of design tokens: colors for light and dark mode, fonts,
 
 ![Signal preset in dark mode]({{ "/assets/images/theme-signal-dark.png" | relative_url }})
 
+![An article in the Signal preset]({{ "/assets/images/theme-signal-post.png" | relative_url }})
+
 ## Editorial
 
 ![Editorial preset in light mode]({{ "/assets/images/theme-editorial-light.png" | relative_url }})
 
 ![Editorial preset in dark mode]({{ "/assets/images/theme-editorial-dark.png" | relative_url }})
 
+![An article in the Editorial preset]({{ "/assets/images/theme-editorial-post.png" | relative_url }})
+
 ## Ink
 
 ![Ink preset in light mode]({{ "/assets/images/theme-ink-light.png" | relative_url }})
 
 ![Ink preset in dark mode]({{ "/assets/images/theme-ink-dark.png" | relative_url }})
+
+![An article in the Ink preset]({{ "/assets/images/theme-ink-post.png" | relative_url }})
 
 ## Choose a preset
 
@@ -104,11 +110,11 @@ Each token is a CSS custom property with the `--ob-` prefix. The configuration k
 | `--ob-accent-hover` | `accent_hover` | Links and buttons on hover | `#115e59` | `#99f6e4` |
 | `--ob-accent-soft` | `accent_soft` | Tinted backgrounds for block quotes, placeholders, and search suggestions on hover | `#d9f0ec` | `#0f3d3a` |
 | `--ob-accent-contrast` | `accent_contrast` | Text on an `accent` background | `#ffffff` | `#06201f` |
-| `--ob-accent-2` | `accent_2` | Decoration only: the featured dot, the horizontal rule, and the call-to-action bar | `#b45309` | `#fbbf24` |
+| `--ob-accent-2` | `accent_2` | The featured dot, the horizontal rule, placeholder shapes, and the call-to-action button of `signal` and `ink` | `#b45309` | `#fbbf24` |
 | `--ob-accent-2-soft` | `accent_2_soft` | Text selection and placeholder tint | `#fdebd3` | `#3d2a0a` |
-| `--ob-code-bg` | `code_bg` | Code block background | `#f6fbfa` | `#041214` |
-| `--ob-code-text` | `code_text` | Code text without a syntax color | `#0b1f22` | `#e6f1ef` |
-| `--ob-code-border` | `code_border` | Code block border | `#b3cfca` | `#2a4d51` |
+| `--ob-code-bg` | `code_bg` | Code block background, dark in both modes | `#0b1f22` | `#041214` |
+| `--ob-code-text` | `code_text` | Code text without a syntax color, the language label, and the copy button | `#e6f1ef` | `#e6f1ef` |
+| `--ob-code-border` | `code_border` | Code block border | `#0b1f22` | `#2a4d51` |
 | `--ob-notice-bg` | `notice_bg` | AI and correction notice background | `#fff7e8` | `#33250c` |
 | `--ob-notice-border` | `notice_border` | Notice border | `#f0b35b` | `#b07d2c` |
 | `--ob-notice-text` | `notice_text` | Notice text | `#6b3f0a` | `#fde7bd` |
@@ -116,7 +122,27 @@ Each token is a CSS custom property with the `--ob-` prefix. The configuration k
 | `--ob-tip` | `tip` | Markdown tip alerts | `#166534` | `#86efac` |
 | `--ob-warning` | `warning` | Markdown warning alerts | `#92400e` | `#fcd34d` |
 
-Syntax colors inside code blocks come from `config.syntax_theme`, not from these tokens. See [customization]({% link customization.md %}#themes-and-stylesheets).
+## Code blocks
+
+With a preset, a code block is dark in light mode and in dark mode. The syntax stylesheet applies the dark colors of `config.syntax_theme` to each code block under `:root[data-ob-theme]`, so the colors keep 4.5:1 contrast on the `code_bg` of each preset in both modes. Inline code in a paragraph stays light in light mode; it uses `surface_sunken`.
+
+Syntax colors come from `config.syntax_theme`, not from the color tokens. If you set `code_bg` to a light color in `config.theme_colors`, the dark syntax colors stay, and you own their contrast.
+
+With `config.theme = :none`, code blocks follow the mode as in 0.1.0: light syntax colors in light mode and dark syntax colors in dark mode.
+
+## What the reader pages show
+
+The copied views are one set for every preset. These parts come from the configuration and the records, with no view edit:
+
+| Part | Source |
+| --- | --- |
+| Brand mark before the site name | A decorative shape that each preset draws with CSS. It does not show with `:none`. |
+| Subscribe button in the header | A link to the Atom feed. On a narrow screen the blog link is hidden and the theme toggle shows its icon only. |
+| Line above the index title | `config.site_name` and the number of published posts, for example "Field Notes · 48 posts". |
+| Byline | The author's image or initials, the name, the dates, the reading time, and the share controls in one row. |
+| Cover and card placeholder | Shapes in the preset colors when a post has no cover image. A post with a cover is unchanged. |
+| Footer | "© year site name · Published by publisher" from `config.site_name` and `config.publisher[:name]`, then the policy links and the feed link. |
+| Related posts | Below the article at the full page width, in three columns on a wide screen. |
 
 ## Fonts, shape, and other tokens
 
@@ -262,7 +288,7 @@ The default look changes from the blue slate theme to `signal`, and FAQ entries 
    bin/rails generate open_blog:install
    ```
 
-   The output has `create app/assets/tailwind/open_blog/theme.css` and `create app/assets/tailwind/open_blog/blog.css`. If you edited one of these files, keep a copy and make your edits again in the new file. Until `blog.css` is replaced, doctor gives the warning `app/assets/tailwind/open_blog/blog.css has no preset or collapsed FAQ rules.`
+   The output has `create app/assets/tailwind/open_blog/theme.css` and `create app/assets/tailwind/open_blog/blog.css`. If you edited one of these files, keep a copy and make your edits again in the new file. Until `blog.css` is replaced, doctor gives the warning `app/assets/tailwind/open_blog/blog.css has no preset or collapsed FAQ rules.` The generator also keeps `syntax.css`; run `bin/rails open_blog:syntax_css` to write the syntax colors for the dark code blocks, or doctor gives the warning `app/assets/tailwind/open_blog/syntax.css has no preset rules`.
 3. In a Tailwind 4 host, make sure that the `head` of `app/views/layouts/open_blog.html.erb` calls `open_blog_theme_stylesheets` before the host stylesheet tag. Without it the preset does not load, and doctor reports `The blog layout must call open_blog_theme_stylesheets to load the <name> theme.` with the name of your preset. The generator in step 2 keeps a layout that exists, so the layout has the 0.1.0 `head`. Add the line by hand, or replace the copied views and layout with `bin/rails generate open_blog:views --force`.
 
    ```erb

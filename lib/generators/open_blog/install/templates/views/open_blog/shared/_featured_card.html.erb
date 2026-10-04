@@ -4,8 +4,10 @@
     <p class="ob-featured-label"><%= open_blog_translate("cards.featured") %></p>
     <h2><%= link_to post.title, post.path %></h2>
     <p class="ob-card-description"><%= post.description %></p>
-    <div class="ob-card-author"><%= open_blog_avatar(post.author, name: post.author_name) %> <%= link_to post.author_name, open_blog_list_path(:author, post.author) %></div>
-    <%= open_blog_dates(post) %>
-    <%= open_blog_reading_time(post) %>
+    <div class="ob-card-meta">
+      <div class="ob-card-author"><%= open_blog_avatar(post.author, name: post.author_name) %> <%= link_to post.author_name, open_blog_list_path(:author, post.author) %></div>
+      <%= open_blog_dates(post) %>
+      <%= open_blog_reading_time(post) %>
+    </div>
   </div>
 </article>

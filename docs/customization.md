@@ -15,6 +15,17 @@ bin/rails generate open_blog:views
 
 Changed files are kept unless you pass `--force`; review the diff and accept replacements deliberately.
 
+Keep these calls when you change a view, because checks and browser controllers depend on them:
+
+| View | Keep |
+| --- | --- |
+| `posts/show` | `open_blog_post_content` around the title, the lede, `open_blog_byline`, `open_blog_notices`, `open_blog_cover`, the table of contents, the body, the corrections, and the FAQ. The tags, the author box, the call to action, and the related posts stay outside it. |
+| `posts/show` | The block of `open_blog_byline(post)`. It puts `shared/_share` in the byline row; render the share partial one time only. |
+| `shared/_header` | The site name as the first link. `open_blog_feed_path` gives the feed address for the Subscribe link; remove the link if you do not want it. |
+| `posts/_highlights` | Not rendered by default, because the byline shows the dates and the reading time. Add `render "open_blog/posts/highlights", post: post` to `posts/show` to show the list again. |
+
+[What the reader pages show]({% link themes.md %}#what-the-reader-pages-show) lists the parts that the views draw from the configuration.
+
 ## Themes and stylesheets
 
 The look of the reader comes from a preset that you select with `config.theme`. The [themes guide]({% link themes.md %}) covers the presets, palette overrides with `config.theme_colors`, the token reference, and fonts. Do not edit token values in the copied files; set them in the configuration or in the override file that the guide names.
@@ -29,7 +40,7 @@ config.call_to_action = { title: "Newsletter", text: "One letter a month.", labe
 
 The gem serves the preset stylesheet `open_blog/themes.css` in every host setup. With Tailwind 4, the copied component styles live in `app/assets/tailwind/open_blog`, and the blog layout loads the preset with `open_blog_theme_stylesheets` and then your host build. With `--skip-tailwind` or Tailwind 3, `open_blog_stylesheets` loads the preset, the gem's compiled stylesheet, and then `app/assets/stylesheets/open_blog_theme.css`. The compiled stylesheets stay in the gem. Maintainers rebuild them with `bin/rails open_blog:build_css`; `OUT=/tmp/blog.css` selects another output path.
 
-Generate syntax colors for the configured theme with `bin/rails open_blog:syntax_css`. The output includes light, explicit dark, and system dark rules scoped to code blocks. `config.syntax_theme` defaults to `"github"`; `"base16"` and `"gruvbox"` also support both modes.
+Generate syntax colors for the configured theme with `bin/rails open_blog:syntax_css`. The output includes light, explicit dark, and system dark rules scoped to code blocks, and the dark rules again for [code blocks under a preset]({% link themes.md %}#code-blocks). `config.syntax_theme` defaults to `"github"`; `"base16"` and `"gruvbox"` also support both modes.
 
 ## Browser controllers
 
