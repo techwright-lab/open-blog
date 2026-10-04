@@ -24,7 +24,7 @@ Reader routes include the index, posts, categories, tags, authors, series, searc
 
 ## FAQ and Markdown text
 
-FAQ records appear as expanded plain text after the article and supply its FAQ structured data. Blank lines create paragraphs, single line breaks remain visible, and bare HTTP(S) URLs become links. Markdown and HTML-looking text in FAQ answers stay literal.
+FAQ records appear as plain text after the article and supply its FAQ structured data. Entries are collapsed by default; [`config.faq_collapsed`]({% link themes.md %}#collapsed-faq) controls this. Blank lines create paragraphs, single line breaks remain visible, and bare HTTP(S) URLs become links. Markdown and HTML-looking text in FAQ answers stay literal.
 
 `OpenBlog::MarkdownView.render(post)` returns a text version with truthful dates, notices, FAQs, and the canonical URL. The same text is served at `/blog/:slug.md` with canonical and noindex headers:
 

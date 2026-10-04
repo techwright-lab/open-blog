@@ -40,6 +40,7 @@ module OpenBlog
   autoload :Renderer, "open_blog/renderer"
   autoload :SyntaxCss, "open_blog/syntax_css"
   autoload :BuildCss, "open_blog/build_css"
+  autoload :Themes, "open_blog/themes"
   autoload :ReaderPage, "open_blog/reader_page"
   autoload :ReaderDates, "open_blog/reader_dates"
   autoload :JsonFeed, "open_blog/json_feed"

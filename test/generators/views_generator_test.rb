@@ -30,8 +30,12 @@ class ViewsGeneratorTest < Rails::Generators::TestCase
     assert_includes layout, "open_blog_stylesheets"
     refute_includes layout, 'stylesheet_link_tag "tailwind"'
     run_generator [ "--force", "--no-skip-tailwind" ]
-    assert_includes File.read(File.join(destination_root, "app/views/layouts/open_blog.html.erb")), 'stylesheet_link_tag "tailwind"'
+    layout = File.read(File.join(destination_root, "app/views/layouts/open_blog.html.erb"))
+    assert_operator layout.index("<%= open_blog_theme_stylesheets %>"), :<, layout.index('stylesheet_link_tag "tailwind"')
+    run_generator [ "--force" ]
+    assert_equal layout, File.read(File.join(destination_root, "app/views/layouts/open_blog.html.erb"))
   end
+
   test "interactive views refresh delegates changed files to the conflict prompt" do
     run_generator
     path = File.join(destination_root, "app/views/open_blog/posts/show.html.erb")

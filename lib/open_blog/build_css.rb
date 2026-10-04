@@ -27,17 +27,60 @@ module OpenBlog
       end
     end
 
+    OVERRIDE = <<~CSS
+      /*
+        Open Blog loads this file after the preset chosen with config.theme.
+        Put your token overrides here. Colours can also be set with config.theme_colors.
+
+        :root[data-ob-theme] {
+          --ob-accent: #1d4ed8;
+          --ob-font-display: Georgia, serif;
+          --ob-radius-card: 0.5rem;
+        }
+        :root[data-ob-theme][data-theme="dark"] {
+          --ob-accent: #93c5fd;
+        }
+        @media (prefers-color-scheme: dark) {
+          :root[data-ob-theme]:not([data-theme="light"]) {
+            --ob-accent: #93c5fd;
+          }
+        }
+      */
+    CSS
+
+    COLOR_SCHEME = <<~CSS
+      :root { color-scheme: light dark; }
+      :root[data-theme="light"] { color-scheme: light; }
+      :root[data-theme="dark"] { color-scheme: dark; }
+    CSS
+
     def self.tokens
-      source = theme_root.join("theme.css").read
-      block = source.match(%r{/\* open-blog:tokens:start \*/(.*?)/\* open-blog:tokens:end \*/}m)
-      raise ConfigurationError, "The theme must contain its marked token block" unless block
-      "#{block[1].strip}\n"
+      OVERRIDE
     end
 
-    def self.write(path: Engine.root.join("app/assets/builds/open_blog/blog.css"), tokens_path: theme_root.join("open_blog_theme.css"))
-      css = render
-      values = tokens
-      [ [ path, css ], [ tokens_path, values ] ].each do |destination, bytes|
+    def self.themes
+      faces = Themes::FONTS.map do |font|
+        <<~CSS
+          @font-face {
+            font-family: "#{font.family}";
+            font-style: #{font.style};
+            font-weight: #{font.weight};
+            font-display: swap;
+            src: url("#{font.file}") format("woff2");
+            unicode-range: #{font.range};
+          }
+        CSS
+      end
+      presets = Themes.names.map do |name|
+        preset = Themes.fetch(name)
+        Themes.css(name, light: preset.light.merge(preset.tokens), dark: preset.dark)
+      end
+      [ *faces, COLOR_SCHEME, *presets ].join
+    end
+
+    def self.write(path: Engine.root.join("app/assets/builds/open_blog/blog.css"), tokens_path: theme_root.join("open_blog_theme.css"),
+      themes_path: Pathname(path).dirname.join("themes.css"))
+      [ [ path, render ], [ tokens_path, tokens ], [ themes_path, themes ] ].each do |destination, bytes|
         destination = Pathname(destination)
         FileUtils.mkdir_p(destination.dirname)
         destination.binwrite(bytes)

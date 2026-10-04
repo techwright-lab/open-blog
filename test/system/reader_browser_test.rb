@@ -143,7 +143,7 @@ class ReaderBrowserTest < ApplicationSystemTestCase
     assert_equal "dark", observations.first.fetch("theme")
     assert_equal({ "theme" => "dark", "stylesheets" => 0 }, page.evaluate_script("window.earlyThemeChanges[0]"))
     assert_equal "dark", page.evaluate_script("window.domReadyTheme")
-    assert_equal "rgb(15, 23, 42)", page.evaluate_script("window.firstFrameBackground")
+    assert_equal rgb(OpenBlog::Themes.fetch(:signal).dark.fetch("surface")), page.evaluate_script("window.firstFrameBackground")
   end
 
   test "blocked storage leaves a usable theme control and content" do
@@ -242,7 +242,7 @@ class ReaderBrowserTest < ApplicationSystemTestCase
         assert_no_selector ".ob-theme-toggle"
         assert_no_selector ".ob-share-button"
         assert_no_selector ".ob-code-copy"
-        assert_equal(theme == "dark" ? "rgb(15, 23, 42)" : "rgb(255, 255, 255)", page.evaluate_script("getComputedStyle(document.body).backgroundColor"))
+        assert_equal rgb(OpenBlog::Themes.fetch(:signal).public_send(theme).fetch("surface")), page.evaluate_script("getComputedStyle(document.body).backgroundColor")
         find(".ob-header a", match: :first).click
         assert_current_path "/blog"
       end
@@ -250,6 +250,8 @@ class ReaderBrowserTest < ApplicationSystemTestCase
     visit @post.path
     assert_selector "[data-open-blog-body]", text: "Preparing the soil"
     assert_selector "[data-open-blog-faq-entry]", count: 3
+    assert_no_selector "[data-open-blog-faq] p"
+    find("[data-open-blog-faq-entry] > summary", match: :first).click
     assert_selector "[data-open-blog-faq]", text: "Keep **bold** and <em>gentle</em> as written."
     find(".ob-toc a", match: :first).click
     assert_includes current_url, "#preparing-the-soil"
@@ -282,7 +284,92 @@ class ReaderBrowserTest < ApplicationSystemTestCase
     assert_operator progressed, :>, initial
   end
 
-  test "FAQ entries stay expanded and preserve literal text paragraphs and links" do
+  test "each preset renders its fonts and colours and passes accessibility in both color schemes" do
+    OpenBlog::Themes.names.each do |name|
+      OpenBlog.config.theme = name
+      preset = OpenBlog::Themes.fetch(name)
+      %w[light dark].each do |scheme|
+        system_theme(scheme)
+        [ "/blog", @post.path ].each do |path|
+          visit path
+          assert_selector "html[data-ob-theme='#{name}']"
+          assert_no_selector "html[data-theme]"
+          assert_equal rgb(preset.public_send(scheme).fetch("surface")), page.evaluate_script("getComputedStyle(document.body).backgroundColor")
+          assert_equal preset.public_send(scheme).fetch("surface"), find("meta[name='theme-color'][media='(prefers-color-scheme: #{scheme})']", visible: :all)["content"]
+          families = %w[font-display font-body].map { |token| preset.tokens.fetch(token)[/"([^"]+)"/, 1] }
+          assert_equal families, [ "h1", "body" ].map { |selector| page.evaluate_script("getComputedStyle(document.querySelector('#{selector}')).fontFamily").split(",").first.delete('"') }
+          loaded = page.evaluate_async_script(<<~JS, families)
+            const done = arguments[arguments.length - 1];
+            document.fonts.ready.then(() => done(arguments[0].map(family => document.fonts.check(`16px "${family}"`))));
+          JS
+          assert_equal [ true, true ], loaded, "#{name} #{path}: #{families.inspect}"
+          assert_accessible
+          next unless path == @post.path
+          page.execute_script("document.querySelectorAll('[data-open-blog-faq-entry]').forEach(entry => { entry.open = true })")
+          assert_selector "[data-open-blog-faq-entry] p", minimum: 3
+          assert_accessible
+          page.execute_script("document.querySelector('[data-open-blog-faq]').scrollIntoView({ block: 'start' })")
+          save_screenshot(Rails.root.join("tmp/capybara/reader-preset-#{name}-#{scheme}.png"))
+        end
+      end
+    end
+  end
+
+  test "no preset leaves the tokens to the host and colour overrides reach the page" do
+    OpenBlog.config.theme = :none
+    visit @post.path
+    assert_no_selector "html[data-ob-theme]"
+    assert_no_selector "link[href*='open_blog/themes']", visible: :all
+    assert_no_selector "style[data-open-blog-theme-colors]", visible: :all
+    OpenBlog.config.theme = :editorial
+    OpenBlog.config.theme_colors = { accent: "#1d4ed8", surface: "#fefefe", dark: { accent: "#93c5fd", surface: "#101010" } }
+    { "light" => %w[#1d4ed8 #fefefe], "dark" => %w[#93c5fd #101010] }.each do |scheme, (accent, surface)|
+      system_theme(scheme)
+      visit @post.path
+      assert_selector "link[href*='open_blog/themes']", visible: :all, count: 1
+      assert_selector "style[data-open-blog-theme-colors]", visible: :all, count: 1
+      assert_equal accent, page.evaluate_script("getComputedStyle(document.documentElement).getPropertyValue('--ob-accent').trim()")
+      assert_equal rgb(surface), page.evaluate_script("getComputedStyle(document.body).backgroundColor")
+      assert_equal surface, find("meta[name='theme-color'][media='(prefers-color-scheme: #{scheme})']", visible: :all)["content"]
+      assert_accessible
+    end
+    system_theme("light")
+    find(".ob-theme-toggle").click
+    find(".ob-theme-toggle").click
+    assert_selector "html[data-theme=dark]"
+    assert_equal rgb("#101010"), page.evaluate_script("getComputedStyle(document.body).backgroundColor")
+  end
+
+  test "FAQ entries are collapsed and open by click and by keyboard" do
+    visit @post.path
+    section = find("[data-open-blog-content] [data-open-blog-faq]")
+    assert_selector "[data-open-blog-faq] details.ob-faq-entry[data-open-blog-faq-entry]", count: 3
+    assert_no_selector "[data-open-blog-faq] details[open]"
+    assert_no_selector "[data-open-blog-faq] p"
+    assert_equal @faq_questions, section.all("details > summary > h3").map(&:text)
+    summaries = section.all("details > summary")
+    summaries[0].click
+    assert_selector "[data-open-blog-faq] details[open]", count: 1
+    assert_selector "[data-open-blog-faq] details[open] p", text: "Keep **bold** and <em>gentle</em> as written."
+    summaries[0].click
+    assert_no_selector "[data-open-blog-faq] details[open]"
+    summaries[1].send_keys(:enter)
+    assert_selector "[data-open-blog-faq] details[open]", count: 1
+    assert_equal @faq_url, section.find("details[open] a")["href"]
+    summaries[1].send_keys(:space)
+    assert_no_selector "[data-open-blog-faq] details[open]"
+    summaries[0].click
+    page.send_keys(:tab)
+    assert_equal @faq_questions[1], page.evaluate_script("document.activeElement.closest('summary')?.textContent.trim()")
+    page.send_keys(:enter)
+    assert_selector "[data-open-blog-faq] details[open]", count: 2
+    section.all("details > summary").each { |summary| assert_operator summary.native.size.height, :>=, 24 }
+    assert_selector ".ob-toc a[href='##{section.find('h2')[:id]}']", text: I18n.t("open_blog.faq.heading"), count: 1
+    assert_accessible
+  end
+
+  test "FAQ entries stay expanded when collapsing is off and preserve literal text paragraphs and links" do
+    OpenBlog.config.faq_collapsed = false
     visit @post.path
     section = find("[data-open-blog-content] [data-open-blog-faq]")
     assert_equal @faq_questions, section.all("[data-open-blog-faq-entry] h3").map(&:text)
@@ -297,6 +384,10 @@ class ReaderBrowserTest < ApplicationSystemTestCase
   end
 
   private
+
+  def rgb(hex)
+    "rgb(#{hex.delete_prefix('#').scan(/../).map(&:hex).join(', ')})"
+  end
 
   def wide_png
     @wide_png ||= begin

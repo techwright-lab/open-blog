@@ -48,8 +48,11 @@ end
 | `posts_per_page` | `12` | Page size for the index and list pages. |
 | `primary_list_type` | `:categories` | `:categories` or `:tags`: which list pages are indexed and placed in the sitemap. |
 | `serve_sitemap` | `true` | Serve `/blog/sitemap.xml`. Set `false` and use `OpenBlog.sitemap_entries` in a host sitemap. |
-| `color_scheme` | `:system` | `:system`, `:light`, or `:dark`. |
-| `syntax_theme` | `"github"` | Rouge theme for code blocks. `"base16"` and `"gruvbox"` also support both modes. |
+| `theme` | `:signal` | Preset: `:signal`, `:editorial`, `:ink`, or `:none`. See [themes]({% link themes.md %}). |
+| `theme_colors` | `{}` | Hex color overrides for the preset, for both modes or under `light:` and `dark:`. See [palette overrides]({% link themes.md %}#change-the-color-palette). |
+| `color_scheme` | `:system` | Light or dark mode of the preset: `:system` follows the device and lets the reader choose; `:light` or `:dark` fixes the mode. |
+| `faq_collapsed` | `true` | Render each FAQ entry closed in a `<details>` element. `false` shows every answer on load. |
+| `syntax_theme` | `"github"` | Rouge theme for syntax colors in code blocks. `"base16"` and `"gruvbox"` also support both modes. The code block background comes from the preset. |
 | `feed_content` | `:summary` | `:summary` or `:full` for Atom and JSON Feed entries. |
 | `feed_size` | `20` | Entries per feed. |
 
@@ -109,4 +112,4 @@ end
 | `page_view_retention_days` | `nil` | Rows older than this are removed by `bin/rails open_blog:prune_page_views`. |
 | `popular_posts` | `{ enabled: false, days: 30, limit: 5 }` | Popular-article sidebar. |
 
-Scheduled publishing needs a durable Active Job adapter or the recurring `open_blog:publish_due` task. See [API authentication]({% link api.md %}#authentication), [reader routes and feeds]({% link reader.md %}), [analytics]({% link analytics.md %}), and [diagnostics]({% link diagnostics.md %}) for detailed behavior.
+Scheduled publishing needs a durable Active Job adapter or the recurring `open_blog:publish_due` task. See [API authentication]({% link api.md %}#authentication), [reader routes and feeds]({% link reader.md %}), [themes]({% link themes.md %}), [analytics]({% link analytics.md %}), and [diagnostics]({% link diagnostics.md %}) for detailed behavior.

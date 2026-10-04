@@ -6,6 +6,7 @@ OpenBlog.configure do |config|
   config.mount_path = <%= options[:mount_at].dump %>
   config.body_formats = [ <%= body_formats.map { |format| ":#{format}" }.join(", ") %> ]
   config.default_body_format = <%= ":#{body_formats.first}" %>
+  config.theme = :<%= @theme %>
   config.primary_list_type = :categories
   config.sign_in_destinations = []
   config.ai_label = :when_required

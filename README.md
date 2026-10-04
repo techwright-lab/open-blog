@@ -23,8 +23,8 @@
 
 <table align="center">
   <tr>
-    <td><img src=".github/images/reader-light.png" alt="Default blog in the light theme" width="420"></td>
-    <td><img src=".github/images/reader-dark.png" alt="Default blog in the dark theme" width="420"></td>
+    <td><img src=".github/images/theme-signal-light.png" alt="Signal preset in light mode" width="420"></td>
+    <td><img src=".github/images/theme-signal-dark.png" alt="Signal preset in dark mode" width="420"></td>
   </tr>
 </table>
 
@@ -34,7 +34,8 @@ Every publish, edit, approval, and removal leaves an immutable record. A reader 
 
 | | |
 | --- | --- |
-| **Reader pages** | Light and dark themes, categories, tags, authors, series, search, Atom and JSON feeds, a sitemap, and structured data. The templates are copied into your app so you can change them. |
+| **Reader pages** | Categories, tags, authors, series, search, Atom and JSON feeds, a sitemap, and structured data. The templates are copied into your app so you can change them. |
+| **Themes** | Three presets, Signal, Editorial, and Ink, each with light and dark mode. Change the palette from the configuration. Fonts ship with the gem; nothing loads from another site. |
 | **Publishing operations** | Ruby operations compute a revision identifier from the content, record each release, and refuse a public edit that does not say whether it is substantive, a correction, or maintenance. |
 | **JSON API and MCP** | Scoped tokens let editorial tools and AI agents publish through the same guarded path. Six agent workflows ship in the gem. |
 | **Approvals and provenance** | A post carries who wrote it, who reviewed which revision, and whether facts were checked. The AI notice on the page follows those records. |
@@ -101,7 +102,8 @@ A later edit of a public post must carry `change: "substantive"`, `"correction"`
 | [JSON API](https://techwright-lab.github.io/open-blog/api/) and [MCP](https://techwright-lab.github.io/open-blog/mcp/) | Endpoints, tools, examples, and error codes |
 | [Reader pages and feeds](https://techwright-lab.github.io/open-blog/reader/) | Routes, search, feeds, dates, images, and policy pages |
 | [Adoption](https://techwright-lab.github.io/open-blog/adoption/) | Import existing articles and preserve their known history |
-| [Customization](https://techwright-lab.github.io/open-blog/customization/) | Copied templates, themes, and browser controllers |
+| [Customization](https://techwright-lab.github.io/open-blog/customization/) | Copied templates, stylesheets, and browser controllers |
+| [Themes](https://techwright-lab.github.io/open-blog/themes/) | Presets, palette overrides, design tokens, and fonts |
 | [AdminSuite](https://techwright-lab.github.io/open-blog/admin-suite/), [Diagnostics](https://techwright-lab.github.io/open-blog/diagnostics/), [Page views](https://techwright-lab.github.io/open-blog/analytics/) | Optional editor, setup checks, surface reports, and analytics |
 
 ## Development

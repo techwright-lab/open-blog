@@ -44,12 +44,12 @@ module OpenBlog
       def copy_reader_views(css: css_setup, javascript: javascript_setup)
         directory "views/open_blog", "app/views/open_blog", **copy_options
         content = File.read(find_in_source_paths("views/layouts/open_blog.html.erb"))
-        stylesheet = case css
-        when :rails then 'stylesheet_link_tag "tailwind", "data-turbo-track": "reload"'
-        when :bundler then 'stylesheet_link_tag "application", "data-turbo-track": "reload"'
-        else "open_blog_stylesheets"
+        asset = { rails: "tailwind", bundler: "application" }[css]
+        if asset
+          content = content.sub(/^(\s*)<%= open_blog_stylesheets %>/) do
+            "#{$1}<%= open_blog_theme_stylesheets %>\n#{$1}<%= stylesheet_link_tag #{asset.dump}, \"data-turbo-track\": \"reload\" %>"
+          end
         end
-        content = content.sub("open_blog_stylesheets", stylesheet)
         if javascript == :bundler
           content = content.sub("javascript_importmap_tags", 'javascript_include_tag "application", "data-turbo-track": "reload", defer: true')
         end

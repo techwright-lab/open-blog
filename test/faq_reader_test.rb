@@ -12,35 +12,32 @@ class FaqReaderTest < ActionDispatch::IntegrationTest
       faq: @entries }, actor: "Garden editor", now: 2.days.ago)
     @post = @result.post
     @post.publications.create!(revision: @post.public_revision, entry_type: "correction", occurred_at: 1.day.ago, note: "Clarified pot size.")
+    @collapsed = OpenBlog.config.faq_collapsed
   end
 
-  test "FAQ records retain order and text across the page schema and revision" do
-    get @post.path
-    assert_response :success
-    document = Nokogiri::HTML5(response.body)
-    section = document.at_css("article[data-open-blog-content] > [data-open-blog-faq]")
-    assert section
-    assert_equal 1, document.css("[data-open-blog-faq]").length
-    nodes = section.css("[data-open-blog-faq-entry]")
-    assert_equal 3, nodes.length
-    payload = JSON.parse(@post.reload.public_revision.payload).fetch("faq")
-    actual = nodes.map do |node|
-      { "question" => normalize(node.at_css("h3").text),
-        "answer" => normalize(node.css("p").map { |paragraph| paragraph.inner_html.gsub(/<br\s*\/?>/, " ") }.map { |html| Nokogiri::HTML5.fragment(html).text }.join(" ")) }
+  teardown { OpenBlog.config.faq_collapsed = @collapsed }
+
+  [ true, false ].each do |collapsed|
+    test "FAQ records retain order and text across the page schema and revision when collapsed is #{collapsed}" do
+      OpenBlog.config.faq_collapsed = collapsed
+      get @post.path
+      assert_response :success
+      document = Nokogiri::HTML5(response.body)
+      assert_equal collapsed ? %w[details] * 3 : %w[div] * 3, document.css("[data-open-blog-faq-entry]").map(&:name)
+      assert_equal collapsed ? 3 : 0, document.css("[data-open-blog-faq-entry]:not([open]) > summary > h3").length
+      assert_faq_agreement(document)
     end
-    assert_equal payload.map { |row| row.transform_values { |text| normalize(text) } }, actual
-    graph = JSON.parse(document.at_css("script[type='application/ld+json']").text).fetch("@graph")
-    questions = graph.select { |item| item["@type"] == "FAQPage" }.sole.fetch("mainEntity")
-    assert_equal @entries.map { |row| row[:question] }, questions.map { |row| row.fetch("name") }
-    assert_equal @entries.map { |row| row[:answer] }, questions.map { |row| row.fetch("acceptedAnswer").fetch("text") }
-    assert_equal 2, nodes.first.css("p").length
-    assert_equal 1, nodes.first.css("br").length
-    assert_equal "https://garden.example/pots?a=1&b=2", nodes.first.at_css("a")["href"]
-    assert_empty section.css("script, strong")
-    children = section.parent.element_children.to_a
-    assert_operator children.index(section), :>, children.index(document.at_css("[data-open-blog-body]"))
-    assert_operator children.index(section), :>, children.index(document.at_css(".ob-correction"))
-    assert_equal 1, document.css(".ob-toc a[href='##{section.at_css('h2')['id']}']").length
+  end
+
+  test "the Markdown view carries the same FAQ text for both markups" do
+    now = Time.current
+    outputs = [ true, false ].map do |collapsed|
+      OpenBlog.config.faq_collapsed = collapsed
+      OpenBlog::MarkdownView.render(@post.reload, now: now)
+    end
+    assert_equal outputs.first, outputs.last
+    assert_includes outputs.first, "## Frequently asked questions"
+    assert_includes outputs.first, "Check the soil first."
   end
 
   test "FAQ records remain searchable and body FAQ findings remain distinct" do
@@ -68,6 +65,32 @@ class FaqReaderTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def assert_faq_agreement(document)
+    section = document.at_css("article[data-open-blog-content] > [data-open-blog-faq]")
+    assert section
+    assert_equal 1, document.css("[data-open-blog-faq]").length
+    nodes = section.css("[data-open-blog-faq-entry]")
+    assert_equal 3, nodes.length
+    payload = JSON.parse(@post.reload.public_revision.payload).fetch("faq")
+    actual = nodes.map do |node|
+      { "question" => normalize(node.at_css("h3").text),
+        "answer" => normalize(node.css("p").map { |paragraph| paragraph.inner_html.gsub(/<br\s*\/?>/, " ") }.map { |html| Nokogiri::HTML5.fragment(html).text }.join(" ")) }
+    end
+    assert_equal payload.map { |row| row.transform_values { |text| normalize(text) } }, actual
+    graph = JSON.parse(document.at_css("script[type='application/ld+json']").text).fetch("@graph")
+    questions = graph.select { |item| item["@type"] == "FAQPage" }.sole.fetch("mainEntity")
+    assert_equal @entries.map { |row| row[:question] }, questions.map { |row| row.fetch("name") }
+    assert_equal @entries.map { |row| row[:answer] }, questions.map { |row| row.fetch("acceptedAnswer").fetch("text") }
+    assert_equal 2, nodes.first.css("p").length
+    assert_equal 1, nodes.first.css("br").length
+    assert_equal "https://garden.example/pots?a=1&b=2", nodes.first.at_css("a")["href"]
+    assert_empty section.css("script, strong")
+    children = section.parent.element_children.to_a
+    assert_operator children.index(section), :>, children.index(document.at_css("[data-open-blog-body]"))
+    assert_operator children.index(section), :>, children.index(document.at_css(".ob-correction"))
+    assert_equal 1, document.css(".ob-toc a[href='##{section.at_css('h2')['id']}']").length
+  end
 
   def normalize(value)
     value.unicode_normalize(:nfc).gsub(/[[:space:]]+/, " ").strip

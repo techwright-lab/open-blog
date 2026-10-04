@@ -18,8 +18,15 @@ module OpenBlog
       class_option :skip_sample, type: :boolean, default: false
       class_option :skip_migrate, type: :boolean, default: false
       class_option :admin_suite, type: :boolean, default: false
+      class_option :theme, type: :string, desc: "Theme preset: #{OpenBlog::Themes.names.join(', ')} (default: signal)"
+
+      INITIALIZER = "config/initializers/open_blog.rb".freeze
+      THEME_SETTING = /^([ \t]*)config\.theme[ \t]*=[ \t]*(?::(\w+))?[^\n]*$/
 
       def detect
+        unless options[:theme].nil? || OpenBlog::Themes.names.map(&:to_s).include?(options[:theme])
+          raise Thor::Error, "--theme must be #{OpenBlog::Themes.names.to_sentence(last_word_connector: ' or ', two_words_connector: ' or ')}"
+        end
         unless %w[markdown rich_text both].include?(options[:body_format])
           raise Thor::Error, "--body-format must be markdown, rich_text or both"
         end
@@ -44,7 +51,10 @@ module OpenBlog
       def configure_blog
         @site_name = identity(:site_name, "Site name", "Example")
         @author_name = identity(:author_name, "Author name", "Ada Example")
-        template "initializer.rb.tt", "config/initializers/open_blog.rb", **copy_options
+        @theme = options[:theme] || host_read(INITIALIZER)[THEME_SETTING, 2] || "signal"
+        template "initializer.rb.tt", INITIALIZER, **copy_options
+        choose_theme if options[:theme]
+        say "Theme: #{@theme}"
       end
 
       def install_dependencies
@@ -165,6 +175,17 @@ module OpenBlog
           raise Thor::Error, "Host command failed: #{arguments.join(' ')}"
         end
         success
+      end
+
+      def choose_theme
+        setting = "config.theme = :#{@theme}"
+        if host_read(INITIALIZER).match?(THEME_SETTING)
+          gsub_file INITIALIZER, THEME_SETTING, "\\1#{setting}"
+        elsif host_read(INITIALIZER).match?(/^OpenBlog\.configure do \|config\|\n/)
+          inject_into_file INITIALIZER, "  #{setting}\n", after: /^OpenBlog\.configure do \|config\|\n/
+        elsif !options[:pretend]
+          raise Thor::Error, "Cannot locate the OpenBlog.configure block; set #{setting} in #{INITIALIZER}."
+        end
       end
 
       def identity(key, prompt, placeholder)
