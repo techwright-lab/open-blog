@@ -37,6 +37,7 @@ The generator installs the tables, mounts `/blog`, copies reader views and brows
 | `--site-name`, `--author-name` | placeholders | Values written to the initializer. |
 | `--mount-at=/journal` | `/blog` | Mount path. Part of every post URL, so choose it before publishing. |
 | `--mount-position=first` | `last` | Place the mount before existing host routes. The default keeps host routes first. |
+| `--theme=editorial` | `signal` | [Preset]({% link themes.md %}) written to the initializer as `config.theme`: `signal`, `editorial`, or `ink`. |
 | `--body-format=rich_text` | `markdown` | Permitted body formats: `markdown`, `rich_text`, or `both`. |
 | `--skip-sample` | | Do not publish the sample article. |
 | `--skip-migrate` | | Copy migrations without running them. The sample and token are deferred; run `bin/rails open_blog:sample` and `bin/rails open_blog:install_token` after migrating. |
@@ -50,4 +51,4 @@ Repeating installation reuses the sample and migrations. `bin/rails generate ope
 
 Run `bin/rails open_blog:doctor` to inspect configuration, assets, routes, storage, and publishing records. Errors return exit status 1; warnings identify setup still needed.
 
-Set your public origin and replace the placeholder identities in `config/initializers/open_blog.rb`. The [configuration reference]({% link configuration.md %}) lists every setting with its default. The copied templates live in the host's `app/views/open_blog`; see [customization]({% link customization.md %}) for reader assets.
+Set your public origin and replace the placeholder identities in `config/initializers/open_blog.rb`. The [configuration reference]({% link configuration.md %}) lists every setting with its default. The copied templates live in the host's `app/views/open_blog`; see [customization]({% link customization.md %}) for reader assets and [themes]({% link themes.md %}) for presets and colors.

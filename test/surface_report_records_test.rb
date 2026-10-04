@@ -23,7 +23,7 @@ class SurfaceReportRecordsTest < ActionDispatch::IntegrationTest
   end
 
   setup do
-    @settings = %i[policy_urls ai_label].to_h { |key| [ key, OpenBlog.config.public_send(key) ] }
+    @settings = %i[policy_urls ai_label faq_collapsed].to_h { |key| [ key, OpenBlog.config.public_send(key) ] }
     OpenBlog.config.policy_urls = { responsible_party: "https://example.test/about" }
     OpenBlog.config.ai_label = :when_required
     @now = Time.current.change(usec: 0)
@@ -52,6 +52,21 @@ class SurfaceReportRecordsTest < ActionDispatch::IntegrationTest
     assert_equal "not applicable", result("E7")[:result]
     assert_equal "not verified", result("E21")[:result]
     assert_equal "not verified", result("E22")[:result]
+  end
+
+  test "the FAQ part agrees for collapsed and expanded entries" do
+    { true => "details", false => "div" }.each do |collapsed, element|
+      OpenBlog.config.faq_collapsed = collapsed
+      get @post.path
+      entry = Nokogiri::HTML5(response.body).css("[data-open-blog-faq-entry]").sole
+      assert_equal element, entry.name
+      assert_equal collapsed, entry.at_css("> summary > h3").present?
+      @context.post_page(@post).body = response.body
+      @context.results.reject! { |row| row[:predicate] != "E4" }
+      run_checks
+      assert_equal "pass", result("E19")[:details]["G"], element
+      assert_equal "pass", result("E19")[:result], result("E19").inspect
+    end
   end
 
   test "a fetched page missing its declared content region fails the content comparison" do

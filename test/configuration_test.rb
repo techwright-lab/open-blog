@@ -13,7 +13,7 @@ class ConfigurationTest < Minitest::Test
     policy_urls: { responsible_party: nil, corrections: nil, editorial: nil, ai_use: nil },
     sign_in_destinations: nil, body_formats: [ :markdown ], default_body_format: :markdown,
     markdown_hardbreaks: true, ai_label: :when_required, require_approval: false,
-    before_publish: nil, color_scheme: :system, syntax_theme: "github", feed_content: :summary,
+    before_publish: nil, color_scheme: :system, theme: :signal, theme_colors: {}, faq_collapsed: true, syntax_theme: "github", feed_content: :summary,
     feed_size: 20, serve_sitemap: true, page_views: true, page_view_retention_days: nil,
     popular_posts: { enabled: false, days: 30, limit: 5 }, preview_expires_in: 7 * 24 * 60 * 60,
     storage_service: nil, image_delivery: :redirect, max_image_bytes: 10 * 1024 * 1024,
@@ -106,6 +106,8 @@ class ConfigurationTest < Minitest::Test
     first.image_content_types.first.replace("image/svg+xml")
     first.blog_title.replace("News")
     first.mcp.enabled = false
+    first.theme_colors[:accent] = "#000000"
+    assert_empty second.theme_colors
     assert_equal "category", second.route_segments[:category]
     assert_equal [ :markdown ], second.body_formats
     assert_nil second.policy_urls[:editorial]
@@ -115,6 +117,73 @@ class ConfigurationTest < Minitest::Test
     assert_equal "image/png", second.image_content_types.first
     assert_equal "Blog", second.blog_title
     assert_equal true, second.mcp.enabled
+  end
+
+  def test_theme_accepts_each_preset_and_none
+    %i[signal editorial ink none].each do |theme|
+      config = OpenBlog::Configuration.new
+      config.theme = theme
+      assert_same config, config.validate_structure!
+    end
+    [ :slate, "signal", nil, 1 ].each do |theme|
+      config = OpenBlog::Configuration.new
+      config.theme = theme
+      error = assert_raises(OpenBlog::ConfigurationError, theme.inspect) { config.validate_structure! }
+      assert_includes error.message, "OpenBlog theme must be :signal, :editorial, :ink, :none"
+    end
+  end
+
+  def test_faq_collapsed_must_be_a_boolean
+    config = OpenBlog::Configuration.new
+    config.faq_collapsed = false
+    assert_same config, config.validate_structure!
+    [ nil, "true", 1 ].each do |value|
+      config.faq_collapsed = value
+      error = assert_raises(OpenBlog::ConfigurationError) { config.validate_structure! }
+      assert_includes error.message, "faq_collapsed"
+    end
+  end
+
+  def test_theme_colors_accept_every_colour_token_in_each_hex_form
+    config = OpenBlog::Configuration.new
+    tokens = OpenBlog::Themes::COLOR_TOKENS.map { |token| token.tr("-", "_").to_sym }
+    config.theme_colors = tokens.index_with { "#1d4ed8" }.merge(light: { accent: "#abc" }, dark: tokens.index_with { "#93C5FD80" })
+    assert_same config, config.validate_structure!
+  end
+
+  def test_theme_colors_merge_shared_values_under_each_mode
+    config = OpenBlog::Configuration.new
+    config.theme_colors = { accent: "#1d4ed8", accent_2: "#b45309", dark: { accent: "#93c5fd", surface: "#000000" } }
+    assert_equal({ "accent" => "#1d4ed8", "accent-2" => "#b45309" }, config.theme_colors_for(:light))
+    assert_equal({ "accent" => "#93c5fd", "accent-2" => "#b45309", "surface" => "#000000" }, config.theme_colors_for(:dark))
+    assert_equal({}, OpenBlog::Configuration.new.theme_colors_for(:light))
+    config.theme_colors[:dark][:surface] = "black"
+    assert_raises(OpenBlog::ConfigurationError) { config.theme_colors_for(:dark) }
+  end
+
+  def test_theme_colors_reject_unknown_keys_and_values_that_are_not_hex
+    {
+      "theme_colors" => [ "#1d4ed8", [ [ :accent, "#1d4ed8" ] ], nil ],
+      "theme_colors.light" => [ { light: "#ffffff" }, { light: nil } ],
+      "theme_colors.acent" => [ { acent: "#1d4ed8" } ],
+      "theme_colors.accent-2" => [ { "accent-2": "#1d4ed8" } ],
+      "theme_colors.font_body" => [ { font_body: "#1d4ed8" } ],
+      "theme_colors.dark.light" => [ { dark: { light: { accent: "#1d4ed8" } } } ],
+      "theme_colors.dark.shadow" => [ { dark: { shadow: "#1d4ed8" } } ],
+      "theme_colors.accent" => [ { "accent" => "#1d4ed8" } ] + [
+        "red", "1d4ed8", "#1d4e", "#1d4ed", "#1d4ed8f", "#gggggg", "rgb(0, 0, 0)", "var(--x)", "#fff\n", "x\n#fff", "#fff;} body{display:none",
+        "#fff</style><script>alert(1)</script>", :"#ffffff", 0xffffff, nil,
+        "#ffffff".encode("UTF-16LE"), "#ff\xff"
+      ].map { |value| { accent: value } },
+      "theme_colors.light.surface" => [ { light: { surface: "url(https://example.com/x)" } }, { accent: "#1d4ed8", light: { surface: " #ffffff" } } ]
+    }.each do |name, values|
+      values.each do |value|
+        config = OpenBlog::Configuration.new
+        config.theme_colors = value
+        error = assert_raises(OpenBlog::ConfigurationError, value.inspect) { config.validate_structure! }
+        assert_includes error.message, "OpenBlog #{name} ", value.inspect
+      end
+    end
   end
 
   def test_required_identity_values_are_checked_individually

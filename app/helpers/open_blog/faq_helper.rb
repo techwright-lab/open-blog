@@ -11,7 +11,9 @@ module OpenBlog
         paragraphs = entry[:answer].to_s.gsub(/\r\n?/, "\n").split(/\n[\t ]*\n+/).map do |paragraph|
           tag.p(safe_join(paragraph.split("\n", -1).map { |line| open_blog_faq_links(line) }, safe_join([ tag.br, "\n" ])))
         end
-        tag.div(safe_join([ question, *paragraphs ], "\n"), class: "ob-faq-entry", data: { open_blog_faq_entry: true })
+        collapsed = OpenBlog.config.faq_collapsed
+        content_tag(collapsed ? :details : :div, safe_join([ collapsed ? tag.summary(question) : question, *paragraphs ], "\n"),
+          class: "ob-faq-entry", data: { open_blog_faq_entry: true })
       end
       tag.section(safe_join([ heading, *items ], "\n"), class: "ob-faq", data: { open_blog_faq: true })
     end

@@ -1,7 +1,7 @@
 ---
 layout: default
 title: AdminSuite
-nav_order: 10
+nav_order: 11
 permalink: /admin-suite/
 ---
 
