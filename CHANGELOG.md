@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Wait for RubyGems to index a pushed version before tagging the release, instead of refusing the tag.
+- Update the existing policy page when two first writes to `PUT /api/v1/pages/:kind` race, instead of answering one of them with `422 validation_failed`.
 
 ## [0.1.0] - 2026-10-03
 

@@ -4,9 +4,12 @@ require "fileutils"
 require "json"
 require "yaml"
 require "open3"
+require_relative "support/quiet_git"
 load File.expand_path("../bin/release-check", __dir__)
 
 class PublishWorkflowTest < Minitest::Test
+  include QuietGit
+
   def setup
     @directory = Dir.mktmpdir("open-blog-release-test")
     @env = { "GITHUB_REPOSITORY" => "techwright-lab/open-blog", "GITHUB_EVENT_NAME" => "workflow_dispatch",
@@ -14,6 +17,7 @@ class PublishWorkflowTest < Minitest::Test
       "GITHUB_OUTPUT" => File.join(@directory, "outputs") }
     FileUtils.mkdir_p(File.join(@directory, "lib/open_blog"))
     git("init", "-q")
+    disable_background_maintenance
     git("config", "user.name", "Release Test")
     git("config", "user.email", "release@example.test")
     commit_version("0.1.0.dev")
@@ -133,6 +137,7 @@ class PublishWorkflowTest < Minitest::Test
     File.write(File.join(@directory, "open-blog-release-notes.md"), "- Ship the reader.\n")
     remote = File.join(@directory, "remote.git")
     git("init", "--bare", "-q", remote)
+    disable_background_maintenance("--git-dir", remote)
     git("remote", "add", "origin", remote)
     responses = []
     pauses = []

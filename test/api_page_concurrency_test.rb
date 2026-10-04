@@ -64,6 +64,37 @@ class ApiPageConcurrencyTest < ActiveSupport::TestCase
     threads&.each { |thread| thread.join(5) }
   end
 
+  test "a first write whose only conflict is the slug of a concurrent first write updates that page" do
+    skip "PostgreSQL read committed snapshots" unless ActiveRecord::Base.connection.adapter_name == "PostgreSQL"
+    validator = OpenBlog::Page.validators_on(:kind).grep(ActiveRecord::Validations::UniquenessValidator).first
+    committed = false
+    validator.define_singleton_method(:validate_each) do |record, attribute, value|
+      super(record, attribute, value)
+      next if committed
+      committed = true
+      Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection { OpenBlog::Page.create!(kind: "editorial", title: "Winner") }
+      end.join
+    end
+    session = ActionDispatch::Integration::Session.new(Rails.application)
+    session.put "/blog/api/v1/pages/editorial", params: { title: "Loser", body: "Process." }, as: :json
+    assert_equal 200, session.response.status
+    assert_equal [ "Loser" ], OpenBlog::Page.where(kind: "editorial").pluck(:title)
+  ensure
+    validator&.singleton_class&.send(:remove_method, :validate_each)
+  end
+
+  test "a first write whose slug belongs to another page is refused after one retry" do
+    OpenBlog::Page.create!(kind: "corrections", title: "Corrections")
+    session = ActionDispatch::Integration::Session.new(Rails.application)
+    session.put "/blog/api/v1/pages/editorial", params: { title: "Editorial", slug: "corrections" }, as: :json
+    assert_equal 422, session.response.status
+    assert_equal [ "slug" ], session.response.parsed_body.dig("error", "details")
+    refute OpenBlog::Page.exists?(kind: "editorial")
+  ensure
+    OpenBlog::Page.where(kind: "corrections").delete_all
+  end
+
   private
 
   def assert_waiting(pid)

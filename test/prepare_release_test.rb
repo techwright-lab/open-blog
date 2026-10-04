@@ -4,9 +4,12 @@ require "fileutils"
 require "json"
 require "yaml"
 require "open3"
+require_relative "support/quiet_git"
 load File.expand_path("../bin/prepare-release", __dir__)
 
 class PrepareReleaseTest < Minitest::Test
+  include QuietGit
+
   def setup
     @temporary = Dir.mktmpdir("open-blog-prepare-test")
     @directory = File.join(@temporary, "checkout")
@@ -16,9 +19,11 @@ class PrepareReleaseTest < Minitest::Test
     @commands, @tags, @prs = [], [], []
     @status = 404
     git("init", "-q", "-b", "main")
+    disable_background_maintenance
     git("config", "user.name", "Release Test")
     git("config", "user.email", "release@example.test")
     git("init", "--bare", "-q", File.join(@temporary, "remote.git"))
+    disable_background_maintenance("--git-dir", File.join(@temporary, "remote.git"))
     git("remote", "add", "origin", File.join(@temporary, "remote.git"))
     File.write(path("lib/open_blog/version.rb"), "module OpenBlog\n  VERSION = \"0.1.0\"\nend\n")
     File.write(path("CHANGELOG.md"), "# Changelog\n\n## [Unreleased]\n\n### Added\n\n- New reader feature.\n\n## [0.1.0] - 2026-01-01\n\n- Initial release.\n")
