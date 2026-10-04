@@ -60,6 +60,13 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     assert_file_includes "app/assets/tailwind/open_blog/theme.css"
     assert_file_includes "app/assets/tailwind/application.css", '@import "./open_blog/theme.css";'
     assert_file_includes "app/views/layouts/open_blog.html.erb", 'stylesheet_link_tag "tailwind"', "javascript_importmap_tags"
+    assert_theme_precedes "tailwind"
+    assert_file_includes "config/initializers/open_blog.rb", "config.theme = :signal"
+    assert_includes output, "Theme: signal"
+    %w[theme blog syntax].each { |name| assert_copied "theme/#{name}.css", "app/assets/tailwind/open_blog/#{name}.css" }
+    refute_match(/--ob-surface\s*:/, read("app/assets/tailwind/open_blog/theme.css"))
+    assert_no_file "app/assets/stylesheets/open_blog_theme.css"
+    assert_no_file "app/assets/builds/open_blog/themes.css"
     assert_no_file "app/assets/builds/open_blog/blog.css"
     assert_equal 6, Dir[File.join(destination_root, "app/javascript/controllers/open_blog/*_controller.js")].length
     assert_includes Recorder.host_commands, [ "bin/rails", "open_blog:install_token" ]
@@ -78,8 +85,11 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     refute_includes Recorder.host_commands, [ "bin/rails", "tailwindcss:install" ]
     assert_file_includes "config/initializers/open_blog.rb", '"Example"', '"Ada Example"'
     assert_includes output, "placeholder"
-    assert_file_includes "app/assets/stylesheets/open_blog_theme.css"
-    assert_file_includes "app/views/layouts/open_blog.html.erb", "open_blog_stylesheets"
+    assert_copied "theme/open_blog_theme.css", "app/assets/stylesheets/open_blog_theme.css"
+    assert_no_match(/^\s*--ob-/, read("app/assets/stylesheets/open_blog_theme.css").gsub(%r{/\*.*?\*/}m, ""))
+    assert_no_file "app/assets/tailwind/open_blog/theme.css"
+    assert_file_includes "app/views/layouts/open_blog.html.erb", "<%= open_blog_stylesheets %>"
+    refute_includes read("app/views/layouts/open_blog.html.erb"), "open_blog_theme_stylesheets"
     refute_includes read("Gemfile"), "tailwindcss"
   end
 
@@ -90,6 +100,7 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     run_generator %w[--skip-sample]
     refute_includes Recorder.host_commands, [ "bin/rails", "tailwindcss:install" ]
     assert_file_includes "app/views/layouts/open_blog.html.erb", 'stylesheet_link_tag "tailwind"'
+    assert_theme_precedes "tailwind"
   end
 
   test "cssbundling Tailwind4 selects application build and namespaced source files" do
@@ -103,6 +114,8 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     assert_file_includes "config/initializers/open_blog.rb", /excluded_paths/
     assert_file_includes "app/views/layouts/open_blog.html.erb", 'stylesheet_link_tag "application"', 'javascript_include_tag "application"'
     refute_includes read("app/views/layouts/open_blog.html.erb"), "javascript_importmap_tags"
+    assert_theme_precedes "application"
+    %w[theme blog syntax].each { |name| assert_copied "theme/#{name}.css", "app/assets/tailwind/open_blog/#{name}.css" }
   end
 
   test "bundler without Tailwind installs it unless explicitly skipped" do
@@ -119,7 +132,9 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     output = run_generator %w[--skip-sample]
     refute_includes Recorder.host_commands, [ "bin/rails", "tailwindcss:install" ]
     assert_equal "@tailwind base;\n", read("app/assets/stylesheets/application.tailwind.css")
-    assert_file_includes "app/views/layouts/open_blog.html.erb", "open_blog_stylesheets"
+    assert_file_includes "app/views/layouts/open_blog.html.erb", "<%= open_blog_stylesheets %>"
+    assert_copied "theme/open_blog_theme.css", "app/assets/stylesheets/open_blog_theme.css"
+    assert_no_file "app/assets/tailwind/open_blog/theme.css"
     assert_includes output, "Tailwind 3"
   end
 
@@ -219,7 +234,94 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     OpenBlog.instance_variable_set(:@config, original)
   end
 
+  OpenBlog::Themes.names.each do |name|
+    test "theme option writes the #{name} preset into a valid initializer" do
+      importmap
+      output = run_generator [ "--skip-tailwind", "--skip-sample", "--theme=#{name}" ]
+      assert_includes output, "Theme: #{name}"
+      assert_equal 1, read("config/initializers/open_blog.rb").scan(/^  config\.theme = :#{name}$/).length
+      assert_equal name, load_initializer.theme
+    end
+  end
+
+  test "an unknown theme is refused before the host changes" do
+    importmap
+    original = snapshot
+    %w[none purple Signal].each do |name|
+      error = capture(:stderr) { run_generator [ "--skip-tailwind", "--skip-sample", "--theme=#{name}" ] }
+      assert_includes error, "--theme must be signal, editorial or ink"
+    end
+    assert_equal original, snapshot
+    assert_empty Recorder.host_commands
+  end
+
+  test "repeat install keeps the chosen theme unless another one is passed" do
+    importmap
+    arguments = %w[--skip-tailwind --skip-sample --site-name=Meadow --author-name=Riley]
+    run_generator arguments + [ "--theme=ink" ]
+    original = snapshot
+    run_generator arguments.dup
+    assert_equal original, snapshot
+    run_generator arguments + [ "--theme=ink" ]
+    assert_equal original, snapshot
+    run_generator arguments + [ "--force" ]
+    assert_equal original, snapshot
+    run_generator arguments + [ "--theme=editorial" ]
+    assert_equal original.merge("/config/initializers/open_blog.rb" => original.fetch("/config/initializers/open_blog.rb").sub(":ink", ":editorial")), snapshot
+    assert_equal :editorial, load_initializer.theme
+  end
+
+  test "repeat install keeps a host that opted out of the presets" do
+    importmap
+    arguments = %w[--skip-tailwind --skip-sample]
+    run_generator arguments.dup
+    path = "config/initializers/open_blog.rb"
+    write path, read(path).sub("config.theme = :signal", "config.theme = :none")
+    run_generator arguments + [ "--force" ]
+    assert_file_includes path, "config.theme = :none"
+  end
+
+  test "theme option reaches an initializer written before themes existed" do
+    importmap
+    arguments = %w[--skip-tailwind --skip-sample]
+    run_generator arguments.dup
+    path = "config/initializers/open_blog.rb"
+    write path, read(path).sub("  config.theme = :signal\n", "  config.site_name = \"Kept\"\n")
+    run_generator arguments.dup
+    refute_includes read(path), "config.theme"
+    run_generator arguments + [ "--theme=editorial" ]
+    configuration = load_initializer
+    assert_equal :editorial, configuration.theme
+    assert_equal "Kept", configuration.site_name
+    write path, "OpenBlog.config.site_name = \"Kept\"\n"
+    error = capture(:stderr) { run_generator arguments + [ "--theme=ink" ] }
+    assert_includes error, "set config.theme = :ink in config/initializers/open_blog.rb"
+    assert_equal "OpenBlog.config.site_name = \"Kept\"\n", read(path)
+  end
+
   private
+
+  def assert_copied(template, path)
+    assert_equal File.binread(File.join(Recorder.source_root, template)), File.binread(File.join(destination_root, path))
+  end
+
+  def assert_theme_precedes(asset)
+    layout = read("app/views/layouts/open_blog.html.erb")
+    assert_equal 1, layout.scan("<%= open_blog_theme_stylesheets %>").length
+    refute_match(/\bopen_blog_stylesheets\b/, layout)
+    assert_operator layout.index("open_blog_theme_stylesheets"), :<, layout.index("stylesheet_link_tag #{asset.dump}")
+  end
+
+  def load_initializer
+    original = OpenBlog.config
+    config = OpenBlog::Configuration.new
+    OpenBlog.instance_variable_set(:@config, config)
+    load File.join(destination_root, "config/initializers/open_blog.rb")
+    config.validate_structure!
+    config
+  ensure
+    OpenBlog.instance_variable_set(:@config, original)
+  end
 
   def assert_file_includes(path, *patterns)
     assert_file(path, *patterns.map { |pattern| pattern.is_a?(String) ? Regexp.new(Regexp.escape(pattern)) : pattern })

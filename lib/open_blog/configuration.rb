@@ -5,6 +5,7 @@ require "active_support/core_ext/numeric/time"
 require "active_support/core_ext/numeric/bytes"
 require "open_blog/configuration_error"
 require "open_blog/page_views"
+require "open_blog/themes"
 
 module OpenBlog
   class Configuration
@@ -17,12 +18,16 @@ module OpenBlog
       end
     end
 
+    THEMES = (Themes.names + [ :none ]).freeze
+    THEME_MODES = %i[light dark].freeze
+    THEME_COLOR_KEYS = Themes::COLOR_TOKENS.to_h { |token| [ token.tr("-", "_").to_sym, token ] }.freeze
+
     attr_accessor :site_name, :public_base_url, :default_author, :publisher, :locale,
       :blog_title, :blog_tagline, :layout, :parent_controller, :mount_path,
       :route_segments, :posts_per_page, :primary_list_type, :call_to_action,
       :default_social_image_url, :policy_urls, :sign_in_destinations, :body_formats,
       :default_body_format, :markdown_hardbreaks, :ai_label, :require_approval,
-      :color_scheme, :syntax_theme, :feed_content, :feed_size, :serve_sitemap,
+      :color_scheme, :theme, :theme_colors, :faq_collapsed, :syntax_theme, :feed_content, :feed_size, :serve_sitemap,
       :page_views, :page_view_bot_pattern, :page_view_retention_days, :popular_posts,
       :preview_expires_in, :storage_service, :image_delivery, :max_image_bytes,
       :image_content_types, :image_fetch_policy, :api_rate_limit, :search_rate_limit
@@ -45,6 +50,9 @@ module OpenBlog
       @ai_label = :when_required
       @require_approval = false
       @color_scheme = :system
+      @theme = :signal
+      @theme_colors = {}
+      @faq_collapsed = true
       @syntax_theme = "github".dup
       @feed_content = :summary
       @feed_size = 20
@@ -101,6 +109,7 @@ module OpenBlog
       end
       invalid!(:default_body_format, "must be enabled in body_formats") unless body_formats.include?(default_body_format)
       preview_duration
+      validate_theme!
       validate_view_settings!
       invalid!(:mcp, "enabled must be true or false") unless [ true, false ].include?(mcp.enabled)
       invalid!(:mcp, "max_page_size must be a positive integer") unless mcp.max_page_size.is_a?(Integer) && mcp.max_page_size.positive?
@@ -115,7 +124,34 @@ module OpenBlog
       value.to_f
     end
 
+    def theme_colors_for(mode)
+      validate_theme!
+      theme_colors.except(*THEME_MODES).merge(theme_colors.fetch(mode, {})).to_h do |key, color|
+        [ THEME_COLOR_KEYS.fetch(key), color ]
+      end
+    end
+
     private
+
+    def validate_theme!
+      invalid!(:theme, "must be #{THEMES.map(&:inspect).join(', ')}") unless THEMES.include?(theme)
+      invalid!(:faq_collapsed, "must be true or false") unless [ true, false ].include?(faq_collapsed)
+      invalid!(:theme_colors, "must be a hash") unless theme_colors.is_a?(Hash)
+      theme_colors.each do |key, value|
+        next validate_theme_color!(key, key, value) unless THEME_MODES.include?(key)
+        invalid!("theme_colors.#{key}", "must be a hash") unless value.is_a?(Hash)
+        value.each { |token, color| validate_theme_color!("#{key}.#{token}", token, color) }
+      end
+    end
+
+    def validate_theme_color!(path, token, color)
+      unless THEME_COLOR_KEYS.key?(token)
+        invalid!("theme_colors.#{path}", "is not a colour token; use #{THEME_COLOR_KEYS.keys.join(', ')}")
+      end
+      unless color.is_a?(String) && color.encoding.ascii_compatible? && color.valid_encoding? && color.match?(Themes::HEX)
+        invalid!("theme_colors.#{path}", "must be a hex colour such as #0f766e")
+      end
+    end
 
     def validate_view_settings!
       invalid!(:page_views, "must be true or false") unless [ true, false ].include?(page_views)

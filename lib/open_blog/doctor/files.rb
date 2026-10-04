@@ -34,27 +34,66 @@ module OpenBlog
       end
 
       def theme
+        colors = Configuration::THEME_MODES.index_with { |mode| @config.theme_colors_for(mode) }
+        preset = Themes.fetch(@config.theme) unless @config.theme == :none
+        problem = theme_files(preset)
+        return [ "error", problem ] if problem
+        warnings = []
+        warnings << "theme_colors has no effect with theme :none." if preset.nil? && colors.values.any?(&:any?)
+        low = preset ? low_contrast(preset, colors) : []
+        warnings << "Theme colours below #{Themes::MIN_CONTRAST}:1 contrast: #{low.join(', ')}." if low.any?
+        stale = stale_component_styles(preset)
+        warnings << stale if stale
+        if Dir[@root.join("app/views/layouts/**/*")].select { |path| File.file?(path) }.any? { |path| File.read(path).match?(/stylesheet_link_tag\s*(?:\(?\s*):all\b/) }
+          warnings << "Replace stylesheet_link_tag :all to avoid loading the blog reset on other pages."
+        end
+        return [ "warning", warnings.join(" ") ] if warnings.any?
+        [ "ok", "Theme #{@config.theme}: sources and compiled stylesheets are available." ]
+      rescue ConfigurationError => error
+        [ "error", error.message ]
+      end
+
+      def low_contrast(preset, colors)
+        colors.flat_map do |mode, overrides|
+          Themes.low_contrast(preset.public_send(mode).merge(overrides)).map do |foreground, background, ratio|
+            "#{mode} #{foreground.tr('-', '_')} on #{background.tr('-', '_')} #{ratio.floor(2)}:1"
+          end
+        end
+      end
+
+      def stale_component_styles(preset)
+        return if layout_source.include?("open_blog_stylesheets")
+        path = "app/assets/tailwind/open_blog/blog.css"
+        source = read(path)
+        absent = []
+        absent << "preset" if preset && !source.include?("data-ob-theme")
+        absent << "collapsed FAQ" if @config.faq_collapsed && !source.include?("details.ob-faq-entry")
+        return if absent.empty?
+        "#{path} has no #{absent.join(' or ')} rules. Delete it#{' and theme.css in the same directory' if preset}, then run bin/rails generate open_blog:install."
+      end
+
+      def theme_files(preset)
         layout = layout_source
         tailwind = @root.join("app/assets/tailwind/application.css")
         bundled = @root.join("app/assets/stylesheets/application.tailwind.css")
         if !layout.include?("open_blog_stylesheets")
           asset = layout[/stylesheet_link_tag\s*\(?\s*["']([^"']+)["']/, 1]
-          return [ "error", "The blog layout must load the installed stylesheet." ] unless %w[tailwind application].include?(asset)
+          return "The blog layout must load the installed stylesheet." unless %w[tailwind application].include?(asset)
+          return "The blog layout must call open_blog_theme_stylesheets to load the #{preset.name} theme." if preset && !layout.include?("open_blog_theme_stylesheets")
           entry = asset == "tailwind" ? tailwind : bundled
-          return [ "error", "Missing Tailwind entry stylesheet #{entry.relative_path_from(@root)}." ] unless entry.file?
+          return "Missing Tailwind entry stylesheet #{entry.relative_path_from(@root)}." unless entry.file?
           source = entry.read
-          return [ "error", "Import open_blog/theme.css in #{entry.relative_path_from(@root)}." ] unless source.match?(/@import\s+["'][^"']*open_blog\/theme(?:\.css)?["']/)
+          return "Import open_blog/theme.css in #{entry.relative_path_from(@root)}." unless source.match?(/@import\s+["'][^"']*open_blog\/theme(?:\.css)?["']/)
           absent = %w[theme blog syntax].reject { |name| @root.join("app/assets/tailwind/open_blog/#{name}.css").file? }
-          return [ "error", "Missing theme sources: #{absent.join(', ')}." ] if absent.any?
-          asset = "#{asset}.css"
+          return "Missing theme sources: #{absent.join(', ')}." if absent.any?
+          assets = [ "#{asset}.css" ]
         else
-          return [ "error", "Install app/assets/stylesheets/open_blog_theme.css." ] unless @root.join("app/assets/stylesheets/open_blog_theme.css").file?
-          asset = "open_blog/blog.css"
-          return [ "error", "The blog layout must load open_blog_stylesheets." ] unless layout.include?("open_blog_stylesheets")
+          return "Install app/assets/stylesheets/open_blog_theme.css." unless @root.join("app/assets/stylesheets/open_blog_theme.css").file?
+          assets = [ "open_blog/blog.css" ]
         end
-        return [ "error", "Build the missing #{asset} stylesheet." ] unless @application.assets&.resolver&.resolve(asset)
-        all = Dir[@root.join("app/views/layouts/**/*")].select { |path| File.file?(path) }.any? { |path| File.read(path).match?(/stylesheet_link_tag\s*(?:\(?\s*):all\b/) }
-        all ? [ "warning", "Replace stylesheet_link_tag :all to avoid loading the blog reset on other pages." ] : [ "ok", "Theme sources and compiled stylesheet are available." ]
+        assets << "open_blog/themes.css" if preset
+        missing = assets.reject { |asset| @application.assets&.resolver&.resolve(asset) }
+        "Build the missing #{missing.join(', ')} stylesheet." if missing.any?
       end
     end
   end

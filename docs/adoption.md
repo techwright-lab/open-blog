@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Adopting existing articles
-nav_order: 9
+nav_order: 10
 permalink: /adoption/
 ---
 

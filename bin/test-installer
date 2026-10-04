@@ -33,6 +33,7 @@ class InstallerHarness
     install = [ "bin/rails", "generate", "open_blog:install", "--site-name=CI", "--author-name=CI" ]
     install << "--skip-tailwind" if @options[:skip_tailwind]
     install << "--skip-sample" if @options[:skip_sample]
+    install << "--theme=#{@options[:theme]}" if @options[:theme]
     command(*install)
     @log.flush
     check(File.read(@log_path).scan(/API token: ob_[1-9A-HJ-NP-Za-km-z]{40}/).length == 1, "Installer did not print one new token")
@@ -290,7 +291,7 @@ class InstallerHarness
     check(styles.any?, "Reader has no stylesheet")
     css = styles.map { |path| response = request(path); check(response.is_a?(Net::HTTPSuccess), "Stylesheet failed: #{path}"); response.body }.join
     check(css.include?("--ob-surface") && css.include?(".ob-page"), "Reader stylesheet lacks theme tokens or components")
-    check(css.match?(/--ob-surface:\s*(?:#fff(?:fff)?|white)\s*[;}]/), "Reader default surface differs from the bundled theme")
+    verify_theme(document, styles)
     scripts = document.css("script[src]").map { |node| node["src"] }
     document.css('script[type="importmap"]').each { |node| scripts.concat(JSON.parse(node.text).fetch("imports").values) }
     check(scripts.any?, "Reader has no JavaScript assets")
@@ -298,6 +299,22 @@ class InstallerHarness
       uri = URI.join(@base.to_s, path)
       next unless uri.host == @base.host && uri.port == @base.port
       check(request(uri.request_uri).is_a?(Net::HTTPSuccess), "JavaScript asset failed: #{path}")
+    end
+  end
+
+  def verify_theme(document, styles)
+    theme = @options[:theme] || "signal"
+    check(document.at_css("html")["data-ob-theme"] == theme, "Reader does not select the #{theme} theme")
+    path = styles.find { |style| style.match?(%r{/open_blog/themes(?:-\h+)?\.css}) }
+    check(path, "Reader does not link the packaged theme stylesheet")
+    check(styles.index(path).zero?, "The packaged theme stylesheet is not the first stylesheet")
+    css = request(path).body
+    check(css.include?(%(:root[data-ob-theme="#{theme}"])), "Theme stylesheet lacks the #{theme} preset")
+    fonts = css.scan(/url\(["']?([^"')]+\.woff2)["']?\)/).flatten.uniq
+    check(fonts.size == 14, "Theme stylesheet names #{fonts.size} fonts instead of 14")
+    fonts.each do |font|
+      response = request(URI.join(URI.join(@base.to_s, path), font).request_uri)
+      check(response.is_a?(Net::HTTPSuccess) && response.body.start_with?("wOF2"), "Theme font failed: #{font}")
     end
   end
 
@@ -334,11 +351,12 @@ end
 if $PROGRAM_NAME == __FILE__
   options = { rails: "8.1", mode: "A", skip_tailwind: false, skip_sample: false, keep: false }
   parser = OptionParser.new do |opts|
-    opts.banner = "Usage: bin/test-installer --rails 8.0|8.1 --mode A|B|C|D [--skip-tailwind] [--skip-sample] [--keep] [--output-dir PATH] [--gem FILE]"
+    opts.banner = "Usage: bin/test-installer --rails 8.0|8.1 --mode A|B|C|D [--skip-tailwind] [--skip-sample] [--theme signal|editorial|ink] [--keep] [--output-dir PATH] [--gem FILE]"
     opts.on("--rails VERSION", %w[8.0 8.1]) { |value| options[:rails] = value }
     opts.on("--mode MODE", InstallerHarness::MODES.keys) { |value| options[:mode] = value }
     opts.on("--skip-tailwind") { options[:skip_tailwind] = true }
     opts.on("--skip-sample") { options[:skip_sample] = true }
+    opts.on("--theme NAME", %w[signal editorial ink]) { |value| options[:theme] = value }
     opts.on("--gem FILE") { |value| options[:gem] = File.expand_path(value) }
     opts.on("--keep") { options[:keep] = true }
     opts.on("--output-dir PATH") { |value| options[:output_dir] = File.expand_path(value) }

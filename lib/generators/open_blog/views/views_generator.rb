@@ -9,7 +9,7 @@ module OpenBlog
       class_option :skip_tailwind, type: :boolean, default: nil
 
       def copy_views
-        css = if options[:skip_tailwind].nil? && host_read("app/views/layouts/open_blog.html.erb").include?("open_blog_stylesheets")
+        css = if options[:skip_tailwind].nil? && host_read("app/views/layouts/open_blog.html.erb").match?(/\bopen_blog_stylesheets\b/)
           :fallback
         else
           css_setup

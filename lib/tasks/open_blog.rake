@@ -37,7 +37,7 @@ namespace :open_blog do
   task :syntax_css, [ :path ] => :environment do |_task, arguments|
     puts "Wrote #{OpenBlog::SyntaxCss.write(path: arguments[:path])}"
   end
-  desc "Build the packaged stylesheet and token-only theme override"
+  desc "Build the packaged stylesheets and the theme override stub"
   task build_css: :environment do
     options = ENV["OUT"].present? ? { path: ENV["OUT"] } : {}
     puts "Wrote #{OpenBlog::BuildCss.write(**options)}"

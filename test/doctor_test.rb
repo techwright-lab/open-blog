@@ -115,6 +115,92 @@ class DoctorTest < ActiveSupport::TestCase
     assert_equal "error", check("Theme")[:status]
   end
 
+  test "theme names the preset refuses an unknown one and accepts none" do
+    OpenBlog::Themes.names.each do |name|
+      @config.theme = name
+      assert_equal({ name: "Theme", status: "ok", message: "Theme #{name}: sources and compiled stylesheets are available." }, check("Theme"))
+    end
+    @config.theme = :none
+    assert_equal "ok", check("Theme")[:status]
+    assert_includes check("Theme")[:message], "Theme none"
+    @config.theme_colors = { accent: "#1d4ed8" }
+    assert_equal "warning", check("Theme")[:status]
+    assert_includes check("Theme")[:message], "theme_colors has no effect with theme :none"
+    @config.theme = :slate
+    assert_equal "error", check("Theme")[:status]
+    assert_includes check("Theme")[:message], "theme must be :signal, :editorial, :ink, :none"
+    @config.theme = :signal
+    @config.theme_colors = { accent: "teal" }
+    assert_equal "error", check("Theme")[:status]
+    assert_includes check("Theme")[:message], "theme_colors.accent"
+  end
+
+  test "theme warns for each contrast pair an override takes below the minimum in each mode" do
+    @config.theme = :editorial
+    @config.theme_colors = { accent: "#1d4ed8", dark: { accent: "#93c5fd" } }
+    assert_equal "ok", check("Theme")[:status], check("Theme")[:message]
+    @config.theme_colors = { text_muted: "#9ca3af", dark: { accent_contrast: "#ffffff", text_muted: "#b9ab9a" } }
+    result = check("Theme")
+    assert_equal "warning", result[:status]
+    preset = OpenBlog::Themes.fetch(:editorial)
+    light = OpenBlog::Themes.low_contrast(preset.light.merge("text-muted" => "#9ca3af"))
+    dark = OpenBlog::Themes.low_contrast(preset.dark.merge("accent-contrast" => "#ffffff"))
+    assert_equal [ %w[text-muted surface], %w[text-muted surface-raised] ], light.map { |pair| pair.first(2) }
+    assert_equal [ %w[accent-contrast accent] ], dark.map { |pair| pair.first(2) }
+    expected = light.map { |_, background, ratio| "light text_muted on #{background.tr('-', '_')} #{ratio.floor(2)}:1" } +
+      dark.map { |_, _, ratio| "dark accent_contrast on accent #{ratio.floor(2)}:1" }
+    assert_equal "Theme colours below 4.5:1 contrast: #{expected.join(', ')}.", result[:message]
+    @config.theme_colors = { text: "#00000000", dark: { notice_bg: "#ffffff00" } }
+    assert_equal "warning", check("Theme")[:status]
+    assert_includes check("Theme")[:message], "light text on surface 1.0:1"
+    refute_includes check("Theme")[:message], "notice_bg"
+    write("app/views/layouts/application.html.erb", "<%= stylesheet_link_tag :all %>")
+    assert_includes check("Theme")[:message], "contrast"
+    assert_includes check("Theme")[:message], "stylesheet_link_tag :all"
+  end
+
+  test "a Tailwind layout must load the preset stylesheet unless the theme is none" do
+    write("app/assets/tailwind/application.css", '@import "tailwindcss"; @import "./open_blog/theme.css";')
+    %w[theme syntax].each { |name| write("app/assets/tailwind/open_blog/#{name}.css", "") }
+    FileUtils.cp(OpenBlog::Engine.root.join("lib/generators/open_blog/install/templates/theme/blog.css"), @root.join("app/assets/tailwind/open_blog/blog.css"))
+    layout = @root.join("app/views/layouts/open_blog.html.erb")
+    source = layout.read
+    layout.write(source.sub("open_blog_stylesheets", 'stylesheet_link_tag "tailwind"'))
+    @application.assets = Struct.new(:resolver).new(Struct.new(:found) { def resolve(name) = found.include?(name) }.new(%w[tailwind.css open_blog/themes.css]))
+    assert_equal "error", check("Theme")[:status]
+    assert_includes check("Theme")[:message], "open_blog_theme_stylesheets"
+    @config.theme = :none
+    assert_equal "ok", check("Theme")[:status], check("Theme")[:message]
+    @config.theme = :ink
+    layout.write(source.sub("open_blog_stylesheets", "open_blog_theme_stylesheets %>\n    <%= stylesheet_link_tag \"tailwind\""))
+    assert_equal "ok", check("Theme")[:status], check("Theme")[:message]
+    @application.assets.resolver.found.delete("open_blog/themes.css")
+    assert_equal "error", check("Theme")[:status]
+    assert_includes check("Theme")[:message], "open_blog/themes.css"
+  end
+
+  test "a Tailwind host with component styles from an earlier version gets a warning" do
+    write("app/assets/tailwind/application.css", '@import "tailwindcss"; @import "./open_blog/theme.css";')
+    %w[theme syntax].each { |name| write("app/assets/tailwind/open_blog/#{name}.css", "") }
+    write("app/assets/tailwind/open_blog/blog.css", ".ob-faq-entry + .ob-faq-entry { margin-top: 1rem; }")
+    layout = @root.join("app/views/layouts/open_blog.html.erb")
+    layout.write(layout.read.sub("open_blog_stylesheets", "open_blog_theme_stylesheets %>\n    <%= stylesheet_link_tag \"tailwind\""))
+    @application.assets = Struct.new(:resolver).new(Struct.new(:found) { def resolve(name) = found.include?(name) }.new(%w[tailwind.css open_blog/themes.css]))
+    result = check("Theme")
+    assert_equal "warning", result[:status]
+    assert_includes result[:message], "app/assets/tailwind/open_blog/blog.css has no preset or collapsed FAQ rules"
+    assert_includes result[:message], "Delete it and theme.css in the same directory, then run bin/rails generate open_blog:install."
+    @config.faq_collapsed = false
+    assert_includes check("Theme")[:message], "blog.css has no preset rules"
+    @config.theme = :none
+    assert_equal "ok", check("Theme")[:status], check("Theme")[:message]
+    @config.faq_collapsed = true
+    assert_includes check("Theme")[:message], "blog.css has no collapsed FAQ rules. Delete it, then run"
+    FileUtils.cp(OpenBlog::Engine.root.join("lib/generators/open_blog/install/templates/theme/blog.css"), @root.join("app/assets/tailwind/open_blog/blog.css"))
+    @config.theme = :signal
+    assert_equal "ok", check("Theme")[:status], check("Theme")[:message]
+  end
+
   test "JavaScript follows the blog entry point rather than an unrelated controller index" do
     layout = @root.join("app/views/layouts/open_blog.html.erb")
     layout.write(layout.read.sub("javascript_importmap_tags", 'javascript_importmap_tags "marketing"'))

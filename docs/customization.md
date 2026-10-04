@@ -17,7 +17,9 @@ Changed files are kept unless you pass `--force`; review the diff and accept rep
 
 ## Themes and stylesheets
 
-Reader templates include responsive light and dark themes. `config.color_scheme` defaults to `:system`; readers can select light or dark, and their choice is saved locally in the browser. Set it to `:light` or `:dark` to fix the theme. Without JavaScript, pages remain readable and the system theme still applies.
+The look of the reader comes from a preset that you select with `config.theme`. The [themes guide]({% link themes.md %}) covers the presets, palette overrides with `config.theme_colors`, the token reference, and fonts. Do not edit token values in the copied files; set them in the configuration or in the override file that the guide names.
+
+Each preset has a light and a dark mode. `config.color_scheme` defaults to `:system`; readers can select light or dark, and their choice is saved locally in the browser. Set it to `:light` or `:dark` to fix the mode. Without JavaScript, pages remain readable and the system mode still applies.
 
 ```ruby
 config.color_scheme = :dark
@@ -25,7 +27,7 @@ config.syntax_theme = "gruvbox"
 config.call_to_action = { title: "Newsletter", text: "One letter a month.", label: "Subscribe", url: "https://example.com/newsletter" }
 ```
 
-With Tailwind 4, the copied theme lives in `app/assets/tailwind/open_blog` and the blog layout loads your host build. With `--skip-tailwind` or Tailwind 3, the layout loads the gem's compiled stylesheet followed by `app/assets/stylesheets/open_blog_theme.css`, where you can change fonts, colors, and spacing. The compiled stylesheet stays in the gem. Maintainers rebuild it with `bin/rails open_blog:build_css`; `OUT=/tmp/blog.css` selects another output path.
+The gem serves the preset stylesheet `open_blog/themes.css` in every host setup. With Tailwind 4, the copied component styles live in `app/assets/tailwind/open_blog`, and the blog layout loads the preset with `open_blog_theme_stylesheets` and then your host build. With `--skip-tailwind` or Tailwind 3, `open_blog_stylesheets` loads the preset, the gem's compiled stylesheet, and then `app/assets/stylesheets/open_blog_theme.css`. The compiled stylesheets stay in the gem. Maintainers rebuild them with `bin/rails open_blog:build_css`; `OUT=/tmp/blog.css` selects another output path.
 
 Generate syntax colors for the configured theme with `bin/rails open_blog:syntax_css`. The output includes light, explicit dark, and system dark rules scoped to code blocks. `config.syntax_theme` defaults to `"github"`; `"base16"` and `"gruvbox"` also support both modes.
 
