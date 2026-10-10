@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-10
+
 ### Added
 
 - Add three reader presets, Signal, Editorial, and Ink, selected with `config.theme`. Each has light and dark values that meet WCAG 2.2 AA contrast.
