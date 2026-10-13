@@ -7,6 +7,8 @@ permalink: /installation/
 
 # Installation
 
+For an existing Rails application, read [host integration]({% link host-integration.md %}) before running the generator. It covers staged installation, existing Active Storage ID types and route restrictions, and sharing the application's layout and colors. After setup, [usage]({% link usage.md %}) explains the publishing workflow and where to customize it.
+
 ## Requirements
 
 | Requirement | Supported |

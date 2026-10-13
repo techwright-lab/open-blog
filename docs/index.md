@@ -17,6 +17,8 @@ Open Blog runs on Ruby 3.2 to 4.0 with Rails 8.0 or 8.1; the [installation guide
 ## Start here
 
 - [Installation]({% link installation.md %}): mount the engine and generate your first article.
+- [Usage]({% link usage.md %}): choose an interface, work through an article, and find where each setting or template lives.
+- [Integrating with your application]({% link host-integration.md %}): reuse navigation, footer, colors, and theme state; check images and upgrade copied files.
 - [Configuration]({% link configuration.md %}): every setting with its default.
 - [Publishing]({% link publishing.md %}): drafts, revisions, previews, and scheduled releases.
 - [JSON API]({% link api.md %}) and [MCP]({% link mcp.md %}): publish from clients and agents.

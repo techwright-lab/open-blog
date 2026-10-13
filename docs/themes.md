@@ -55,6 +55,8 @@ The preset is independent of light and dark mode. `config.color_scheme` and the 
 
 ## Change the color palette
 
+If your application already defines light/dark CSS variables, use the [host palette mapping recipe]({% link host-integration.md %}#map-the-host-palette) instead of copying its colors into a second palette. The same guide explains [sharing the navbar's theme control]({% link host-integration.md %}#use-one-shared-theme-control).
+
 `config.theme_colors` replaces single colors of the active preset. You do not edit a stylesheet.
 
 A top-level key applies to light and dark mode:
@@ -244,18 +246,18 @@ The default look changes from the blue slate theme to `signal`, and FAQ entries 
 
    | Your 0.1.0 host | Do this |
    | --- | --- |
-   | Did not edit the copied tokens | No configuration change. A `--skip-tailwind` or Tailwind 3 host gets `signal` when the gem is updated. A Tailwind 4 host gets `signal` after steps 2 and 3. Set `config.theme` for another preset. |
+   | Did not edit the copied tokens | No configuration change. Refresh the copied files and layout in steps 2 and 3 to use Signal. Set `config.theme` for another preset. |
    | Edited the copied tokens and wants to keep them as they are | Set `config.theme = :none`. Keep your edited token file. In a Tailwind 4 host, that file is `app/assets/tailwind/open_blog/theme.css`; replace only `blog.css` in step 2. |
    | Edited a few colors and wants a preset for the rest | Move the hex values to `config.theme_colors`, then remove the old token rules from your copied file. |
 
-2. Refresh the copied files. Run `bin/rails generate open_blog:install`. The generator keeps each file that exists and prints `skip` for it. Do not pass `--force` on a configured host: it also replaces `config/initializers/open_blog.rb`.
+2. Refresh the copied files. Run `bin/rails generate open_blog:install` with the original asset options (including `--skip-tailwind` for a fallback-CSS installation). In a noninteractive terminal, it keeps conflicting files and prints `skip`; interactively, review each replacement prompt. Do not pass blanket `--force` on a configured host: it also replaces `config/initializers/open_blog.rb`. Preserve the original sample/migration choices too; see [staged installation]({% link host-integration.md %}#install-in-stages).
 
    | Host setup | What to do |
    | --- | --- |
    | `--skip-tailwind` or Tailwind 3 | The gem serves the new component styles. The generator keeps your `app/assets/stylesheets/open_blog_theme.css`. With a preset, remove the token values from it; the new file is an override stub with no values. |
    | Tailwind 4 | The copied component styles in `app/assets/tailwind/open_blog/` are the 0.1.0 files, and the generator keeps them. They have no preset rules and no styles for the collapsed FAQ. Delete them, then run the generator. |
 
-   For a Tailwind 4 host:
+   For a Tailwind 4 host, first save any customizations outside these generated paths, then replace only the files you have reviewed:
 
    ```sh
    rm app/assets/tailwind/open_blog/theme.css app/assets/tailwind/open_blog/blog.css
@@ -263,7 +265,9 @@ The default look changes from the blue slate theme to `signal`, and FAQ entries 
    ```
 
    The output has `create app/assets/tailwind/open_blog/theme.css` and `create app/assets/tailwind/open_blog/blog.css`. If you edited one of these files, keep a copy and make your edits again in the new file. Until `blog.css` is replaced, doctor gives the warning `app/assets/tailwind/open_blog/blog.css has no preset or collapsed FAQ rules.`
-3. In a Tailwind 4 host, make sure that the `head` of `app/views/layouts/open_blog.html.erb` calls `open_blog_theme_stylesheets` before the host stylesheet tag. Without it the preset does not load, and doctor reports `The blog layout must call open_blog_theme_stylesheets to load the <name> theme.` with the name of your preset. The generator in step 2 keeps a layout that exists, so the layout has the 0.1.0 `head`. Add the line by hand, or replace the copied views and layout with `bin/rails generate open_blog:views --force`.
+3. In every host, compare the selected layout and reader templates with the new package. Keep `open_blog_theme_attributes` on `<html>` so `data-ob-theme` selects the preset. `bin/rails generate open_blog:views` refreshes the generated layout and templates; review conflicts before choosing replacements. A separately named host-owned layout needs manual updates.
+
+   In a Tailwind 4 host, make sure the selected layout calls `open_blog_theme_stylesheets` before the host stylesheet tag. Without it the preset does not load, and doctor reports `The blog layout must call open_blog_theme_stylesheets to load the <name> theme.` with the name of your preset. Add the line by hand or deliberately accept the generated layout after reviewing the diff.
 
    ```erb
    <%= open_blog_theme_stylesheets %>
@@ -272,3 +276,5 @@ The default look changes from the blue slate theme to `signal`, and FAQ entries 
 
 4. Set `config.faq_collapsed = false` if you want the 0.1.0 FAQ.
 5. Build the host stylesheet again (`bin/rails tailwindcss:build` in a Tailwind 4 host), then run `bin/rails open_blog:doctor`. The `Theme` check names the active preset and has the status `ok`.
+
+Compare copied browser controllers and translations separately; `open_blog:views` does not refresh them. Finish with the [host acceptance checks]({% link host-integration.md %}#verify-the-integration), including actual theme behavior and images.

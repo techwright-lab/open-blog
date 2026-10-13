@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add a Usage guide and an existing-host integration recipe covering shared layouts, application colors, theme controls, image compatibility, and copied-file upgrades; expand the packaged install skill and document agent skill loading.
 - Add three reader presets, Signal, Editorial, and Ink, selected with `config.theme`. Each has light and dark values that meet WCAG 2.2 AA contrast.
 - Ship the preset fonts (Outfit, DM Sans, Newsreader, Space Grotesk, and JetBrains Mono) as woff2 files with their license texts. No font loads from another site.
 - Add `config.theme_colors` for hex color overrides of the preset, for both modes or per mode. Doctor warns when an override takes a text and background pair below 4.5:1; a translucent color is measured over the color under it.

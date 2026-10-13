@@ -74,6 +74,32 @@ server = MCP::Server.new(
 
 The gem ships six agent workflows in `OpenBlog::Engine.root.join("skills")`: install, publish, update, adopt, policy pages, and reports. They describe approval and evidence handling and check tool availability for features added by later versions.
 
+| Skill | Use it for |
+| --- | --- |
+| `open-blog-install` | Installation, gem upgrades, shared host layout/palette/theme controls, and compatibility checks |
+| `open-blog-publish` | Draft, preview, review, publish, and schedule |
+| `open-blog-update` | Substantive edits, corrections, and maintenance of public posts |
+| `open-blog-adopt` | Import existing articles and historical evidence |
+| `open-blog-policy-pages` | Prepare the publisher's confirmed policies |
+| `open-blog-report` | Diagnose setup and inspect rendered content without publishing changes |
+
+Find the installed package from the Rails host:
+
+```sh
+bundle show open_blog
+```
+
+Each workflow is a directory such as `<gem-path>/skills/open-blog-install/` containing `SKILL.md`. Copy the desired **whole directory** into your agent client's supported skill directory, or explicitly ask the agent to read that installed `SKILL.md`. For a Codex project, one example from the Rails root is:
+
+```sh
+mkdir -p .agents/skills
+cp -R "$(bundle show open_blog)/skills/open-blog-install" .agents/skills/
+```
+
+In a monorepo, use the agent project root's skill directory instead. Review an existing skill copy before replacing it. Refresh copied skills along with gem upgrades, since Bundler does not update those copies. Use your client's skill discovery/reload mechanism after installing them.
+
+The Rails generator does not install skills into agent clients. An MCP connection exposes publishing tools, not filesystem skills or Rails installation commands. Setup requires access to the host repository and shell; editorial skills require an authenticated connection with appropriate scopes. [Usage]({% link usage.md %}) explains the interfaces, and [host integration]({% link host-integration.md %}) supplies the installation and customization recipe.
+
 ## Publishing instructions
 
 Every tool description already tells an agent to show the final version and ask for approval before `blog_publish_post`, `blog_update_post`, or `blog_correct_post`. The full instruction text an agent must follow, and the provenance rule, are in the [publishing guide]({% link publishing.md %}#approval-and-provenance).

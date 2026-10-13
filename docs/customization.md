@@ -7,6 +7,8 @@ permalink: /customization/
 
 # Customization
 
+To reuse your application's navbar, footer, colors, and theme control, follow the [host integration recipe]({% link host-integration.md %}). It explains `config.layout`, required head helpers, `main_app` links, stylesheet order, and preference persistence across the homepage and blog.
+
 The installer copies the reader templates into the host's `app/views/open_blog` and the layout to `app/views/layouts/open_blog.html.erb`. They call gem helpers for metadata, structured data, dates, and notices, so you can change markup freely and keep the published data intact. Refresh them after an upgrade:
 
 ```sh
@@ -14,6 +16,8 @@ bin/rails generate open_blog:views
 ```
 
 Changed files are kept unless you pass `--force`; review the diff and accept replacements deliberately.
+
+This generator refreshes only reader views and the generated layout. Browser controllers, locales, and theme sources need separate comparison with the installed package. A host-owned layout such as `layouts/blog.html.erb` also needs manual review for new helper contracts. See [upgrading copied files]({% link host-integration.md %}#upgrade-without-losing-host-customizations).
 
 ## Themes and stylesheets
 

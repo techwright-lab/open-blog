@@ -11,6 +11,8 @@ permalink: /diagnostics/
 
 Run `bin/rails open_blog:doctor` to inspect configuration, assets, routes, storage, and publishing records. Errors return exit status 1; warnings identify setup still needed. The read-scoped API `GET /blog/api/v1/doctor` and MCP `blog_doctor` expose the same checks.
 
+Doctor's storage check verifies the configured service and processor dependencies; it does not perform an upload, establish compatibility between a host UUID attachment column and integer blog IDs, or exercise representation routes. Its theme contrast check reads `config.theme_colors`, not CSS-variable overrides. Its layout checks inspect helper names in source, not the final visual result. Complete the [host acceptance checks]({% link host-integration.md %}#verify-the-integration) for these cases.
+
 ## Surface reports
 
 Inspect live reader pages and their publishing records with `bin/rails open_blog:report SCOPE=post POST=article-slug`, the read-scoped `GET /blog/api/v1/report?scope=post&post=article-slug`, or MCP `blog_get_surface_report`. The API returns JSON; use `Accept: text/plain` or `format=text` for text. Scope `site` checks site-wide pages, feeds, lists, and redirects. Scope `post` adds one public article; `all` checks public articles in batches of 50 using `page` (or task `PAGE`). Each result includes the inspected IDs and pagination totals.
