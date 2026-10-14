@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-10
+
 ### Added
 
 - Add a Usage guide and an existing-host integration recipe covering shared layouts, application colors, theme controls, image compatibility, and copied-file upgrades; expand the packaged install skill and document agent skill loading.
