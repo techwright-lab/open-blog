@@ -67,6 +67,12 @@ Start `bin/dev` (or `bin/rails server`) and open `/blog`. The generator installs
 
 Set your site name, publisher, and public origin in the initializer, then run `bin/rails open_blog:doctor` to check the setup. The [installation guide](https://techwright-lab.github.io/open-blog/installation/) lists every generator option, and the [configuration reference](https://techwright-lab.github.io/open-blog/configuration/) lists every setting with its default.
 
+## Usage
+
+The [usage guide](https://techwright-lab.github.io/open-blog/usage/) explains the publishing interfaces, article lifecycle, and where to change each part of the blog. For an existing application, follow [host integration](https://techwright-lab.github.io/open-blog/host-integration/) to reuse its navbar/footer, map Signal to its colors, share its theme control, and verify images and upgrades. These visual customizations use host files and existing gem settings.
+
+For an agent, locate the packaged `skills/open-blog-install/SKILL.md` with `bundle show open_blog`. The [agent workflow guide](https://techwright-lab.github.io/open-blog/mcp/#packaged-agent-workflows) explains how to load all six skills; connecting MCP alone does not install them.
+
 ## Publish a post
 
 **From Ruby:**
@@ -97,6 +103,7 @@ A later edit of a public post must carry `change: "substantive"`, `"correction"`
 
 | Guide | Covers |
 | --- | --- |
+| [Usage](https://techwright-lab.github.io/open-blog/usage/) and [Host integration](https://techwright-lab.github.io/open-blog/host-integration/) | End-to-end workflow, file map, shared layout/colors/theme control, compatibility, and upgrades |
 | [Configuration](https://techwright-lab.github.io/open-blog/configuration/) | Identity, routes, content gates, images, limits, and page views |
 | [Publishing](https://techwright-lab.github.io/open-blog/publishing/) | Operations, previews, scheduling, approvals, and findings |
 | [JSON API](https://techwright-lab.github.io/open-blog/api/) and [MCP](https://techwright-lab.github.io/open-blog/mcp/) | Endpoints, tools, examples, and error codes |
