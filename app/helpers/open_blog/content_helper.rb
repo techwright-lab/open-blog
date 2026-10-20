@@ -27,17 +27,24 @@ module OpenBlog
     def open_blog_card_image(post)
       image = post.cover_image
       return tag.div(class: "ob-card-placeholder", aria: { hidden: true }) unless image
-      source = image.file.attached? ? main_app.url_for(image.file.variant(resize_to_fill: [ 640, 360 ])) : image.path
+      source = image.file.attached? ? image.variant_path(:card) : image.path
       tag.img(src: source, alt: post.cover_alt.to_s, width: 640, height: 360, loading: "lazy", class: "ob-card-image")
     end
 
     def open_blog_avatar(author, name: nil)
       name ||= author.name
       if author.avatar.attached?
-        tag.img(src: main_app.url_for(author.avatar.variant(resize_to_fill: [ 80, 80 ])), alt: name, width: 40, height: 40, class: "ob-avatar", loading: "lazy")
+        tag.img(src: open_blog_avatar_source(author), alt: name, width: 40, height: 40, class: "ob-avatar", loading: "lazy")
       else
         tag.span(name.to_s.chars.first(2).join.upcase, class: "ob-avatar ob-avatar--initials", aria: { hidden: true })
       end
+    end
+
+    def open_blog_avatar_source(author)
+      @open_blog_avatar_images ||= {}
+      blob = author.avatar.blob
+      image = @open_blog_avatar_images.fetch(blob.id) { @open_blog_avatar_images[blob.id] = ImageResolution.image_for_attachment(blob) }
+      image&.persisted? ? image.variant_path(:avatar) : main_app.url_for(author.avatar.variant(Image::VARIANTS.fetch("avatar")))
     end
 
     def open_blog_body(post)

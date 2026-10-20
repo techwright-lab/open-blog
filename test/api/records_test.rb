@@ -129,7 +129,7 @@ class ApiRecordsTest < ActionDispatch::IntegrationTest
     get "/blog/api/v1/doctor"
     assert_response :success
     assert_equal [ "checks" ], response.parsed_body.keys
-    assert_equal 13, response.parsed_body["checks"].size
+    assert_equal 14, response.parsed_body["checks"].size
     response.parsed_body["checks"].each do |entry|
       assert_equal %w[message name status], entry.keys.sort
       assert_includes %w[ok warning error], entry["status"]

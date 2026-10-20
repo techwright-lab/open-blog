@@ -80,7 +80,7 @@ end
 | Setting | Default | Purpose |
 | --- | --- | --- |
 | `storage_service` | host default | Active Storage service name for gem images. |
-| `image_delivery` | `:redirect` | `:redirect` sends readers to the storage URL. `:proxy` serves the bytes with a one-year cache lifetime. |
+| `image_delivery` | `:redirect` | Delivery of original images and of the card and avatar variants under `/blog/media/`. `:redirect` sends readers to the storage URL. `:proxy` serves the bytes with a one-year cache lifetime. Neither uses the host's Active Storage representation routes. |
 | `max_image_bytes` | `10.megabytes` | Limit for uploads, URL imports, and MCP base64 input. |
 | `image_content_types` | PNG, JPEG, WebP, GIF, AVIF | Accepted types. SVG is always refused. |
 | `image_fetch_policy` | `:public_only` | `:open` also allows private network addresses for URL imports. Doctor warns when set. |

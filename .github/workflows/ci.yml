@@ -77,7 +77,7 @@ jobs:
       - name: Verify content migrations roll back
         working-directory: test/dummy
         run: |
-          bundle exec rails db:rollback STEP=17
+          bundle exec rails db:rollback STEP=18
           bundle exec rails db:migrate
       - name: Run gem tests through the host
         run: bundle exec ruby bin/test
@@ -124,6 +124,52 @@ jobs:
           path: test/dummy/tmp/capybara
           if-no-files-found: ignore
 
+  test-uuid-attachments:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rails: ["~> 8.0.0", "~> 8.1.0"]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      RAILS_VERSION: ${{ matrix.rails }}
+      DB: postgres
+      OPEN_BLOG_TEST_KEYS: uuid
+      RAILS_ENV: test
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "4.0"
+          bundler-cache: true
+          cache-version: ${{ matrix.rails }}
+      - name: Install image decoder
+        run: sudo apt-get update && sudo apt-get install -y imagemagick
+      - name: Prepare a host with UUID attachment records
+        working-directory: test/dummy
+        run: bundle exec rails db:prepare
+      - name: Verify content migrations roll back
+        working-directory: test/dummy
+        run: |
+          bundle exec rails db:rollback STEP=18
+          bundle exec rails db:migrate
+      - name: Run gem tests through the host
+        run: bundle exec ruby bin/test
+
   test-with-admin-suite:
     runs-on: ubuntu-latest
     env:
@@ -146,12 +192,13 @@ jobs:
 
   test:
     if: always()
-    needs: [test-matrix, system, test-with-admin-suite]
+    needs: [test-matrix, test-uuid-attachments, system, test-with-admin-suite]
     runs-on: ubuntu-latest
     steps:
       - name: Require every matrix cell to pass
         env:
           MATRIX_RESULT: ${{ needs.test-matrix.result }}
+          UUID_RESULT: ${{ needs.test-uuid-attachments.result }}
           SYSTEM_RESULT: ${{ needs.system.result }}
           ADMIN_RESULT: ${{ needs.test-with-admin-suite.result }}
-        run: test "$MATRIX_RESULT" = success && test "$SYSTEM_RESULT" = success && test "$ADMIN_RESULT" = success
+        run: test "$MATRIX_RESULT" = success && test "$UUID_RESULT" = success && test "$SYSTEM_RESULT" = success && test "$ADMIN_RESULT" = success

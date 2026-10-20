@@ -1,6 +1,7 @@
 module OpenBlog
   class Image < ApplicationRecord
     include Immutable
+    VARIANTS = { "card" => { resize_to_fill: [ 640, 360 ] }, "avatar" => { resize_to_fill: [ 80, 80 ] } }.freeze
     has_one_attached :file, service: ->(_) { OpenBlog.config.storage_service || Rails.application.config.active_storage.service }
 
     validates :sha256, presence: true, uniqueness: true, format: { with: /\A[0-9a-f]{64}\z/ }
@@ -31,6 +32,11 @@ module OpenBlog
 
     def path
       "#{OpenBlog.mount_path.chomp("/")}/media/#{sha256}/#{ERB::Util.url_encode(filename)}"
+    end
+
+    def variant_path(name)
+      raise ArgumentError, "Unknown image variant: #{name}" unless VARIANTS.key?(name.to_s)
+      "#{OpenBlog.mount_path.chomp("/")}/media/#{sha256}/#{name}/#{ERB::Util.url_encode(filename)}"
     end
 
     def file

@@ -38,6 +38,8 @@ OpenBlog::Engine.routes.draw do
   get "/feed.json", to: "feeds#show", as: :feed_json, format: false, defaults: { format: :json }
   get "/feed.xml", to: "feeds#show", as: :feed, format: false, defaults: { format: :xml }
   get "/sitemap.xml", to: "sitemaps#show", as: :sitemap, format: false, defaults: { format: :xml }
+  get "/media/:sha256/:variant/:filename", to: "media#variant", as: :media_variant, format: false,
+    constraints: { sha256: /[0-9a-f]{64}/, variant: /card|avatar/, filename: /[^\/]+/ }
   get "/media/:sha256/:filename", to: "media#show", as: :media, format: false, constraints: { sha256: /[0-9a-f]{64}/, filename: /[^\/]+/ }
   get "/#{OpenBlog.config.route_segments.fetch(:category)}/:slug/feed.json", to: "feeds#show", as: :category_feed_json, format: false, defaults: { format: :json }
   get "/#{OpenBlog.config.route_segments.fetch(:category)}/:slug/feed.xml", to: "feeds#show", as: :category_feed, format: false, defaults: { format: :xml }

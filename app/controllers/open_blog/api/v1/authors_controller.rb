@@ -50,7 +50,7 @@ module OpenBlog
           raise Error::UnknownField.new(details: unknown.map { |field| "avatar.#{field}" }) if unknown.any?
           invalid!(:avatar) unless input.size == 1
           if input.key?(:image_id)
-            invalid!(:avatar) unless input[:image_id].is_a?(Integer)
+            invalid!(:avatar) unless RecordKeys.id?(Image, input[:image_id])
             [ nil, Image.find(input[:image_id]) ]
           else
             [ ImageImport.prepare(input), nil ]

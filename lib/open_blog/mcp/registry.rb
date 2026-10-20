@@ -22,12 +22,12 @@ module OpenBlog
           endpoint("remove_post", :publish, "posts", :destroy, fields: ApiFields::REMOVE, id: :required),
           upload_definition,
           endpoint("list_categories", :read, "categories", :index, fields: ApiFields::PAGE),
-          endpoint("save_category", :write, "categories", :create, fields: ApiFields::CATEGORY, id: :optional, upsert: true),
+          endpoint("save_category", :write, "categories", :create, fields: ApiFields::CATEGORY, id: :optional, upsert: Category),
           endpoint("list_tags", :read, "tags", :index, fields: ApiFields::PAGE),
           endpoint("list_authors", :read, "authors", :index, fields: ApiFields::PAGE),
-          endpoint("save_author", :write, "authors", :create, fields: ApiFields::AUTHOR, id: :optional, upsert: true),
+          endpoint("save_author", :write, "authors", :create, fields: ApiFields::AUTHOR, id: :optional, upsert: Author),
           endpoint("list_series", :read, "series", :index, fields: ApiFields::PAGE),
-          endpoint("save_series", :write, "series", :create, fields: ApiFields::SERIES, id: :optional, upsert: true),
+          endpoint("save_series", :write, "series", :create, fields: ApiFields::SERIES, id: :optional, upsert: Series),
           endpoint("list_redirects", :read, "redirects", :index, fields: ApiFields::PAGE),
           endpoint("save_redirect", :publish, "redirects", :create, fields: ApiFields::REDIRECT, required: [ :old_path ]),
           site_page_definition("get_site_page", :read),
@@ -43,7 +43,7 @@ module OpenBlog
 
       def endpoint(name, scope, controller, action, fields: [], id: nil, required: [], force: {}, upsert: false, create_publish: false, properties: nil)
         properties ||= Schemas.fields(fields)
-        properties = properties.merge("id" => upsert ? { type: "integer", minimum: 1 } : Schemas.identifier) if id
+        properties = properties.merge("id" => upsert ? Schemas.key(upsert) : Schemas.identifier) if id
         required = required + (id == :required ? [ :id ] : [])
         force.each { |key, value| properties[key.to_s] = properties.fetch(key.to_s).merge(const: value) if properties.key?(key.to_s) }
         definition(name, scope, Schemas.object(properties, required: required)) do |arguments, actor:, base_url:|

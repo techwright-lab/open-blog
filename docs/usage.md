@@ -62,4 +62,4 @@ Paths below are relative to the Rails host, except for the last row.
 
 **Why didn't updating the gem update my reader files?** Copied files belong to your application. Bundler updates the package; it does not replace those files. Review and refresh them using the [upgrade procedure]({% link host-integration.md %}#upgrade-without-losing-host-customizations).
 
-**Does a passing doctor mean setup is complete?** Doctor checks selected configuration and source files. It does not perform a real image upload, establish attachment-ID compatibility, exercise restricted representation routes, or verify the appearance of a custom layout. Use the [acceptance checks]({% link host-integration.md %}#verify-the-integration) too.
+**Does a passing doctor mean setup is complete?** Doctor checks selected configuration and source files. It compares blog record keys with the host attachment table, but it does not perform a real image upload or verify the appearance of a custom layout. Use the [acceptance checks]({% link host-integration.md %}#verify-the-integration) too.

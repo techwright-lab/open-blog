@@ -4,7 +4,7 @@ default: &default
   database: <%= Rails.root.join("storage", "open_blog_dummy_#{Rails.env}.sqlite3") %>
 <% else %>
   adapter: postgresql
-  database: open_blog_dummy_<%= Rails.env %>
+  database: open_blog_dummy_<%= Rails.env %><%= "_uuid" if ENV["OPEN_BLOG_TEST_KEYS"] == "uuid" %>
 <% end %>
   pool: <%= ENV.fetch("RAILS_MAX_THREADS", 5) %>
   timeout: 5000

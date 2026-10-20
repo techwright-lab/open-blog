@@ -11,7 +11,11 @@ permalink: /diagnostics/
 
 Run `bin/rails open_blog:doctor` to inspect configuration, assets, routes, storage, and publishing records. Errors return exit status 1; warnings identify setup still needed. The read-scoped API `GET /blog/api/v1/doctor` and MCP `blog_doctor` expose the same checks.
 
-Doctor's storage check verifies the configured service and processor dependencies; it does not perform an upload, establish compatibility between a host UUID attachment column and integer blog IDs, or exercise representation routes. Its theme contrast check reads `config.theme_colors`, not CSS-variable overrides. Its layout checks inspect helper names in source, not the final visual result. Complete the [host acceptance checks]({% link host-integration.md %}#verify-the-integration) for these cases.
+Doctor's storage check verifies the configured service and processor dependencies; it does not perform an upload.
+
+The **Record keys** check compares `active_storage_attachments.record_id` with the primary keys of `open_blog_images` and `open_blog_authors`. A mismatch is an error, because uploads, avatars, and the sample would fail with `ActiveRecord::NotNullViolation`; the message names each column and its type and tells you to install and run the latest migrations. With `:rich_text` in `config.body_formats`, the check also compares `action_text_rich_texts.record_id` with the post key and `action_text_rich_texts.id` with the attachment key, and recommends Markdown bodies when they differ. See [image compatibility]({% link host-integration.md %}#image-compatibility-is-a-separate-check).
+
+Card and avatar variants use the engine's `/blog/media/` routes, not the host's representation routes. Its theme contrast check reads `config.theme_colors`, not CSS-variable overrides. Its layout checks inspect helper names in source, not the final visual result. Complete the [host acceptance checks]({% link host-integration.md %}#verify-the-integration) for these cases.
 
 ## Surface reports
 

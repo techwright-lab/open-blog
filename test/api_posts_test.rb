@@ -203,7 +203,7 @@ class ApiPostsTest < ActionDispatch::IntegrationTest
 
   test "API authors require a name or an object even when an integer identifies a stored author" do
     author = OpenBlog::Author.create!(name: "Existing", slug: "existing")
-    post "/blog/api/v1/posts", params: content.merge(author: author.id), as: :json
+    post "/blog/api/v1/posts", params: content.merge(author: OpenBlog::RecordKeys.uuid?(OpenBlog::Author) ? 1 : author.id), as: :json
     assert_error 422, "validation_failed", [ "author" ]
     assert_equal 0, OpenBlog::Post.count
   end

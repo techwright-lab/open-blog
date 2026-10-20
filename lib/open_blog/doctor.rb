@@ -11,7 +11,7 @@ module OpenBlog
 
     CHECKS = { "Configuration" => :configuration, "Migrations" => :migrations, "Route" => :route,
       "Views" => :views, "Theme" => :theme, "JavaScript" => :javascript, "Authentication" => :authentication,
-      "Rate limit" => :rate_limit, "Jobs" => :jobs, "Storage" => :storage, "Policy pages" => :policy_pages,
+      "Rate limit" => :rate_limit, "Jobs" => :jobs, "Storage" => :storage, "Record keys" => :record_keys, "Policy pages" => :policy_pages,
       "Records" => :records, "Declarations" => :declarations }.freeze
     TABLES = %w[open_blog_authors open_blog_categories open_blog_series open_blog_images open_blog_posts
       open_blog_api_tokens open_blog_pages open_blog_page_views open_blog_faqs open_blog_tags open_blog_taggings open_blog_redirects open_blog_revisions
@@ -124,6 +124,35 @@ module OpenBlog
       end
       return [ "warning", "Image URL address protection is disabled (image_fetch_policy = :open)." ] if @config.image_fetch_policy == :open
       [ "ok", "Active Storage and the configured image processor are available." ]
+    end
+
+    def record_keys
+      if (missing_tables & %w[active_storage_attachments open_blog_images open_blog_authors open_blog_posts action_text_rich_texts]).any?
+        return [ "warning", "Record keys cannot be checked until all content tables are installed." ]
+      end
+      attachment = key_kind("active_storage_attachments", "record_id")
+      owners = %w[open_blog_images open_blog_authors].reject { |table| key_kind(table, "id") == attachment }
+      if owners.any?
+        return [ "error", "active_storage_attachments.record_id is #{attachment}, but #{owners.map { |table| "#{table}.id is #{key_kind(table, 'id')}" }.join(' and ')}, " \
+          "so blog images and avatars cannot attach. Install and run the latest migrations: " \
+          "bin/rails railties:install:migrations FROM=open_blog, then bin/rails db:migrate." ]
+      end
+      if @config.body_formats.include?(:rich_text)
+        problems = []
+        if key_kind("action_text_rich_texts", "record_id") != key_kind("open_blog_posts", "id")
+          problems << "action_text_rich_texts.record_id is #{key_kind('action_text_rich_texts', 'record_id')}, but open_blog_posts.id is #{key_kind('open_blog_posts', 'id')}, so rich-text bodies cannot save"
+        end
+        if key_kind("action_text_rich_texts", "id") != attachment
+          problems << "action_text_rich_texts.id is #{key_kind('action_text_rich_texts', 'id')}, but active_storage_attachments.record_id is #{attachment}, so rich-text bodies cannot embed images"
+        end
+        return [ "error", "#{problems.join('; ')}. Use config.body_formats = [ :markdown ] with these host tables." ] if problems.any?
+      end
+      [ "ok", "Blog image and author IDs match active_storage_attachments.record_id (#{attachment})." ]
+    end
+
+    def key_kind(table, column)
+      found = ActiveRecord::Base.connection.columns(table).find { |candidate| candidate.name == column }
+      { uuid: "uuid", integer: "integer" }.fetch(found.type, found.sql_type)
     end
 
     def policy_pages

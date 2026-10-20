@@ -98,7 +98,7 @@ OpenBlog.sitemap_entries(base_url: "https://example.com")
 
 ## Image delivery
 
-Original images have stable URLs under `/blog/media/:sha256/:filename`. Redirect delivery caches only as long as the storage URL remains valid; `config.image_delivery = :proxy` serves immutable bytes with a one-year cache lifetime. Cards use Active Storage variants. Set `config.parent_controller` to inherit a host controller and its callbacks; the engine explicitly includes its helpers for custom parents.
+Original images have stable URLs under `/blog/media/:sha256/:filename`. Redirect delivery caches only as long as the storage URL remains valid; `config.image_delivery = :proxy` serves immutable bytes with a one-year cache lifetime. Card thumbnails and author avatars are variants at `/blog/media/:sha256/card/:filename` and `/blog/media/:sha256/avatar/:filename`. They follow `config.image_delivery` and do not need the host's Active Storage representation routes. Set `config.parent_controller` to inherit a host controller and its callbacks; the engine explicitly includes its helpers for custom parents.
 
 ## Policy pages
 
