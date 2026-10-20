@@ -106,7 +106,7 @@ module OpenBlog
       when Integer then Author.find(input)
       when String
         invalid(:author) if input.blank?
-        if input.match?(/\A[1-9]\d*\z/)
+        if input.match?(/\A[1-9]\d*\z/) || RecordKeys.uuid_id?(Author, input)
           Author.find(input)
         else
           Author.find_by(slug: input) || Author.find_by(name: input) || Author.create!(name: input)
@@ -154,7 +154,7 @@ module OpenBlog
       return Image.find(input) if input.is_a?(Integer)
       if input.is_a?(Hash) && input.keys.map(&:to_s) == [ "image_id" ]
         id = input[:image_id] || input["image_id"]
-        return Image.find(id) if id.is_a?(Integer) || (id.is_a?(String) && id.match?(/\A[1-9]\d*\z/))
+        return Image.find(id) if id.is_a?(Integer) || (id.is_a?(String) && id.match?(/\A[1-9]\d*\z/)) || RecordKeys.uuid_id?(Image, id)
       end
       raise Error::ImageNotPermitted
     end

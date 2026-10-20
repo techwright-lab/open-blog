@@ -49,6 +49,7 @@ class ImageResolutionTest < ActiveSupport::TestCase
   end
 
   test "preparation reads a blob before the operation transaction and imports before post save" do
+    skip_unless_rich_text_embeds
     blob = upload_png
     depth = ActiveRecord::Base.connection.open_transactions
     reads = []
@@ -80,6 +81,7 @@ class ImageResolutionTest < ActiveSupport::TestCase
   end
 
   test "native rich text child writes import blobs and record exactly once atomically" do
+    skip_unless_rich_text_embeds
     result = publish(body_format: "rich_text", body: "<p>Meadow notes.</p>")
     blob = upload_png
     assert_difference [ "OpenBlog::Image.count", "OpenBlog::Revision.count", "OpenBlog::Publication.count" ], 1 do
@@ -91,6 +93,7 @@ class ImageResolutionTest < ActiveSupport::TestCase
   end
 
   test "native blob import rolls back when release recording fails" do
+    skip_unless_rich_text_embeds
     result = publish(body_format: "rich_text", body: "<p>Meadow notes.</p>")
     blob = upload_png
     before = result.post.body_for_payload
@@ -105,6 +108,7 @@ class ImageResolutionTest < ActiveSupport::TestCase
   end
 
   test "adoption previews imported attachments without retaining image rows" do
+    skip_unless_rich_text_embeds
     blob = upload_png
     result = nil
     assert_no_difference [ "OpenBlog::Post.count", "OpenBlog::Image.count", "ActiveStorage::Attachment.count" ] do

@@ -24,7 +24,11 @@ module OpenBlog
         invalid(field) unless value.is_a?(String) && value.present?
         model = Post.reflect_on_association(association).klass
         matches = model.where(slug: value).or(model.where(name: value))
-        matches = matches.or(model.where(id: value.to_i)) if value.match?(/\A[1-9]\d*\z/)
+        if RecordKeys.uuid?(model)
+          matches = matches.or(model.where(id: value)) if value.match?(RecordKeys::UUID)
+        elsif value.match?(/\A[1-9]\d*\z/)
+          matches = matches.or(model.where(id: value.to_i))
+        end
         relation = relation.where(id: Post.joins(association).merge(matches).select(:id))
       end
       if @filters.key?(:q)

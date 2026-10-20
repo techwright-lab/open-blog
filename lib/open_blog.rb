@@ -58,6 +58,7 @@ module OpenBlog
   autoload :Mcp, "open_blog/mcp"
   autoload :ApiFields, "open_blog/api_fields"
   autoload :Authentication, "open_blog/authentication"
+  autoload :RecordKeys, "open_blog/record_keys"
 
   class << self
     def config

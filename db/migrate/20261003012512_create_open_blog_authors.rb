@@ -1,6 +1,6 @@
 class CreateOpenBlogAuthors < ActiveRecord::Migration[8.0]
   def change
-    create_table :open_blog_authors do |t|
+    create_table :open_blog_authors, **OpenBlog::RecordKeys.table_options(connection) do |t|
       t.string :name, null: false
       t.string :slug, null: false
       t.string :author_type, null: false, default: "person"

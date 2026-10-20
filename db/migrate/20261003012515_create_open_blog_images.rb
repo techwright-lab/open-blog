@@ -1,6 +1,6 @@
 class CreateOpenBlogImages < ActiveRecord::Migration[8.0]
   def change
-    create_table :open_blog_images do |t|
+    create_table :open_blog_images, **OpenBlog::RecordKeys.table_options(connection) do |t|
       t.string :sha256, limit: 64, null: false
       t.string :filename, null: false
       t.string :content_type, null: false

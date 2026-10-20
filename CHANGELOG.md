@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0]
+
+### Added
+
+- Support hosts whose `active_storage_attachments.record_id` is a UUID. The migrations read that column and give `open_blog_images` and `open_blog_authors` UUID primary keys, with UUID `author_id`, `cover_image_id`, and `social_image_id` post references, when it is a UUID. Integer-keyed hosts keep integer keys. No host table changes and no setting.
+- Add the `AlignOpenBlogRecordKeys` migration. It converts the image and author keys of a 0.2.0 installation on a UUID attachment table and keeps every row and reference; on an integer-keyed host it does nothing.
+- Add the doctor **Record keys** check. It reports blog keys that cannot be attachment records, and, with rich-text bodies enabled, Action Text keys that do not match the post or attachment keys.
+- Serve card thumbnails and author avatars from the engine route `/blog/media/:sha256/:variant/:filename` (`card` or `avatar`), delivered through `config.image_delivery` like the originals.
+
+### Changed
+
+- Card and avatar images no longer use the host's Active Storage representation routes, so a host can keep `ActiveStorage::Representations::RedirectController` and `ProxyController` closed.
+- On a UUID-keyed host, `image_id` and author `id` values in the JSON API and MCP tool schemas are UUID strings.
+
+### Upgrade notes
+
+- Run `bin/rails railties:install:migrations FROM=open_blog` and `bin/rails db:migrate`; doctor reports an error until `AlignOpenBlogRecordKeys` has run. On an integer-keyed host the migration makes no schema change.
+- Copied reader templates need no change: `open_blog_card_image` and `open_blog_avatar` emit the new URLs. A host template that builds its own variant URL with `main_app.url_for` still needs the host's representation routes.
+- JSON stays below version 3: Rails 8.0 does not work with JSON 3.
+
 ## [0.2.0] - 2026-10-10
 
 ### Added

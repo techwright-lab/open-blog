@@ -13,9 +13,9 @@ For examples and explanations, read [host integration](https://techwright-lab.gi
 
 ## Check images before calling setup complete
 
-- Inspect `active_storage_attachments.record_id` in the schema or with `ActiveStorage::Attachment.columns_hash.fetch("record_id").sql_type`. In 0.2.0, Open Blog Image and Author records use integer IDs; a UUID attachment column cannot store them. An integer cast to null can raise `ActiveRecord::NotNullViolation`. Keep the existing host schema intact and report this compatibility blocker until a deliberate fix is tested. A storage-service setting cannot fix the ID type.
+- Inspect `active_storage_attachments.record_id` in the schema or with `ActiveStorage::Attachment.columns_hash.fetch("record_id").sql_type`. From 0.3.0 the migrations give Image and Author UUID keys when this column is `uuid`, and integer keys otherwise; doctor's Record keys check must report ok. A host that installed 0.2.0 on a UUID column needs `bin/rails railties:install:migrations FROM=open_blog` and `db:migrate` (the `AlignOpenBlogRecordKeys` migration). Keep the existing host attachment schema intact. With rich-text bodies, also follow doctor's Action Text key result; use Markdown when it reports a mismatch.
 - Inspect the host variant processor before running the installer. It accepts `:vips` or `:mini_magick`; a disabled processor requires host configuration. Verify Ruby image-processing dependencies and native libvips/ImageMagick in the deployment image and production gem groups.
-- Inspect restrictions on Active Storage representation routes. Test originals and card/avatar variants independently. `config.image_delivery = :proxy` controls originals; it does not make blocked representation routes work. Preserve existing host access restrictions.
+- Card and avatar variants use the engine's `/blog/media/:sha256/:variant/:filename` route and `config.image_delivery`, not the host's representation routes, so a host can keep those closed. Test originals and both variant URLs independently. Use `:proxy` when the host also blocks the storage service URLs that `:redirect` sends readers to. Preserve existing host access restrictions.
 
 ## Install and configure
 
@@ -47,7 +47,7 @@ The controller stores `open-blog-theme` and sets `data-theme="light"` or `"dark"
 
 ## Upgrade copied files deliberately
 
-Read the target changelog, update any version constraint, then `bundle update open_blog --conservative`; review dependency changes too (0.2.0 constrains JSON below 3). Bundler does not refresh copied host files.
+Read the target changelog, update any version constraint, then `bundle update open_blog --conservative`; review dependency changes too (Open Blog constrains JSON below 3). Bundler does not refresh copied host files.
 
 `bin/rails generate open_blog:views` refreshes reader templates and `layouts/open_blog.html.erb` only. Compare controllers, locales, and theme sources with the installed package separately. Conflicting files are kept in a noninteractive rerun; a successful generator exit does not mean all copies are current. Merge required changes and use replacement only for reviewed files. A blanket `open_blog:install --force` also replaces the initializer. Review a host-owned layout against new helper/asset contracts manually. When moving from 0.1.0 to presets, replace old full-palette definitions with intentional overrides so they do not mask the new preset. Rebuild affected assets and restart.
 

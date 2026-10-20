@@ -15,6 +15,10 @@ module OpenBlog
         { anyOf: [ { type: "integer", minimum: 1 }, { type: "string", minLength: 1 } ] }
       end
 
+      def key(model)
+        RecordKeys.uuid?(model) ? { type: "string", format: "uuid" } : { type: "integer", minimum: 1 }
+      end
+
       def fields(names)
         names.to_h { |name| [ name.to_s, field(name) ] }
       end
@@ -44,7 +48,7 @@ module OpenBlog
           object(fields(%i[reviewer_name approved_at facts_checked evidence confirmed_by]), required: %w[reviewer_name approved_at facts_checked evidence confirmed_by])
         when :old_slugs
           { type: "array", items: { anyOf: [ text, object(fields(%i[slug moved_on]), required: [ "slug" ]) ] } }
-        when :image_id then { type: "integer", minimum: 1 }
+        when :image_id then key(Image)
         when :type then { type: "string", enum: %w[person organization] }
         when :body_format then { type: "string", enum: %w[markdown rich_text] }
         when :provenance then { type: "string", enum: %w[ai_assisted human_written unknown] }

@@ -9,7 +9,7 @@ class ApiImageContractTest < ActionDispatch::IntegrationTest
   teardown { OpenBlog.config.authenticate = @hook }
 
   test "HTTP post image inputs use the same object contract as tool inputs" do
-    [ @image.id, { image_id: @image.id.to_s } ].each do |value|
+    [ @image.id, { image_id: OpenBlog::RecordKeys.uuid?(OpenBlog::Image) ? 1 : @image.id.to_s } ].each do |value|
       post "/blog/api/v1/posts", params: { title: "Image note", cover_image: value }, as: :json
       assert_response :unprocessable_entity
       assert_equal "image_not_permitted", response.parsed_body.dig("error", "code")

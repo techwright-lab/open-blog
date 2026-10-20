@@ -1,5 +1,6 @@
 class CreateOpenBlogPosts < ActiveRecord::Migration[8.0]
   def change
+    key = OpenBlog::RecordKeys.attachment_type(connection)
     create_table :open_blog_posts do |t|
       t.string :slug, null: false
       t.string :title, null: false
@@ -8,7 +9,7 @@ class CreateOpenBlogPosts < ActiveRecord::Migration[8.0]
       t.text :search_description, null: false, default: ""
       t.string :body_format, null: false
       t.text :body_markdown
-      t.references :author, null: false, foreign_key: { to_table: :open_blog_authors }
+      t.references :author, null: false, type: key, foreign_key: { to_table: :open_blog_authors }
       t.string :author_name, null: false
       t.references :category, foreign_key: { to_table: :open_blog_categories }
       t.references :series, foreign_key: { to_table: :open_blog_series }
@@ -22,9 +23,9 @@ class CreateOpenBlogPosts < ActiveRecord::Migration[8.0]
       t.boolean :featured, null: false, default: false
       t.string :canonical_url, limit: 2048
       t.string :external_id
-      t.references :cover_image, foreign_key: { to_table: :open_blog_images }
+      t.references :cover_image, type: key, foreign_key: { to_table: :open_blog_images }
       t.string :cover_alt, null: false, default: ""
-      t.references :social_image, foreign_key: { to_table: :open_blog_images }
+      t.references :social_image, type: key, foreign_key: { to_table: :open_blog_images }
       t.string :current_revision_identifier, limit: 64
       t.references :public_revision
       t.integer :word_count, null: false, default: 0

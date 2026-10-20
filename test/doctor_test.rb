@@ -33,7 +33,7 @@ class DoctorTest < ActiveSupport::TestCase
 
   test "every named check reports a bootable complete installation without modifying content" do
     checks = OpenBlog::Doctor.run(application: @application, config: @config, http_get: ->(_url) { 200 })
-    assert_equal [ "Configuration", "Migrations", "Route", "Views", "Theme", "JavaScript", "Authentication", "Rate limit", "Jobs", "Storage", "Policy pages", "Records", "Declarations" ], checks.pluck(:name)
+    assert_equal [ "Configuration", "Migrations", "Route", "Views", "Theme", "JavaScript", "Authentication", "Rate limit", "Jobs", "Storage", "Record keys", "Policy pages", "Records", "Declarations" ], checks.pluck(:name)
     assert checks.all? { |check| check[:status] == "ok" }, checks.inspect
     assert checks.all? { |check| check.keys.sort == %i[message name status] && check[:message].present? }
   end
@@ -358,7 +358,49 @@ class DoctorTest < ActiveSupport::TestCase
     assert_equal "ok", check("Records")[:status]
   end
 
+  test "record keys report blog tables that cannot be attachment records" do
+    assert_equal "ok", check("Record keys")[:status]
+    other = OpenBlog::RecordKeys.uuid?(OpenBlog::Image) ? "integer" : "uuid"
+    with_key_kinds("active_storage_attachments.record_id" => other) do
+      result = check("Record keys")
+      assert_equal "error", result[:status]
+      assert_includes result[:message], "active_storage_attachments.record_id is #{other}"
+      assert_includes result[:message], "open_blog_images.id is"
+      assert_includes result[:message], "open_blog_authors.id is"
+      assert_includes result[:message], "railties:install:migrations FROM=open_blog"
+    end
+  end
+
+  test "record keys report rich text tables only when rich text bodies are enabled" do
+    attachment = OpenBlog::RecordKeys.uuid?(OpenBlog::Image) ? "uuid" : "integer"
+    other = attachment == "uuid" ? "integer" : "uuid"
+    with_key_kinds("action_text_rich_texts.id" => other) do
+      assert_equal "ok", check("Record keys")[:status]
+      @config.body_formats = %i[markdown rich_text]
+      result = check("Record keys")
+      assert_equal "error", result[:status]
+      assert_includes result[:message], "action_text_rich_texts.id is #{other}, but active_storage_attachments.record_id is #{attachment}"
+      assert_includes result[:message], "config.body_formats = [ :markdown ]"
+    end
+    with_key_kinds("action_text_rich_texts.record_id" => "uuid", "open_blog_posts.id" => "integer") do
+      assert_includes check("Record keys")[:message], "rich-text bodies cannot save"
+    end
+  end
+
   private
+
+  def with_key_kinds(overrides, &block)
+    connection = ActiveRecord::Base.connection
+    original = connection.method(:columns)
+    columns = ->(table) do
+      original.call(table).map do |column|
+        kind = overrides["#{table}.#{column.name}"]
+        next column unless kind
+        Struct.new(:name, :type, :sql_type).new(column.name, kind.to_sym, kind)
+      end
+    end
+    connection.stub(:columns, columns, &block)
+  end
 
   def create_policy_pages
     OpenBlog::Page::KINDS.map do |kind|

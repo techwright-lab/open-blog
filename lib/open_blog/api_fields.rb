@@ -29,7 +29,7 @@ module OpenBlog
         next if value.nil?
         raise Error::ImageNotPermitted unless value.is_a?(Hash) && value.size == 1
         if value.key?(:image_id)
-          raise Error::ImageNotPermitted unless value[:image_id].is_a?(Integer) && value[:image_id].positive?
+          raise Error::ImageNotPermitted unless RecordKeys.id?(Image, value[:image_id])
         else
           key = value.keys.first
           raise Error::ImageNotPermitted unless %i[signed_id url].include?(key) && value[key].is_a?(String)

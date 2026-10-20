@@ -7,7 +7,7 @@ permalink: /host-integration/
 
 # Integrating with your application
 
-This guide describes using Open Blog with an existing Rails application's navigation, footer, palette, and JavaScript. The workflow comes from a real host integration using the published 0.2.0 gem and Signal. The visual integration required only host changes; image compatibility remained a separate unresolved issue in that host.
+This guide describes using Open Blog with an existing Rails application's navigation, footer, palette, and JavaScript. The workflow comes from a real host integration using the published 0.2.0 gem and Signal. The visual integration required only host changes. That host's UUID attachment table and closed representation routes led to the record-key and image-variant support in 0.3.0.
 
 ## Inspect the host before installation
 
@@ -22,18 +22,38 @@ For a pilot, select isolated development and test databases before migrating. Ex
 
 ### Image compatibility is a separate check
 
-Open Blog 0.2.0 creates integer-ID Image and Author records. An existing `active_storage_attachments.record_id` of type UUID cannot store those IDs. A UUID primary key on other host models is not by itself the diagnosis: inspect the actual polymorphic attachment column. In the Rails console:
+Active Storage stores each attachment's owner in the polymorphic `active_storage_attachments.record_id` column, so blog images and authors need primary keys of the same type. Inspect the actual column, not the keys of other host models:
 
 ```ruby
 ActiveStorage::Attachment.columns_hash.fetch("record_id").sql_type
-# Compare with OpenBlog::Image and OpenBlog::Author primary keys after migration.
 ```
 
-The observed failure is an integer attachment ID casting to null, followed by `ActiveRecord::NotNullViolation`. Changing `config.storage_service` does not change this database schema. Treat mixed-ID support as unresolved until a deliberate compatibility solution is implemented and tested; do not replace existing attachment tables to get a sample to pass.
+Open Blog reads this column when its migrations run. When `record_id` is `uuid`, the migrations create `open_blog_images` and `open_blog_authors` with UUID primary keys, and the post columns that reference them (`author_id`, `cover_image_id`, `social_image_id`) as UUIDs. Otherwise they keep the Rails default integer keys. The host's attachment tables and IDs stay as they are, and no setting is needed. `bin/rails open_blog:doctor` reports a mismatch in its **Record keys** check.
+
+On a UUID-keyed host, image and author IDs in the JSON API and MCP tools are UUID strings, for example `"cover_image": { "image_id": "4f0c…" }`. Post IDs stay integers.
+
+A host that installed 0.2.0 on a UUID attachment table has integer blog keys, and its uploads fail with `ActiveRecord::NotNullViolation`. Install the 0.3.0 migrations and run them. The `AlignOpenBlogRecordKeys` migration converts the two tables and the post references to UUIDs and keeps every existing row and link. On an integer-keyed host the same migration changes nothing.
+
+```sh
+bin/rails railties:install:migrations FROM=open_blog
+bin/rails db:migrate
+bin/rails open_blog:doctor
+```
+
+Rich-text bodies are records of the host's Action Text table, so they have one more requirement. With `config.body_formats` including `:rich_text`, `action_text_rich_texts.record_id` must match the blog post key (integer), and `action_text_rich_texts.id` must match `active_storage_attachments.record_id` for embedded images. Doctor reports both. When the host tables do not match, use Markdown bodies; do not change the host's Action Text table only for the blog.
 
 The installer accepts `:vips` or `:mini_magick` as the host's variant processor. A host that disabled variants must choose and configure a supported processor before installation. For vips, the Ruby dependencies (`image_processing` and `ruby-vips`) and native libvips must be available in the actual deployment image, including production gem groups.
 
-Test original-image delivery and thumbnail/avatar representation URLs separately. `config.image_delivery = :proxy` selects the gem's original-image delivery; it does not reopen host-blocked Active Storage representation controllers. Preserve the host's existing access restrictions while designing the needed public image access.
+### Image variants do not use the host's representation routes
+
+Card thumbnails and author avatars come from the engine route `/blog/media/:sha256/:variant/:filename`. It serves only the `card` (640×360) and `avatar` (80×80) variants of stored blog images, and it follows `config.image_delivery`, the same setting as the original images:
+
+| `config.image_delivery` | Originals and variants |
+| --- | --- |
+| `:redirect` (default) | Redirect to the storage service URL for the processed file |
+| `:proxy` | Serve the bytes from the engine with a one-year immutable cache lifetime |
+
+A host can keep `ActiveStorage::Representations::RedirectController` and `ProxyController` closed. With `:redirect` and the Disk service, the redirect goes to Active Storage's disk route; on a cloud service it goes to a signed bucket URL. If a host also closes those, use `:proxy`. An avatar attached directly from a blob that is not a blog image still uses `main_app.url_for` and needs the host's representation routes; avatars set through the API or MCP tools are always blog images.
 
 ## Install in stages
 
@@ -209,12 +229,12 @@ Use one restoration script per page. With a fixed `config.color_scheme`, preserv
 
 ## Upgrade without losing host customizations
 
-1. Read the target release's changelog, update the Gemfile constraint if pinned, and run `bundle update open_blog --conservative`. Review transitive dependency changes; 0.2.0 requires JSON below version 3.
+1. Read the target release's changelog, update the Gemfile constraint if pinned, and run `bundle update open_blog --conservative`. Review transitive dependency changes; Open Blog requires JSON below version 3, because Rails 8.0 does not work with JSON 3.
 2. Locate the installed source with `bundle show open_blog`. The package is the authority for the version you are integrating.
 3. Run `bin/rails generate open_blog:views` and review conflicts. It refreshes reader templates and the generated `layouts/open_blog.html.erb`; it does **not** refresh controllers, locale files, or theme sources. Use `--force` only for files you have reviewed and intend to replace.
 4. Compare copied controllers with `app/assets/javascripts/open_blog/controllers/` in the gem, locales with `config/locales/open_blog.en.yml`, and theme sources with `lib/generators/open_blog/install/templates/theme/`. Merge needed changes, keeping host overrides. A normal installer rerun keeps conflicting files in a noninteractive terminal; it does not prove they are current. Avoid a blanket `open_blog:install --force`, which can overwrite the configured initializer too.
 5. Review the host-owned blog layout against the updated generated layout for new helpers/assets. The generator leaves your differently named layout alone. For 0.1.0 to 0.2.0, replace old copied full-palette definitions with intentional overrides so they do not mask the preset; see the [theme upgrade guide]({% link themes.md %}#upgrade-from-010).
-6. Apply new migrations to the intended database, rebuild host assets when needed, restart the application, and run the checks below.
+6. Copy new migrations with `bin/rails railties:install:migrations FROM=open_blog`, apply them to the intended database, rebuild host assets when needed, restart the application, and run the checks below. For 0.2.0 to 0.3.0 this copies `AlignOpenBlogRecordKeys`; see [image compatibility](#image-compatibility-is-a-separate-check).
 
 ## Verify the integration
 
@@ -224,7 +244,7 @@ Run `bin/rails open_blog:doctor`, relevant host tests, and real reader/API reque
 - One shared navbar/footer and theme control; one title, viewport, canonical, and main landmark; reader notices and structured data remain present.
 - Explicit Light, explicit Dark, and System work on homepage and blog, persist across navigation/reload, and fit desktop and mobile without horizontal overflow. Confirm loaded fonts, computed colors, keyboard focus, and contrast.
 - An authenticated draft can be saved and previewed; unauthenticated reads cannot expose it. Exercise publication and edits only in an authorized test/local context, including rejection of a public edit without a change type.
-- A real image upload attaches successfully, its original URL works, and card/avatar variants render. Check the existing application's attachment behavior too.
+- A real image upload attaches successfully, its original URL works, and the card and avatar variant URLs under `/blog/media/` return images. Check the existing application's attachment behavior too.
 - Feeds and sitemap respond; any promised scheduling is exercised with the actual worker or recurring task. Calling a job directly verifies its code, not the worker's operation.
 
-Doctor and a text-only demo do not establish image compatibility or visual consistency. Report remaining failures separately from successful reader customization. These steps describe integration; they do not imply a production deployment or publication request.
+Doctor compares record key types, but it does not upload an image. A text-only demo does not establish image compatibility or visual consistency. Report remaining failures separately from successful reader customization. These steps describe integration; they do not imply a production deployment or publication request.

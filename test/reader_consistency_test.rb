@@ -23,7 +23,7 @@ class ReaderConsistencyTest < ActionDispatch::IntegrationTest
       [ "/blog", @post.path, "/blog/category/kitchen-gardens", "/blog/feed.xml", "/blog/sitemap.xml" ].each do |path|
         get path
         assert_response :success, path
-        assert_select ".ob-card-image[src*='/representations/']" if path == "/blog"
+        assert_select ".ob-card-image[src=?]", image.variant_path(:card) if path == "/blog"
       end
     end
     assert_empty writes
