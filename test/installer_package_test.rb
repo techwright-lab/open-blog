@@ -38,6 +38,19 @@ class InstallerPackageTest < ActiveSupport::TestCase
     refute harness.commands.flatten.include?("--path")
   end
 
+  test "rails 8.0 hosts pin json below 3 and rails 8.1 hosts do not" do
+    package = build_package("open_blog", "9.8.7")
+    { "8.0" => true, "8.1" => false }.each do |rails, pinned|
+      app = File.join(@directory, "host-#{rails}")
+      FileUtils.mkdir_p(app)
+      File.write(File.join(app, "Gemfile"), "source 'https://rubygems.org'\n")
+      harness = Harness.new(app, package)
+      harness.instance_variable_get(:@options)[:rails] = rails
+      harness.send(:install_blog)
+      assert_equal pinned, File.read(File.join(app, "Gemfile")).include?('gem "json", "< 3"'), rails
+    end
+  end
+
   test "a different gem is refused before host Gemfile changes" do
     package = build_package("another_gem", "1.0.0")
     app = File.join(@directory, "host")

@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Upgrade notes
 
-- On Rails 8.0, add `gem "json", "< 3"` to the Gemfile before `bundle update open_blog`, or upgrade to Rails 8.1.
+- On Rails 8.0, add `gem "json", "< 3"` to the Gemfile before `bundle update open_blog`, or upgrade to Rails 8.1. A new Rails 8.0 application installs JSON 3, so run `bundle add json --version "< 3"` before `bundle add open_blog`.
 
 ## [0.3.0] - 2026-10-20
 

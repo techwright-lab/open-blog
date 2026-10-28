@@ -19,7 +19,7 @@ For examples and explanations, read [host integration](https://techwright-lab.gi
 
 ## Install and configure
 
-Add a missing gem with `bundle add open_blog`, passing the requested version constraint when specified. For a fresh application, use `bin/rails generate open_blog:install`. For an existing application retaining its CSS pipeline, use `--skip-tailwind`. A staged local pilot can use:
+Add a missing gem with `bundle add open_blog`, passing the requested version constraint when specified. On Rails 8.0, first run `bundle add json --version "< 3"`; Open Blog refuses to load on Rails 8.0 with JSON 3. For a fresh application, use `bin/rails generate open_blog:install`. For an existing application retaining its CSS pipeline, use `--skip-tailwind`. A staged local pilot can use:
 
 ```sh
 bin/rails generate open_blog:install --theme=signal --skip-tailwind --skip-migrate --skip-sample

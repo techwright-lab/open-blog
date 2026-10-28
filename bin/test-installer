@@ -111,6 +111,7 @@ class InstallerHarness
 
   def install_blog
     unless @options[:gem]
+      pin_json
       return command("bundle", "add", "open_blog", "--path", @root)
     end
     package = Gem::Package.new(@options[:gem])
@@ -126,11 +127,18 @@ class InstallerHarness
       FileUtils.cp(archive, cache)
     end
     FileUtils.cp(@options[:gem], File.join(cache, @package_spec.file_name))
+    pin_json
     File.open(File.join(@app, "Gemfile"), "a") { |file| file.puts("\ngem \"open_blog\", \"= #{@package_spec.version}\"") }
     command("bundle", "config", "set", "--local", "path", "vendor/bundle")
     # The build under test can share a version with a published gem; verify_package_installation compares the bytes.
     command("bundle", "config", "set", "--local", "disable_checksum_validation", "true")
     command("bundle", "install")
+  end
+
+  def pin_json
+    return unless @options[:rails] == "8.0"
+
+    File.open(File.join(@app, "Gemfile"), "a") { |file| file.puts("\ngem \"json\", \"< 3\"") }
   end
 
   def verify_package_installation
