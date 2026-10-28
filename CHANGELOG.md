@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The AdminSuite reload hook no longer raises `NoMethodError` on every code reload in development.
+
 ## [0.3.1] - 2026-10-28
 
 ### Changed
