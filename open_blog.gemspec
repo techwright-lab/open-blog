@@ -22,8 +22,9 @@ Gem::Specification.new do |spec|
   ].select { |path| File.file?(path) }
   spec.require_paths = [ "lib" ]
 
-  # Rails 8.0 passes quirks_mode, which JSON 3 no longer accepts.
-  spec.add_dependency "json", ">= 2.3", "< 3"
+  # JSON 3 needs Rails 8.1: Rails 8.0 passes quirks_mode, which JSON 3 rejects.
+  # OpenBlog.require_supported_json! refuses that pair at load time.
+  spec.add_dependency "json", ">= 2.3", "< 4"
   spec.add_dependency "rails", ">= 8.0", "< 9.0"
   spec.add_dependency "commonmarker", ">= 2.8", "< 3"
   spec.add_dependency "rouge", ">= 4.7", "< 6"

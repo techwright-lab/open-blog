@@ -19,7 +19,7 @@ For examples and explanations, read [host integration](https://techwright-lab.gi
 
 ## Install and configure
 
-Add a missing gem with `bundle add open_blog`, passing the requested version constraint when specified. For a fresh application, use `bin/rails generate open_blog:install`. For an existing application retaining its CSS pipeline, use `--skip-tailwind`. A staged local pilot can use:
+Add a missing gem with `bundle add open_blog`, passing the requested version constraint when specified. On Rails 8.0, first run `bundle add json --version "< 3"`; Open Blog refuses to load on Rails 8.0 with JSON 3. For a fresh application, use `bin/rails generate open_blog:install`. For an existing application retaining its CSS pipeline, use `--skip-tailwind`. A staged local pilot can use:
 
 ```sh
 bin/rails generate open_blog:install --theme=signal --skip-tailwind --skip-migrate --skip-sample
@@ -47,7 +47,7 @@ The controller stores `open-blog-theme` and sets `data-theme="light"` or `"dark"
 
 ## Upgrade copied files deliberately
 
-Read the target changelog, update any version constraint, then `bundle update open_blog --conservative`; review dependency changes too (Open Blog constrains JSON below 3). Bundler does not refresh copied host files.
+Read the target changelog, update any version constraint, then `bundle update open_blog --conservative`; review dependency changes too (on Rails 8.0, keep JSON below 3; Rails 8.1 can use JSON 3). Bundler does not refresh copied host files.
 
 `bin/rails generate open_blog:views` refreshes reader templates and `layouts/open_blog.html.erb` only. Compare controllers, locales, and theme sources with the installed package separately. Conflicting files are kept in a noninteractive rerun; a successful generator exit does not mean all copies are current. Merge required changes and use replacement only for reviewed files. A blanket `open_blog:install --force` also replaces the initializer. Review a host-owned layout against new helper/asset contracts manually. When moving from 0.1.0 to presets, replace old full-palette definitions with intentional overrides so they do not mask the new preset. Rebuild affected assets and restart.
 

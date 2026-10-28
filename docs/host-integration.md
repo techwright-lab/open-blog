@@ -229,7 +229,7 @@ Use one restoration script per page. With a fixed `config.color_scheme`, preserv
 
 ## Upgrade without losing host customizations
 
-1. Read the target release's changelog, update the Gemfile constraint if pinned, and run `bundle update open_blog --conservative`. Review transitive dependency changes; Open Blog requires JSON below version 3, because Rails 8.0 does not work with JSON 3.
+1. Read the target release's changelog, update the Gemfile constraint if pinned, and run `bundle update open_blog --conservative`. Review transitive dependency changes. Open Blog accepts JSON 2 and 3, but Rails 8.0 does not work with JSON 3; on Rails 8.0, keep `gem "json", "< 3"` in the Gemfile.
 2. Locate the installed source with `bundle show open_blog`. The package is the authority for the version you are integrating.
 3. Run `bin/rails generate open_blog:views` and review conflicts. It refreshes reader templates and the generated `layouts/open_blog.html.erb`; it does **not** refresh controllers, locale files, or theme sources. Use `--force` only for files you have reviewed and intend to replace.
 4. Compare copied controllers with `app/assets/javascripts/open_blog/controllers/` in the gem, locales with `config/locales/open_blog.en.yml`, and theme sources with `lib/generators/open_blog/install/templates/theme/`. Merge needed changes, keeping host overrides. A normal installer rerun keeps conflicting files in a noninteractive terminal; it does not prove they are current. Avoid a blanket `open_blog:install --force`, which can overwrite the configured initializer too.

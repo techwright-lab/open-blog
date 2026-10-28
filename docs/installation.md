@@ -26,6 +26,8 @@ bundle add open_blog
 bin/rails generate open_blog:install
 ```
 
+On Rails 8.0, run `bundle add json --version "< 3"` first. Rails 8.0 does not work with JSON 3, and Open Blog refuses to load on that pair.
+
 To run the latest unreleased source instead, use `bundle add open_blog --github techwright-lab/open-blog`.
 
 Start the host with `bin/dev` (or `bin/rails server`) and open `/blog`. Set your site and author names in the generated initializer, or pass `--site-name="My Journal" --author-name="Example Author"` to the generator.

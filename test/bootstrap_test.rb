@@ -41,7 +41,7 @@ class BootstrapTest < Minitest::Test
       "commonmarker" => [ ">= 2.8", "< 3" ],
       "rouge" => [ ">= 4.7", "< 6" ],
       "mcp" => [ ">= 1.6", "< 2" ],
-      "json" => [ ">= 2.3", "< 3" ]
+      "json" => [ ">= 2.3", "< 4" ]
     }.transform_values { |requirements| Gem::Requirement.new(*requirements) }
     assert_equal expected, spec.runtime_dependencies.to_h { |dependency| [ dependency.name, dependency.requirement ] }
     %w[tailwindcss-ruby pg sqlite3 rubocop-rails-omakase capybara selenium-webdriver].each do |name|
