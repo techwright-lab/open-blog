@@ -12,9 +12,9 @@ class PublishWorkflowTest < Minitest::Test
 
   def setup
     @directory = Dir.mktmpdir("open-blog-release-test")
-    @env = { "GITHUB_REPOSITORY" => "techwright-lab/open-blog", "GITHUB_EVENT_NAME" => "workflow_dispatch",
-      "GITHUB_REF" => "refs/heads/main", "RELEASE_VERSION" => "0.1.0", "RUNNER_TEMP" => @directory,
-      "GITHUB_OUTPUT" => File.join(@directory, "outputs") }
+    @env = { "GITHUB_REPOSITORY" => "techwright-lab/open-blog", "GITHUB_EVENT_NAME" => "workflow_run",
+      "GITHUB_REF" => "refs/heads/main", "RUNNER_TEMP" => @directory,
+      "GITHUB_OUTPUT" => File.join(@directory, "outputs"), "GITHUB_STEP_SUMMARY" => File.join(@directory, "summary") }
     FileUtils.mkdir_p(File.join(@directory, "lib/open_blog"))
     git("init", "-q")
     disable_background_maintenance
@@ -24,6 +24,8 @@ class PublishWorkflowTest < Minitest::Test
     commit_version("0.1.0")
     @env["RELEASE_SHA"] = git("rev-parse", "HEAD").strip
     @main = @env.fetch("RELEASE_SHA")
+    @comparison = "identical"
+    @main_version = "0.1.0"
     @runs = %w[ci.yml installer.yml docs.yml].to_h { |workflow| [ workflow, [ workflow_run(workflow) ] ] }
     @tags = []
     @releases = []
@@ -35,10 +37,11 @@ class PublishWorkflowTest < Minitest::Test
     FileUtils.remove_entry(@directory)
   end
 
-  def test_preflight_requires_exact_main_successful_push_runs_and_release_notes
-    @gate.verify!
+  def test_preflight_reads_the_version_file_and_requires_main_successful_push_runs_and_release_notes
+    assert_equal "Releasing v0.1.0 from #{@main}", @gate.verify!
     outputs = File.read(@env.fetch("GITHUB_OUTPUT"))
     assert_includes outputs, "version=0.1.0"
+    assert_includes outputs, "release=true"
     assert_includes outputs, "source_date_epoch=#{git('show', '-s', '--format=%ct', 'HEAD').strip}"
     assert_equal "- Ship the reader.\n", File.read(File.join(@directory, "open-blog-release-notes.md"))
     %w[ci.yml installer.yml docs.yml].each do |workflow|
@@ -46,21 +49,51 @@ class PublishWorkflowTest < Minitest::Test
     end
   end
 
-  def test_dispatch_repository_ref_sha_and_version_fail_closed
-    { "GITHUB_REPOSITORY" => "another/open-blog", "GITHUB_EVENT_NAME" => "push",
-      "GITHUB_REF" => "refs/heads/topic", "RELEASE_SHA" => "a" * 40,
-      "RELEASE_VERSION" => "0.1.0.dev" }.each do |key, value|
+  def test_event_repository_ref_sha_and_version_fail_closed
+    { "GITHUB_REPOSITORY" => "another/open-blog", "GITHUB_EVENT_NAME" => "workflow_dispatch",
+      "GITHUB_REF" => "refs/heads/topic", "RELEASE_SHA" => "a" * 40 }.each do |key, value|
       original = @env[key]
       @env[key] = value
       assert_raises(OpenBlogRelease::Refusal, key) { @gate.verify! }
       @env[key] = original
     end
-    @main = "b" * 40
+    %w[diverged behind].each do |status|
+      @comparison = status
+      assert_raises(OpenBlogRelease::Refusal, status) { @gate.verify! }
+    end
+    @comparison = "ahead"
+    @gate.verify!
+    %w[0.1.1 0.0.9].each do |later|
+      @main_version = later
+      assert_raises(OpenBlogRelease::Refusal, later) { @gate.verify! }
+    end
+    @main_version = "0.1.0"
+    commit_version("0.1.0.dev")
+    sync_evidence
     assert_raises(OpenBlogRelease::Refusal) { @gate.verify! }
   end
 
-  def test_each_workflow_must_have_a_completed_successful_push_for_this_repository_and_head
-    [ { "conclusion" => "failure" }, { "status" => "in_progress" }, { "event" => "pull_request" },
+  def test_an_unchanged_released_version_skips_without_checking_runs
+    @tags = [ { "ref" => "refs/tags/v0.1.0", "object" => { "type" => "commit", "sha" => "d" * 40 } } ]
+    @runs = {}
+    assert_equal "v0.1.0 is already released from #{'d' * 40}", @gate.verify!
+    assert_includes File.read(@env.fetch("GITHUB_OUTPUT")), "release=false"
+    assert_includes File.read(@env.fetch("GITHUB_STEP_SUMMARY")), "already released"
+    refute @commands.any? { |args| args.join.include?("/runs?") }
+  end
+
+  def test_unfinished_checks_wait_quietly_and_newer_runs_decide
+    @runs["installer.yml"] = [ workflow_run("installer.yml").merge("status" => "in_progress", "conclusion" => nil) ]
+    @runs["docs.yml"] = []
+    assert_equal "Waiting for installer.yml, docs.yml to pass on this commit", @gate.verify!
+    assert_includes File.read(@env.fetch("GITHUB_OUTPUT")), "release=false"
+    @runs["installer.yml"] << workflow_run("installer.yml").merge("id" => 2)
+    @runs["docs.yml"] = [ workflow_run("docs.yml") ]
+    assert_match(/\AReleasing/, @gate.verify!)
+  end
+
+  def test_each_completed_workflow_must_be_a_successful_push_for_this_repository_and_head
+    [ { "conclusion" => "failure" }, { "event" => "pull_request" },
       { "head_branch" => "topic" }, { "head_sha" => "c" * 40 },
       { "head_repository" => { "full_name" => "another/open-blog" } } ].each do |change|
       %w[ci.yml installer.yml docs.yml].each do |workflow|
@@ -71,11 +104,18 @@ class PublishWorkflowTest < Minitest::Test
     end
     @runs["ci.yml"] << workflow_run("ci.yml").merge("id" => 2, "conclusion" => "failure")
     assert_raises(OpenBlogRelease::Refusal) { @gate.verify! }
-    @runs["ci.yml"] = []
-    assert_raises(OpenBlogRelease::Refusal) { @gate.verify! }
   end
 
-  def test_later_documentation_commits_are_releasable_but_invalid_notes_and_tags_stop_release
+  def test_notes_check_needs_no_github_context
+    gate = OpenBlogRelease.new(env: {}, directory: @directory, command: method(:command))
+    assert_equal "- Ship the reader.\n", gate.notes!
+    File.write(File.join(@directory, "CHANGELOG.md"), "## [Unreleased]\n- Ship the reader.\n")
+    amend_notes
+    assert_raises(OpenBlogRelease::Refusal) { gate.notes! }
+    refute @commands.any? { |args| args.first == "gh" }
+  end
+
+  def test_an_untagged_version_on_a_later_commit_is_releasable_but_invalid_notes_stop_release
     commit_version("0.1.0")
     sync_evidence
     @gate.verify!
@@ -88,10 +128,10 @@ class PublishWorkflowTest < Minitest::Test
     end
     File.write(File.join(@directory, "CHANGELOG.md"), "## [0.1.0] - 2026-01-01\n- Ship the reader.\n")
     amend_notes
-    @tags = [ { "ref" => "refs/tags/v0.1.0", "object" => { "type" => "commit", "sha" => "d" * 40 } } ]
+    @tags = [ { "ref" => "refs/tags/v0.1.0", "object" => { "type" => "commit", "sha" => @main } } ]
+    assert_match(/\AReleasing/, @gate.verify!)
+    @tags = [ { "ref" => "refs/tags/v0.1.0", "object" => { "type" => "blob", "sha" => @main } } ]
     assert_raises(OpenBlogRelease::Refusal) { @gate.verify! }
-    @tags.first["object"]["sha"] = @main
-    @gate.verify!
   end
 
   def test_older_versions_and_undated_invalid_or_future_release_notes_are_refused
@@ -115,6 +155,7 @@ class PublishWorkflowTest < Minitest::Test
         spec.files = ["lib/open_blog/version.rb"]
       end
     SPEC
+    @env["RELEASE_VERSION"] = "0.1.0"
     @env["SOURCE_DATE_EPOCH"] = git("show", "-s", "--format=%ct", "HEAD").strip
     responses = [ [ 404, "missing" ] ]
     gate = OpenBlogRelease.new(env: @env, directory: @directory, command: method(:command), http: ->(_url) { responses.shift || raise("Unexpected HTTP") })
@@ -133,6 +174,7 @@ class PublishWorkflowTest < Minitest::Test
   end
 
   def test_finish_only_tags_verified_published_bytes_and_preserves_matching_annotated_tags
+    @env["RELEASE_VERSION"] = "0.1.0"
     File.write(File.join(@directory, "open_blog-0.1.0.gem"), "artifact")
     File.write(File.join(@directory, "open-blog-release-notes.md"), "- Ship the reader.\n")
     remote = File.join(@directory, "remote.git")
@@ -191,19 +233,29 @@ class PublishWorkflowTest < Minitest::Test
     end
   end
 
-  def test_workflow_only_dispatches_and_gates_before_credentials_and_publication
+  def test_workflow_follows_main_checks_and_gates_before_credentials_and_publication
     workflow = YAML.load_file(File.expand_path("../.github/workflows/publish.yml", __dir__))
-    assert_equal [ "workflow_dispatch" ], (workflow["on"] || workflow[true]).keys
-    inputs = (workflow["on"] || workflow[true]).fetch("workflow_dispatch").fetch("inputs")
-    assert inputs.fetch("version").fetch("required")
-    assert inputs.fetch("sha").fetch("required")
+    triggers = workflow["on"] || workflow[true]
+    assert_equal [ "workflow_run" ], triggers.keys
+    run = triggers.fetch("workflow_run")
+    assert_equal %w[CI Installer Docs], run.fetch("workflows")
+    assert_equal [ "main" ], run.fetch("branches")
+    names = %w[ci.yml installer.yml docs.yml].map { |file| YAML.load_file(File.expand_path("../.github/workflows/#{file}", __dir__)).fetch("name") }
+    assert_equal run.fetch("workflows"), names
+    check = workflow.fetch("jobs").fetch("check")
+    [ "github.repository == 'techwright-lab/open-blog'", "workflow_run.event == 'push'", "workflow_run.head_branch == 'main'",
+      "workflow_run.conclusion == 'success'" ].each { |condition| assert_includes check.fetch("if"), condition }
+    refute check.key?("environment")
+    refute check.fetch("permissions").key?("id-token")
     job = workflow.fetch("jobs").fetch("publish")
+    assert_equal "check", job.fetch("needs")
+    assert_equal "needs.check.outputs.release == 'true'", job.fetch("if")
     assert_equal "release", job.fetch("environment")
-    assert_includes job.fetch("if"), "github.repository == 'techwright-lab/open-blog'"
     assert_equal "write", job.fetch("permissions").fetch("id-token")
     refute workflow.fetch("permissions", {}).key?("id-token")
     assert_equal false, workflow.fetch("concurrency").fetch("cancel-in-progress")
     steps = job.fetch("steps")
+    assert_equal "${{ github.event.workflow_run.head_sha }}", steps.first.fetch("with").fetch("ref")
     credentials = steps.index { |step| step.fetch("uses", "").start_with?("rubygems/configure-rubygems-credentials@") }
     assert_equal "rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a", steps[credentials]["uses"]
     %w[verify artifact].each do |mode|
@@ -213,8 +265,14 @@ class PublishWorkflowTest < Minitest::Test
     finish = steps.index { |step| step.fetch("run", "").include?("ruby bin/release-check finish") }
     assert_equal "steps.artifact.outputs.should_publish == 'true'", steps[credentials]["if"]
     assert_equal steps[credentials]["if"], steps[push]["if"]
+    assert_equal "steps.release.outputs.release == 'true'", steps[finish]["if"]
     assert_operator credentials, :<, push
     assert_operator push, :<, finish
+  end
+
+  def test_ci_requires_release_notes_for_every_change
+    ci = YAML.load_file(File.expand_path("../.github/workflows/ci.yml", __dir__))
+    assert ci.fetch("jobs").fetch("lint").fetch("steps").any? { |step| step["run"] == "ruby bin/release-check notes" }
   end
 
   private
@@ -259,7 +317,9 @@ class PublishWorkflowTest < Minitest::Test
     return "" if args[0, 2] == [ "gh", "release" ]
     endpoint = args.fetch(2)
     case endpoint
-    when /commits\/main$/ then JSON.generate("sha" => @main)
+    when /compare\/#{@main}\.\.\.main$/ then JSON.generate("status" => @comparison)
+    when /contents\/lib\/open_blog\/version\.rb\?ref=main$/
+      JSON.generate("content" => [ "module OpenBlog\n  VERSION = \"#{@main_version}\"\nend\n" ].pack("m"))
     when /workflows\/(.+)\/runs\?/ then JSON.generate([ { "workflow_runs" => @runs.fetch(Regexp.last_match(1)) } ])
     when /matching-refs/ then JSON.generate(@tags)
     when /git\/tags\// then JSON.generate("object" => @tag_object)
