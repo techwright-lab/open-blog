@@ -87,7 +87,16 @@ module OpenBlog
       end
       route ? route.path.spec.to_s : config.mount_path
     end
+
+    def require_supported_json!(rails: Rails.gem_version, json: Gem::Version.new(JSON::VERSION))
+      return if json < Gem::Version.new("3") || rails.release >= Gem::Version.new("8.1")
+
+      raise ConfigurationError, "JSON #{json} needs Rails 8.1 or later: Rails #{rails} passes quirks_mode, " \
+        'which JSON 3 rejects. Add gem "json", "< 3" to the Gemfile or upgrade Rails.'
+    end
   end
 end
+
+OpenBlog.require_supported_json!
 
 require_relative "open_blog/engine"

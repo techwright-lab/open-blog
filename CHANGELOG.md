@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1]
+
+### Changed
+
+- Allow JSON 3. The JSON requirement is now `>= 2.3, < 4`. Rails 8.1 hosts can use JSON 2 or 3.
+- On Rails 8.0 with JSON 3, Open Blog refuses to load with an `OpenBlog::ConfigurationError` that names the fix. Rails 8.0 passes `quirks_mode`, which JSON 3 rejects, so that pair does not work even without Open Blog.
+
+### Upgrade notes
+
+- On Rails 8.0, add `gem "json", "< 3"` to the Gemfile before `bundle update open_blog`, or upgrade to Rails 8.1.
+
 ## [0.3.0] - 2026-10-20
 
 ### Added
