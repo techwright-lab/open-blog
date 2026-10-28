@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Releases publish automatically. When a merged pull request changes the gem version and CI, Installer, and Docs pass on `main`, the Publish workflow pushes the gem to RubyGems and creates the GitHub Release from this changelog. The Prepare Release workflow is removed.
 - CI fails a pull request whose gem version has no dated changelog entry with notes.
+- The AdminSuite reload hook no longer raises `NoMethodError` on every code reload in development.
 
 ## [0.3.1] - 2026-10-28
 

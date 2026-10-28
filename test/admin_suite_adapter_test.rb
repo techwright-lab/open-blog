@@ -66,6 +66,12 @@ if Gem.loaded_specs.key?("admin_suite")
       refute controller.send(:resource_params).key?(:faqs_attributes)
     end
 
+    test "code reloading reinstalls the parameter adapter without raising" do
+      OpenBlog::AdminSuite.install!
+      assert_nothing_raised { Rails.application.reloader.prepare! }
+      assert_includes ::AdminSuite::ResourcesController.ancestors, OpenBlog::AdminSuite::ResourceParameters
+    end
+
     test "installation is idempotent and native controller authorization is preserved" do
       2.times { OpenBlog::AdminSuite.install! }
       assert_equal 1, ::AdminSuite::ResourcesController.ancestors.count(OpenBlog::AdminSuite::ResourceParameters)
