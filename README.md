@@ -131,7 +131,7 @@ The documentation is Markdown in `docs/`, built with Jekyll and Just the Docs fr
 
 ## Releases
 
-The **Prepare Release** workflow updates the version and changelog in a pull request. After review, merge, and successful checks, **Publish** publishes the verified package to RubyGems and creates or updates the GitHub Release. Merging ordinary changes does not publish a gem. See the [release guide](https://techwright-lab.github.io/open-blog/releases/) for the first-time Trusted Publishing setup.
+To release, change the version in `lib/open_blog/version.rb` and date its `CHANGELOG.md` section in a pull request. After the merge, when CI, Installer, and Docs pass on `main`, **Publish** publishes the package to RubyGems and creates the GitHub Release. Merging ordinary changes does not publish a gem. See the [release guide](https://techwright-lab.github.io/open-blog/releases/) for the first-time Trusted Publishing setup.
 
 ## License
 

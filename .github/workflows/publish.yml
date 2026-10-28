@@ -1,16 +1,10 @@
 name: Publish
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: Stable gem version to publish
-        required: true
-        type: string
-      sha:
-        description: Full main commit SHA with successful CI, Installer, and Docs push runs
-        required: true
-        type: string
+  workflow_run:
+    workflows: [CI, Installer, Docs]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
@@ -20,10 +14,36 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
+  check:
     if: >-
       github.repository == 'techwright-lab/open-blog' &&
-      github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    env:
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+      GH_TOKEN: ${{ github.token }}
+    outputs:
+      release: ${{ steps.release.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: false
+      - name: Check for an unreleased version with passing checks
+        id: release
+        run: ruby bin/release-check verify
+
+  publish:
+    needs: check
+    if: needs.check.outputs.release == 'true'
     runs-on: ubuntu-latest
     environment: release
     permissions:
@@ -31,13 +51,12 @@ jobs:
       contents: write
       id-token: write
     env:
-      RELEASE_VERSION: ${{ inputs.version }}
-      RELEASE_SHA: ${{ inputs.sha }}
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
       - uses: ruby/setup-ruby@v1
         with:
@@ -48,7 +67,9 @@ jobs:
         run: ruby bin/release-check verify
       - name: Build and compare the release artifact
         id: artifact
+        if: steps.release.outputs.release == 'true'
         env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
           SOURCE_DATE_EPOCH: ${{ steps.release.outputs.source_date_epoch }}
         run: ruby bin/release-check artifact
       - name: Configure RubyGems trusted publishing
@@ -56,8 +77,13 @@ jobs:
         uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
       - name: Publish to RubyGems
         if: steps.artifact.outputs.should_publish == 'true'
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
         run: gem push "open_blog-${RELEASE_VERSION}.gem" --host https://rubygems.org
-      - name: Tag and synchronize the GitHub release
+      - name: Tag and publish the GitHub release notes
+        if: steps.release.outputs.release == 'true'
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

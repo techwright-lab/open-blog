@@ -20,6 +20,8 @@ jobs:
           bundler-cache: true
       - run: bundle exec rubocop
       - run: bundle exec ruby test/comment_policy_test.rb
+      - name: Require dated changelog notes for the gem version
+        run: ruby bin/release-check notes
       - name: Verify the packaged stylesheet is current
         run: |
           bundle exec ruby -Ilib -ropen_blog -e 'OpenBlog::BuildCss.write'
