@@ -43,7 +43,7 @@ module OpenBlog
       ::AdminSuite::UI::FieldRendererRegistry.register(:open_blog_faq) do |view, form, field, resource, field_class|
         render_faqs(view, form, field, resource, field_class)
       end
-      Rails.application.reloader.to_prepare { install_controller! }
+      Rails.application.reloader.to_prepare { ::OpenBlog::AdminSuite.install_controller! }
       install_controller!
       @installed = true
     end
