@@ -25,6 +25,7 @@ class PublishWorkflowTest < Minitest::Test
     @env["RELEASE_SHA"] = git("rev-parse", "HEAD").strip
     @main = @env.fetch("RELEASE_SHA")
     @comparison = "identical"
+    @main_version = "0.1.0"
     @runs = %w[ci.yml installer.yml docs.yml].to_h { |workflow| [ workflow, [ workflow_run(workflow) ] ] }
     @tags = []
     @releases = []
@@ -62,6 +63,11 @@ class PublishWorkflowTest < Minitest::Test
     end
     @comparison = "ahead"
     @gate.verify!
+    %w[0.1.1 0.0.9].each do |later|
+      @main_version = later
+      assert_raises(OpenBlogRelease::Refusal, later) { @gate.verify! }
+    end
+    @main_version = "0.1.0"
     commit_version("0.1.0.dev")
     sync_evidence
     assert_raises(OpenBlogRelease::Refusal) { @gate.verify! }
@@ -312,6 +318,8 @@ class PublishWorkflowTest < Minitest::Test
     endpoint = args.fetch(2)
     case endpoint
     when /compare\/#{@main}\.\.\.main$/ then JSON.generate("status" => @comparison)
+    when /contents\/lib\/open_blog\/version\.rb\?ref=main$/
+      JSON.generate("content" => [ "module OpenBlog\n  VERSION = \"#{@main_version}\"\nend\n" ].pack("m"))
     when /workflows\/(.+)\/runs\?/ then JSON.generate([ { "workflow_runs" => @runs.fetch(Regexp.last_match(1)) } ])
     when /matching-refs/ then JSON.generate(@tags)
     when /git\/tags\// then JSON.generate("object" => @tag_object)

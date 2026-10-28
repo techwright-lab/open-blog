@@ -31,6 +31,7 @@ class OpenBlogRelease
     tagged = tag_commit
     return skip("v#{version} is already released from #{tagged}") if tagged && tagged != sha
     refuse("The released commit is not on main") unless %w[ahead identical].include?(api("compare/#{sha}...main").fetch("status"))
+    refuse("A later main commit changed the version") unless version_from(api("contents/lib/open_blog/version.rb?ref=main").fetch("content").unpack1("m")) == version
     verify_order!
     pending = %w[ci.yml installer.yml docs.yml].reject { |workflow| workflow_passed?(workflow) }
     return skip("Waiting for #{pending.join(', ')} to pass on this commit") unless pending.empty?
