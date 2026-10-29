@@ -18,6 +18,23 @@ module OpenBlog
       end
     end
 
+    class ApiTokens
+      attr_reader :identity
+      attr_accessor :policy, :default_lifetime, :require_expiry, :max_lifetime, :max_grace
+
+      def initialize
+        @default_lifetime = 90.days
+        @require_expiry = false
+        @max_lifetime = nil
+        @max_grace = 24.hours
+      end
+
+      def identity=(hook)
+        Configuration.validate_hook!(:identity, hook, 1)
+        @identity = hook
+      end
+    end
+
     THEMES = (Themes.names + [ :none ]).freeze
     THEME_MODES = %i[light dark].freeze
     THEME_COLOR_KEYS = Themes::COLOR_TOKENS.to_h { |token| [ token.tr("-", "_").to_sym, token ] }.freeze
@@ -31,7 +48,7 @@ module OpenBlog
       :page_views, :page_view_bot_pattern, :page_view_retention_days, :popular_posts,
       :preview_expires_in, :storage_service, :image_delivery, :max_image_bytes,
       :image_content_types, :image_fetch_policy, :api_rate_limit, :search_rate_limit
-    attr_reader :mcp, :authenticate, :before_publish
+    attr_reader :mcp, :api_tokens, :authenticate, :before_publish
     attr_writer :title_suffix, :rate_limit_store
 
     def initialize
@@ -68,6 +85,7 @@ module OpenBlog
       @api_rate_limit = { to: 120, within: 1.minute }
       @search_rate_limit = { to: 30, within: 1.minute }
       @mcp = Mcp.new
+      @api_tokens = ApiTokens.new
     end
 
     def title_suffix
@@ -113,6 +131,7 @@ module OpenBlog
       validate_view_settings!
       invalid!(:mcp, "enabled must be true or false") unless [ true, false ].include?(mcp.enabled)
       invalid!(:mcp, "max_page_size must be a positive integer") unless mcp.max_page_size.is_a?(Integer) && mcp.max_page_size.positive?
+      validate_api_tokens!
       self
     end
 
@@ -131,7 +150,36 @@ module OpenBlog
       end
     end
 
+    def self.validate_hook!(name, hook, argument_count)
+      return if hook.nil?
+      raise ConfigurationError, "OpenBlog #{name} must be callable" unless hook.respond_to?(:call)
+      parameters = hook.is_a?(Proc) || hook.is_a?(Method) ? hook.parameters : hook.method(:call).parameters
+      required = parameters.count { |kind, _| kind == :req }
+      capacity = parameters.count { |kind, _| %i[req opt].include?(kind) }
+      rest = parameters.any? { |kind, _| kind == :rest }
+      keywords = parameters.any? { |kind, _| kind == :keyreq }
+      unless required <= argument_count && (rest || capacity >= argument_count) && !keywords
+        raise ConfigurationError, "OpenBlog #{name} must accept #{argument_count} positional arguments without required keywords"
+      end
+    end
+
     private
+
+    def validate_api_tokens!
+      settings = api_tokens
+      Configuration.validate_hook!(:identity, settings.identity, 1)
+      invalid!("api_tokens.policy", "must respond to grants_for") unless settings.policy.nil? || settings.policy.respond_to?(:grants_for)
+      invalid!("api_tokens.require_expiry", "must be true or false") unless [ true, false ].include?(settings.require_expiry)
+      { default_lifetime: false, max_lifetime: true, max_grace: false }.each do |key, nullable|
+        value = settings.public_send(key)
+        next if nullable && value.nil?
+        positive_finite = (value.is_a?(Numeric) || value.is_a?(ActiveSupport::Duration)) && value.to_f.finite? && value.to_f.positive?
+        invalid!("api_tokens.#{key}", "must be a positive finite duration") unless positive_finite
+      end
+      if settings.max_lifetime && settings.max_lifetime.to_f < settings.default_lifetime.to_f
+        invalid!("api_tokens.max_lifetime", "must be at least default_lifetime")
+      end
+    end
 
     def validate_theme!
       invalid!(:theme, "must be #{THEMES.map(&:inspect).join(', ')}") unless THEMES.include?(theme)
@@ -202,16 +250,7 @@ module OpenBlog
     end
 
     def validate_hook!(name, hook, argument_count)
-      return if hook.nil?
-      invalid!(name, "must be callable") unless hook.respond_to?(:call)
-      parameters = hook.is_a?(Proc) || hook.is_a?(Method) ? hook.parameters : hook.method(:call).parameters
-      required = parameters.count { |kind, _| kind == :req }
-      capacity = parameters.count { |kind, _| %i[req opt].include?(kind) }
-      rest = parameters.any? { |kind, _| kind == :rest }
-      keywords = parameters.any? { |kind, _| kind == :keyreq }
-      unless required <= argument_count && (rest || capacity >= argument_count) && !keywords
-        invalid!(name, "must accept #{argument_count} positional arguments without required keywords")
-      end
+      Configuration.validate_hook!(name, hook, argument_count)
     end
 
     def invalid!(name, message)
