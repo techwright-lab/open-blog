@@ -208,7 +208,7 @@ class ApiTokenOperationsTest < ActiveSupport::TestCase
 
   test "immediate rotation revokes the old token and issues a replacement" do
     old = issued(scopes: %w[read write], expires_at: @now + 10.days).token
-    old_secret_events = OpenBlog::ApiTokenEvent.count
+    events_before = OpenBlog::ApiTokenEvent.count
     result = OPS.rotate(identity: ADA, id: old.id, now: @now)
     assert result.success?, result.error.inspect
     replacement = result.token
@@ -221,7 +221,7 @@ class ApiTokenOperationsTest < ActiveSupport::TestCase
     assert_equal [ "Deploy", %w[read write], ADA ], [ replacement.name, replacement.scopes, replacement.creator_identity ]
     assert_equal @now + 90.days, replacement.expires_at
     assert_equal replacement, OpenBlog::ApiToken.authenticate(secret)
-    assert_equal old_secret_events + 2, OpenBlog::ApiTokenEvent.count
+    assert_equal events_before + 2, OpenBlog::ApiTokenEvent.count
     rotated = old.events.find_by!(action: "rotated")
     assert_equal ADA, rotated.actor_identity
     assert_equal({ "successor_id" => replacement.id, "old_expires_at" => (@now + 10.days).iso8601,
@@ -303,17 +303,47 @@ class ApiTokenOperationsTest < ActiveSupport::TestCase
     assert_equal [ count, events ], [ OpenBlog::ApiToken.count, OpenBlog::ApiTokenEvent.count ]
   end
 
-  test "unique successor violation returns already_rotated and leaves no replacement" do
+  test "stale read inside a joinable host transaction leaves no orphan replacement" do
+    old = issued.token
+    stale = OpenBlog::ApiToken.find(old.id)
+    first = OPS.rotate(identity: ADA, id: old.id, grace: 1.hour, now: @now)
+    count = OpenBlog::ApiToken.count
+    events = OpenBlog::ApiTokenEvent.count
+    lock = Object.new
+    lock.define_singleton_method(:find) { |_id| stale }
+    result = ActiveRecord::Base.transaction do
+      OpenBlog::ApiToken.stub(:lock, lock) { OPS.rotate(identity: ADA, id: old.id, now: @now) }
+    end
+    assert_equal :already_rotated, result.error
+    assert_equal first.token, old.reload.successor
+    assert_equal [ count, events ], [ OpenBlog::ApiToken.count, OpenBlog::ApiTokenEvent.count ]
+  end
+
+  test "successor index violation returns already_rotated and rolls back" do
+    taken = issued.token
+    taken_successor = OPS.rotate(identity: ADA, id: taken.id, now: @now).token
     old = issued.token
     count = OpenBlog::ApiToken.count
     events = OpenBlog::ApiTokenEvent.count
-    raise_once = ->(*) { raise ActiveRecord::RecordNotUnique, "successor_id" }
-    result = OpenBlog::ApiTokenEvent.stub(:create!, raise_once) { OPS.rotate(identity: ADA, id: old.id, now: @now) }
+    reuse_successor = ->(**) { [ taken_successor, "ob_#{'1' * 40}" ] }
+    result = OpenBlog::ApiToken.stub(:generate, reuse_successor) { OPS.rotate(identity: ADA, id: old.id, now: @now) }
     assert_equal :already_rotated, result.error
     assert_equal [ count, events ], [ OpenBlog::ApiToken.count, OpenBlog::ApiTokenEvent.count ]
     old.reload
     assert_nil old.successor_id
     assert_nil old.revoked_at
+    assert_equal taken_successor, taken.reload.successor
+  end
+
+  test "other uniqueness errors during rotation propagate and roll back" do
+    old = issued.token
+    count = OpenBlog::ApiToken.count
+    raise_unique = ->(*) { raise ActiveRecord::RecordNotUnique, "duplicate" }
+    OpenBlog::ApiTokenEvent.stub(:create!, raise_unique) do
+      assert_raises(ActiveRecord::RecordNotUnique) { OPS.rotate(identity: ADA, id: old.id, now: @now) }
+    end
+    assert_equal count, OpenBlog::ApiToken.count
+    assert_nil old.reload.successor_id
   end
 
   test "rotating a replacement leaves the predecessor cutoff unchanged" do
@@ -333,6 +363,9 @@ class ApiTokenOperationsTest < ActiveSupport::TestCase
     assert_equal :not_rotatable, OPS.rotate(identity: ADA, id: revoked.id, now: @now).error
     assert_equal :not_rotatable, OPS.rotate(identity: ADA, id: expired.id, now: @now + 1.minute).error
     assert_nil expired.reload.successor_id
+    ownerless, = OpenBlog::ApiToken.generate(name: "CLI")
+    assert_equal :not_rotatable, OPS.rotate(identity: BOTH, id: ownerless.id, now: @now).error
+    assert_nil ownerless.reload.successor_id
   end
 
   test "rotation is blocked when the scope ceiling shrank" do

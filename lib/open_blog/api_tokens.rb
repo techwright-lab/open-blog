@@ -1,6 +1,6 @@
-require "open_blog/api_tokens/grant"
-require "open_blog/api_tokens/result"
-require "open_blog/api_tokens/secret"
+require_relative "api_tokens/grant"
+require_relative "api_tokens/result"
+require_relative "api_tokens/secret"
 
 module OpenBlog
   module ApiTokens
@@ -67,12 +67,9 @@ module OpenBlog
           next failure(:not_rotatable) if token.creator_identity.nil?
           next failure(:unauthorized) unless token.creator_identity == identity && grant.manage_own
           next failure(:grace_invalid) unless grace.nil? || valid_grace?(grace)
-          begin
-            ApiToken.transaction { rotate_locked(ApiToken.lock.find(token.id), identity, grant, grace, now) } ||
-              failure(:already_rotated)
-          rescue ActiveRecord::RecordNotUnique
-            failure(:already_rotated)
-          end
+          ApiToken.transaction(requires_new: true) do
+            rotate_locked(ApiToken.lock.find(token.id), identity, grant, grace, now)
+          end || failure(:already_rotated)
         end
       end
 
@@ -119,7 +116,7 @@ module OpenBlog
       end
 
       # sqlite ignores FOR UPDATE, so the guarded update_all is what keeps one successor
-      # per token; losing that race rolls back the replacement and returns already_rotated.
+      # per token. Losing that race raises Rollback, which needs the requires_new savepoint.
       def rotate_locked(old, identity, grant, grace, now)
         return failure(:already_rotated) if old.successor_id
         return failure(:not_rotatable) unless old.revoked_at.nil? && (old.expires_at.nil? || old.expires_at > now)
@@ -128,8 +125,12 @@ module OpenBlog
         cutoff = grace ? [ old.expires_at, now + grace ].compact.min : now
         replacement = create_token(identity, old.name, old.scopes, default_expires_at(now: now), predecessor_id: old.id)
         changes = grace ? { expires_at: cutoff } : { revoked_at: now }
-        claimed = ApiToken.where(id: old.id, successor_id: nil, revoked_at: nil)
-          .update_all(changes.merge(successor_id: replacement.token.id, updated_at: now))
+        claimed = begin
+          ApiToken.where(id: old.id, successor_id: nil, revoked_at: nil)
+            .update_all(changes.merge(successor_id: replacement.token.id, updated_at: now))
+        rescue ActiveRecord::RecordNotUnique
+          0
+        end
         raise ActiveRecord::Rollback unless claimed == 1
 
         record_event(old, identity, "rotated", { successor_id: replacement.token.id, old_expires_at: old.expires_at&.iso8601,
