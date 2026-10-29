@@ -41,7 +41,7 @@ module OpenBlog
         manage = Array(grant["manage"]).map(&:to_s)
         fail_with(path, "grant #{identity} manage must be own or all") unless (manage - MANAGE_LEVELS).empty?
         scopes = Array(grant["scopes"]).map(&:to_s)
-        fail_with(path, "grant #{identity} scopes must be within #{ApiToken::SCOPES.join(', ')}") unless (scopes - ApiToken::SCOPES).empty?
+        fail_with(path, "grant #{identity} scopes must be within #{SCOPES.join(', ')}") unless (scopes - SCOPES).empty?
         Grant.new(manage_own: manage.include?("own"), manage_all: manage.include?("all"), scopes: scopes.uniq)
       end
       private_class_method :build_grant

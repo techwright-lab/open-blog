@@ -3,7 +3,7 @@ require "active_support/core_ext/securerandom"
 
 module OpenBlog
   class ApiToken < ApplicationRecord
-    SCOPES = %w[read write publish].freeze
+    SCOPES = ApiTokens::SCOPES
     scope :active, -> { where(revoked_at: nil).where("expires_at IS NULL OR expires_at > ?", Time.current) }
 
     self.filter_attributes += %w[token_digest]
