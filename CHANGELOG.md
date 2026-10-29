@@ -10,6 +10,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - AdminSuite pages to issue, list, revoke, and rotate API tokens, with per-identity grants, expiry and grace policy, one-time secret reveal, and an audit trail. `open_blog:admin_suite` now writes `config/initializers/open_blog_api_tokens.rb` and `config/open_blog.yml`, and doctor reports whether token management is wired.
+- Add the `AddOpenBlogApiTokenManagement` migration. It adds the token owner and successor columns and the `open_blog_api_token_events` table.
+
+### Changed
+
+- A token issued in AdminSuite records its owner. The API actor for such a token is `"<name> (<identity>)"`, for example `"Deploy (admin:42)"`, so revision `actor`, publication `released_by`, approval and connection `recorded_by`, and image `uploaded_by` show that name. Tokens without an owner, such as ones from `open_blog:token`, keep the plain name.
+- `ApiToken` refuses an empty or repeated scope list. `SCOPES= bin/rails open_blog:token` now fails instead of issuing a token with no scopes, and `update!` on an existing token with no scopes fails until you give it a scope.
+- A token with audit events cannot be destroyed. Revoke it instead.
+- Doctor's **API token management** check runs when Open Blog's AdminSuite adapter is installed and names each missing piece: no identity hook, no grant policy, no grants in `config/open_blog.yml`, or tokens inactive because `config.authenticate` is set.
+
+### Upgrade notes
+
+- Run `bin/rails railties:install:migrations FROM=open_blog` and `bin/rails db:migrate`. Existing tokens and `open_blog:token` keep working before the migration runs; the AdminSuite token pages need it.
+- To revoke a token that has no scopes, use the AdminSuite page or `OpenBlog::ApiToken.find(id).update_column(:revoked_at, Time.current)`, because `update!` now fails validation for that token.
 
 ## [0.4.0] - 2026-10-28
 

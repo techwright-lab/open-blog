@@ -11,7 +11,7 @@ All request paths in the tables below are relative to `/blog/api/v1`, or the cor
 
 ## Authentication
 
-Create a token with `NAME="Publishing client" SCOPES=read,write,publish bin/rails open_blog:token` and keep the printed secret: only its digest is stored. Send it as `Authorization: Bearer ob_…`. `EXPIRES_AT` accepts an ISO 8601 timestamp; revoke a token by setting its `revoked_at`. A configured `config.authenticate` callback replaces token authentication and returns an actor with `name` and optional `scopes` and `id`.
+Create a token with `NAME="Publishing client" SCOPES=read,write,publish bin/rails open_blog:token` and keep the printed secret: only its digest is stored. Send it as `Authorization: Bearer ob_…`. `EXPIRES_AT` accepts an ISO 8601 timestamp. Revoke a token on the [AdminSuite API tokens page]({% link admin-suite.md %}#api-tokens), or in a console with `OpenBlog::ApiToken.find(id).update_column(:revoked_at, Time.current)`. `update_column` skips validation, so it also works for an old token with no scopes. A token with audit events cannot be destroyed; revoke it instead. A configured `config.authenticate` callback replaces token authentication and returns an actor with `name` and optional `scopes` and `id`.
 
 Requests without a valid token return 401:
 
@@ -113,6 +113,8 @@ curl -s https://example.com/blog/api/v1/posts/228/records -H "Authorization: Bea
   "connections": []
 }
 ```
+
+The `actor` and `released_by` values are the token name. A token issued on the AdminSuite page adds its owner, for example `"Publishing client (admin:42)"`; approval and connection `recorded_by` and image `uploaded_by` use the same name.
 
 ## Endpoints
 
