@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-29
+
 ### Added
 
 - AdminSuite pages to issue, list, revoke, and rotate API tokens, with per-identity grants, expiry and grace policy, one-time secret reveal, and an audit trail. `open_blog:admin_suite` now writes `config/initializers/open_blog_api_tokens.rb` and `config/open_blog.yml`, and doctor reports whether token management is wired.
