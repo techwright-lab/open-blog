@@ -24,6 +24,35 @@ class AdminSuiteGeneratorTest < Rails::Generators::TestCase
     assert_equal "class Admin::Resources::PostResource; end\n", File.read(host)
   end
 
+  test "writes token settings with no grants and keeps customized grants on rerun" do
+    run_generator
+    assert_file "config/initializers/open_blog_api_tokens.rb", /OpenBlog\.configure/, /YamlGrants\.load/, /api_tokens\.default_lifetime = 90\.days/
+    assert_file "config/open_blog.yml", /api_tokens:\n  grants: \{\}/
+    assert_nil OpenBlog::ApiTokens::YamlGrants.load(File.join(destination_root, "config/open_blog.yml")).grants_for("admin:1")
+    yaml = File.join(destination_root, "config/open_blog.yml")
+    File.write(yaml, "api_tokens:\n  grants:\n    admin:7:\n      manage: [own]\n      scopes: [read]\n")
+    initializer = File.join(destination_root, "config/initializers/open_blog_api_tokens.rb")
+    File.write(initializer, "# edited\n")
+    run_generator
+    assert_equal "api_tokens:\n  grants:\n    admin:7:\n      manage: [own]\n      scopes: [read]\n", File.read(yaml)
+    assert_equal "# edited\n", File.read(initializer)
+  end
+
+  test "generated token initializer loads and leaves identity unwired" do
+    run_generator
+    original = OpenBlog.config.api_tokens.policy
+    load File.join(destination_root, "config/initializers/open_blog_api_tokens.rb")
+    assert_respond_to OpenBlog.config.api_tokens.policy, :grants_for
+    assert_nil OpenBlog.config.api_tokens.identity
+  ensure
+    OpenBlog.config.api_tokens.policy = original
+  end
+
+  test "generator says tokens stay disabled until identity and grants exist" do
+    output = run_generator
+    assert_match(/API tokens stay disabled until config\.api_tokens\.identity returns a trusted admin identity and config\/open_blog\.yml grants it access\./, output)
+  end
+
   test "custom directory uses discovery paths while preserving edited resources" do
     run_generator [ "--dir=config/blog_admin" ]
     assert_file "config/blog_admin/resources/open_blog/post_resource.rb"

@@ -11,6 +11,7 @@ module OpenBlog
 
     CHECKS = { "Configuration" => :configuration, "Migrations" => :migrations, "Route" => :route,
       "Views" => :views, "Theme" => :theme, "JavaScript" => :javascript, "Authentication" => :authentication,
+      "API token management" => :api_token_management,
       "Rate limit" => :rate_limit, "Jobs" => :jobs, "Storage" => :storage, "Record keys" => :record_keys, "Policy pages" => :policy_pages,
       "Records" => :records, "Declarations" => :declarations }.freeze
     TABLES = %w[open_blog_authors open_blog_categories open_blog_series open_blog_images open_blog_posts
@@ -84,6 +85,13 @@ module OpenBlog
       else
         [ "warning", "No host authentication hook or active API token is configured." ]
       end
+    end
+
+    def api_token_management
+      return [ "ok", "AdminSuite is not installed." ] unless defined?(::AdminSuite)
+      settings = @config.api_tokens
+      return [ "ok", "Token management is wired to a host identity and grant policy." ] if settings.identity && settings.policy
+      [ "warning", "Token management is not wired: set config.api_tokens.identity and grant access in config/open_blog.yml." ]
     end
 
     def rate_limit

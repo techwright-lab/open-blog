@@ -13,6 +13,8 @@ class DoctorTest < ActiveSupport::TestCase
     @config.publisher = { name: "Field Notes" }
     @config.public_base_url = "https://notes.example"
     @config.authenticate = ->(_request) { nil }
+    @config.api_tokens.identity = ->(_controller) { "admin:1" }
+    @config.api_tokens.policy = OpenBlog::ApiTokens::YamlGrants.new({})
     @config.rate_limit_store = ActiveSupport::Cache::MemoryStore.new
     @config.sign_in_destinations = []
     @config.policy_urls = %i[responsible_party corrections editorial ai_use].to_h { |key| [ key, "https://notes.example/#{key}" ] }
@@ -33,7 +35,7 @@ class DoctorTest < ActiveSupport::TestCase
 
   test "every named check reports a bootable complete installation without modifying content" do
     checks = OpenBlog::Doctor.run(application: @application, config: @config, http_get: ->(_url) { 200 })
-    assert_equal [ "Configuration", "Migrations", "Route", "Views", "Theme", "JavaScript", "Authentication", "Rate limit", "Jobs", "Storage", "Record keys", "Policy pages", "Records", "Declarations" ], checks.pluck(:name)
+    assert_equal [ "Configuration", "Migrations", "Route", "Views", "Theme", "JavaScript", "Authentication", "API token management", "Rate limit", "Jobs", "Storage", "Record keys", "Policy pages", "Records", "Declarations" ], checks.pluck(:name)
     assert checks.all? { |check| check[:status] == "ok" }, checks.inspect
     assert checks.all? { |check| check.keys.sort == %i[message name status] && check[:message].present? }
   end
@@ -47,6 +49,23 @@ class DoctorTest < ActiveSupport::TestCase
     assert_equal "warning", check("Authentication")[:status]
     token.update!(revoked_at: nil, expires_at: 1.second.ago)
     assert_equal "warning", check("Authentication")[:status]
+  end
+
+  test "token management warns when identity or policy is missing and AdminSuite is loaded" do
+    skip "AdminSuite is not loaded in this bundle" unless defined?(::AdminSuite)
+    assert_equal "ok", check("API token management")[:status]
+    @config.api_tokens.identity = nil
+    row = check("API token management")
+    assert_equal [ "warning", "Token management is not wired: set config.api_tokens.identity and grant access in config/open_blog.yml." ], row.values_at(:status, :message)
+    @config.api_tokens.identity = ->(_controller) { "admin:1" }
+    @config.api_tokens.policy = nil
+    assert_equal "warning", check("API token management")[:status]
+  end
+
+  test "token management is skipped when AdminSuite is not installed" do
+    skip "AdminSuite is loaded in this bundle" if defined?(::AdminSuite)
+    @config.api_tokens.identity = nil
+    assert_equal [ "ok", "AdminSuite is not installed." ], check("API token management").values_at(:status, :message)
   end
 
   test "configuration reports invalid and placeholder values without aborting remaining checks" do

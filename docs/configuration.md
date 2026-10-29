@@ -113,3 +113,16 @@ end
 | `popular_posts` | `{ enabled: false, days: 30, limit: 5 }` | Popular-article sidebar. |
 
 Scheduled publishing needs a durable Active Job adapter or the recurring `open_blog:publish_due` task. See [API authentication]({% link api.md %}#authentication), [reader routes and feeds]({% link reader.md %}), [themes]({% link themes.md %}), [analytics]({% link analytics.md %}), and [diagnostics]({% link diagnostics.md %}) for detailed behavior.
+
+## API token management
+
+Settings for the AdminSuite token pages. See [AdminSuite]({% link admin-suite.md %}#api-tokens).
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `api_tokens.identity` | `nil` | Callable receiving the admin controller. Return a trusted `namespace:id` string, or `nil` for no access. Token management stays off without it. |
+| `api_tokens.policy` | `nil` | Object responding to `grants_for(identity)`. Use `OpenBlog::ApiTokens::YamlGrants.load(path)` for `config/open_blog.yml` grants. |
+| `api_tokens.default_lifetime` | `90.days` | Expiry offered when a token is issued. |
+| `api_tokens.require_expiry` | `false` | Refuse tokens without an expiry. |
+| `api_tokens.max_lifetime` | `nil` | Longest allowed lifetime, at least `default_lifetime`. `nil` sets no limit. |
+| `api_tokens.max_grace` | `24.hours` | Longest grace period offered when rotating. |

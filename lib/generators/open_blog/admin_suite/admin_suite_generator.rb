@@ -20,7 +20,10 @@ module OpenBlog
         end
         template "blog_portal.rb.tt", "#{@admin_dir}/portals/open_blog_portal.rb", **copy_options
         template "initializer.rb.tt", "config/initializers/open_blog_admin_suite.rb", **copy_options
+        template "api_tokens_initializer.rb.tt", "config/initializers/open_blog_api_tokens.rb", **copy_options
+        template "open_blog.yml.tt", "config/open_blog.yml", **copy_options
         say "Admin definitions written. Install AdminSuite 0.6.1 or later to activate them; restart the host after adding definitions."
+        say "API tokens stay disabled until config.api_tokens.identity returns a trusted admin identity and config/open_blog.yml grants it access."
       end
     end
   end
