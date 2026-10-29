@@ -2,6 +2,7 @@ require_relative "test_helper"
 require "tmpdir"
 require "fileutils"
 require "minitest/mock"
+require_relative "support/admin_suite" if Gem.loaded_specs.key?("admin_suite")
 
 class DoctorTest < ActiveSupport::TestCase
   setup do
@@ -14,7 +15,7 @@ class DoctorTest < ActiveSupport::TestCase
     @config.public_base_url = "https://notes.example"
     @config.authenticate = ->(_request) { nil }
     @config.api_tokens.identity = ->(_controller) { "admin:1" }
-    @config.api_tokens.policy = OpenBlog::ApiTokens::YamlGrants.new({})
+    @config.api_tokens.policy = OpenBlog::ApiTokens::YamlGrants.new("admin:1" => OpenBlog::ApiTokens::Grant.new(manage_own: true, manage_all: false, scopes: %w[read]))
     @config.rate_limit_store = ActiveSupport::Cache::MemoryStore.new
     @config.sign_in_destinations = []
     @config.policy_urls = %i[responsible_party corrections editorial ai_use].to_h { |key| [ key, "https://notes.example/#{key}" ] }
@@ -34,6 +35,8 @@ class DoctorTest < ActiveSupport::TestCase
   end
 
   test "every named check reports a bootable complete installation without modifying content" do
+    @config.authenticate = nil
+    OpenBlog::ApiToken.generate(name: "Diagnostics")
     checks = OpenBlog::Doctor.run(application: @application, config: @config, http_get: ->(_url) { 200 })
     assert_equal [ "Configuration", "Migrations", "Route", "Views", "Theme", "JavaScript", "Authentication", "API token management", "Rate limit", "Jobs", "Storage", "Record keys", "Policy pages", "Records", "Declarations" ], checks.pluck(:name)
     assert checks.all? { |check| check[:status] == "ok" }, checks.inspect
@@ -51,19 +54,28 @@ class DoctorTest < ActiveSupport::TestCase
     assert_equal "warning", check("Authentication")[:status]
   end
 
-  test "token management warns when identity or policy is missing and AdminSuite is loaded" do
-    skip "AdminSuite is not loaded in this bundle" unless defined?(::AdminSuite)
-    assert_equal "ok", check("API token management")[:status]
+  test "token management names each missing piece when the AdminSuite adapter is installed" do
+    skip "The AdminSuite adapter is not loaded in this bundle" unless defined?(OpenBlog::AdminSuite)
+    @config.authenticate = nil
+    assert_equal [ "ok", "Token management is wired to a host identity and grants." ], check("API token management").values_at(:status, :message)
     @config.api_tokens.identity = nil
-    row = check("API token management")
-    assert_equal [ "warning", "Token management is not wired: set config.api_tokens.identity and grant access in config/open_blog.yml." ], row.values_at(:status, :message)
+    assert_equal [ "warning", "No identity hook: set config.api_tokens.identity." ], check("API token management").values_at(:status, :message)
     @config.api_tokens.identity = ->(_controller) { "admin:1" }
     @config.api_tokens.policy = nil
-    assert_equal "warning", check("API token management")[:status]
+    assert_equal [ "warning", "No grant policy: set config.api_tokens.policy." ], check("API token management").values_at(:status, :message)
+    @config.api_tokens.policy = OpenBlog::ApiTokens::YamlGrants.new({})
+    assert_equal [ "warning", "No grants: add an identity under api_tokens.grants in config/open_blog.yml." ],
+      check("API token management").values_at(:status, :message)
+    @config.api_tokens.policy = Struct.new(:grants) { def grants_for(_identity) = nil }.new({})
+    assert_equal "ok", check("API token management")[:status]
+    @config.authenticate = ->(_request) { nil }
+    @config.api_tokens.identity = nil
+    assert_equal [ "warning", "No identity hook: set config.api_tokens.identity. " \
+      "Tokens inactive: config.authenticate is set, so the API ignores tokens." ], check("API token management").values_at(:status, :message)
   end
 
-  test "token management is skipped when AdminSuite is not installed" do
-    skip "AdminSuite is loaded in this bundle" if defined?(::AdminSuite)
+  test "token management is skipped when the AdminSuite adapter is not installed" do
+    skip "The AdminSuite adapter is loaded in this bundle" if defined?(OpenBlog::AdminSuite)
     @config.api_tokens.identity = nil
     assert_equal [ "ok", "AdminSuite is not installed." ], check("API token management").values_at(:status, :message)
   end

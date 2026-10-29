@@ -25,6 +25,7 @@ class ApiTokenPolicyTest < ActiveSupport::TestCase
     grant = OpenBlog::ApiTokens::Grant.new(manage_own: true, manage_all: false, scopes: %w[read write])
     assert_equal grant, policy.grants_for("user:ada")
     assert_predicate policy.grants_for("user:ada").scopes, :frozen?
+    refute_predicate policy, :empty?
   end
 
   test "unknown identity has no grant" do
@@ -34,6 +35,7 @@ class ApiTokenPolicyTest < ActiveSupport::TestCase
 
   test "missing file grants nothing" do
     assert_nil OpenBlog::ApiTokens::YamlGrants.load("/nonexistent/grants.yml").grants_for("user:ada")
+    assert_predicate OpenBlog::ApiTokens::YamlGrants.load("/nonexistent/grants.yml"), :empty?
   end
 
   test "empty grants grant nothing" do

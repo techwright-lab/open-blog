@@ -58,6 +58,10 @@ module OpenBlog
       def grants_for(identity)
         @grants[identity]
       end
+
+      def empty?
+        @grants.empty?
+      end
     end
   end
 end

@@ -88,10 +88,18 @@ module OpenBlog
     end
 
     def api_token_management
-      return [ "ok", "AdminSuite is not installed." ] unless defined?(::AdminSuite)
+      return [ "ok", "AdminSuite is not installed." ] unless defined?(OpenBlog::AdminSuite)
       settings = @config.api_tokens
-      return [ "ok", "Token management is wired to a host identity and grant policy." ] if settings.identity && settings.policy
-      [ "warning", "Token management is not wired: set config.api_tokens.identity and grant access in config/open_blog.yml." ]
+      policy = settings.policy
+      problems = []
+      problems << "No identity hook: set config.api_tokens.identity." unless settings.identity
+      if policy.nil?
+        problems << "No grant policy: set config.api_tokens.policy."
+      elsif policy.respond_to?(:empty?) && policy.empty?
+        problems << "No grants: add an identity under api_tokens.grants in config/open_blog.yml."
+      end
+      problems << "Tokens inactive: config.authenticate is set, so the API ignores tokens." if @config.authenticate
+      problems.any? ? [ "warning", problems.join(" ") ] : [ "ok", "Token management is wired to a host identity and grants." ]
     end
 
     def rate_limit
