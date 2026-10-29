@@ -8,6 +8,7 @@ require_relative "open_blog/version"
 require_relative "open_blog/instructions"
 require_relative "open_blog/api_tokens/grant"
 require_relative "open_blog/api_tokens/yaml_grants"
+require_relative "open_blog/api_tokens"
 
 module OpenBlog
   FAQ_SELECTORS = { section: "[data-open-blog-faq]", entry: "[data-open-blog-faq-entry]" }.freeze
