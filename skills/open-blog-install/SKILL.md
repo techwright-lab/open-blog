@@ -45,6 +45,23 @@ Place a single theme button in the shared navbar if requested; it is not a separ
 
 The controller stores `open-blog-theme` and sets `data-theme="light"` or `"dark"` on `<html>`; System removes both and follows the OS. Restore that same key before CSS loads on homepage and blog using the gem helper or one shared equivalent script with the host's CSP nonce. Keep one preference owner when the host already has a theme controller. Honor a fixed `config.color_scheme` by retaining its root attribute and omitting the toggle. Check Turbo transitions if used, full reloads, explicit light/dark, and system mode.
 
+## Wire API token management
+
+Do this read-only discovery before asking questions or writing. Cite file evidence, and separate local checkout findings from deployed state.
+
+1. Read host instructions; note Open Blog and AdminSuite versions and existing customizations.
+2. Find the admin mount, its authentication, the trusted actor, stable identifiers, and whether user and admin sessions are separate.
+3. Find real authorization hooks, permission or role models, and tenant boundaries. Never treat roles as equivalent by name.
+4. Read any `config.api_tokens` settings and the API authentication mode (`config.authenticate` makes tokens inactive). Never retrieve or print stored credentials.
+5. Propose the smallest integration: `bin/rails generate open_blog:admin_suite`, an `api_tokens.identity` bound to the admin identity, and grants.
+6. Ask only unresolved policy questions: who gets own or all, which scopes, expiry rules, grace. Technical capability is not approval to grant.
+7. Prefer an existing permission system as `api_tokens.policy`; otherwise propose stable-identity grants in `config/open_blog.yml`. Get approval before real grants.
+8. Get installation authorization before writes. Deployment and production token issuance are separate permissions.
+9. In an authorized local or test environment, verify allowed and denied access, ownership isolation, scope limits, expiry, rotation, one-time reveal, audit secrecy, and that a rerun keeps edited files.
+10. Report verified behavior, blockers, and unverified production assumptions separately.
+
+Do not recommend ECS stdout issuance, encryption wrappers, or temporary-file delivery as the recurring workflow.
+
 ## Upgrade copied files deliberately
 
 Read the target changelog, update any version constraint, then `bundle update open_blog --conservative`; review dependency changes too (on Rails 8.0, keep JSON below 3; Rails 8.1 can use JSON 3). Bundler does not refresh copied host files.

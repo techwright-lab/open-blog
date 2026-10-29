@@ -1,0 +1,9 @@
+OpenBlog.configure do |config|
+  config.api_tokens.policy = OpenBlog::ApiTokens::YamlGrants.load(Rails.root.join("config/open_blog.yml"))
+  # Bind to the admin surface identity, never an application login fallback.
+  # config.api_tokens.identity = ->(controller) { admin = controller.send(:current_admin); "admin:#{admin.uid}" if admin }
+  config.api_tokens.default_lifetime = 90.days
+  config.api_tokens.require_expiry = false
+  config.api_tokens.max_lifetime = nil
+  config.api_tokens.max_grace = 24.hours
+end

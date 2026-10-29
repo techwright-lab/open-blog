@@ -38,19 +38,57 @@ module OpenBlog
       end
     end
 
+    module Navigation
+      private
+
+      def build_navigation_items
+        navigation = super
+        portal = navigation[:open_blog] ||= { label: "Open Blog", order: 100, sections: {} }
+        portal[:sections] ||= {}
+        section = portal[:sections][:access] ||= { label: "Access", order: 900, items: [] }
+        section[:items] << { label: "API tokens", path: open_blog_api_tokens_path, icon: "key", order: 900 }
+        navigation
+      end
+    end
+
     def self.install!
       return if @installed
       ::AdminSuite::UI::FieldRendererRegistry.register(:open_blog_faq) do |view, form, field, resource, field_class|
         render_faqs(view, form, field, resource, field_class)
       end
+      install_routes!
       Rails.application.reloader.to_prepare { ::OpenBlog::AdminSuite.install_controller! }
       install_controller!
       @installed = true
     end
 
+    # The prepended block runs at the start of every draw, so reloads redraw it once
+    # instead of stacking copies. Hosts that already drew routes need one redraw.
+    def self.install_routes!
+      ::AdminSuite::Engine.routes.prepend { ::OpenBlog::AdminSuite.draw_routes(self) }
+      Rails.application.reload_routes! if Rails.application.routes_reloader.loaded
+    end
+
+    def self.draw_routes(mapper)
+      controller = "/open_blog/admin_suite/api_tokens"
+      mapper.scope "open_blog/api_tokens", controller: controller do
+        mapper.get "/", action: :index, as: :open_blog_api_tokens
+        mapper.post "/", action: :create
+        mapper.get "/new", action: :new, as: :new_open_blog_api_token
+        mapper.get "/:id", action: :show, as: :open_blog_api_token
+        mapper.post "/:id/revoke", action: :revoke, as: :revoke_open_blog_api_token
+        mapper.post "/:id/rotate", action: :rotate, as: :rotate_open_blog_api_token
+      end
+    end
+
     def self.install_controller!
       controller = ::AdminSuite::ResourcesController
       controller.prepend(ResourceParameters) unless controller.ancestors.include?(ResourceParameters)
+      base = ::AdminSuite::ApplicationController
+      base.prepend(Navigation) unless base.ancestors.include?(Navigation)
+      return if const_defined?(:ApiTokensController, false) && ApiTokensController.superclass.equal?(base)
+      remove_const(:ApiTokensController) if const_defined?(:ApiTokensController, false)
+      load File.expand_path("admin_suite/api_tokens_controller.rb", __dir__)
     end
 
     def self.render_faqs(view, form, field, resource, field_class)

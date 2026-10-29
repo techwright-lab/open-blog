@@ -15,6 +15,8 @@ Doctor's storage check verifies the configured service and processor dependencie
 
 The **Record keys** check compares `active_storage_attachments.record_id` with the primary keys of `open_blog_images` and `open_blog_authors`. A mismatch is an error, because uploads, avatars, and the sample would fail with `ActiveRecord::NotNullViolation`; the message names each column and its type and tells you to install and run the latest migrations. With `:rich_text` in `config.body_formats`, the check also compares `action_text_rich_texts.record_id` with the post key and `action_text_rich_texts.id` with the attachment key, and recommends Markdown bodies when they differ. See [image compatibility]({% link host-integration.md %}#image-compatibility-is-a-separate-check).
 
+The **API token management** check runs when Open Blog's AdminSuite adapter is installed. It warns, and names each problem, when `config.api_tokens.identity` is not set, when `config.api_tokens.policy` is not set, when `config/open_blog.yml` grants no identity, or when `config.authenticate` is set, because the API then ignores tokens. See [API tokens]({% link admin-suite.md %}#api-tokens).
+
 Card and avatar variants use the engine's `/blog/media/` routes, not the host's representation routes. Its theme contrast check reads `config.theme_colors`, not CSS-variable overrides. Its layout checks inspect helper names in source, not the final visual result. Complete the [host acceptance checks]({% link host-integration.md %}#verify-the-integration) for these cases.
 
 ## Surface reports

@@ -1,0 +1,30 @@
+<% content_for :title, "API token created - Admin Suite" %>
+<% content_for :head do %>
+  <meta name="turbo-cache-control" content="no-cache">
+<% end %>
+
+<div class="px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto">
+  <h1 class="text-2xl font-bold text-slate-900 mb-6"><%= @token.name %></h1>
+
+  <div class="bg-white rounded-xl border border-amber-300 p-6 space-y-4">
+    <p class="text-sm font-medium text-amber-900">Copy this token into your password manager now. It will not be shown again.</p>
+    <div class="flex gap-2">
+      <input id="open-blog-api-token-secret" type="text" readonly value="<%= @secret.reveal %>" autocomplete="off" spellcheck="false" class="form-input flex-1 font-mono" aria-label="API token">
+      <button type="button" id="open-blog-api-token-copy" class="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium">Copy</button>
+    </div>
+    <%= javascript_tag nonce: true do %>
+      document.getElementById("open-blog-api-token-copy").addEventListener("click", function () {
+        var field = document.getElementById("open-blog-api-token-secret");
+        field.select();
+        if (navigator.clipboard) navigator.clipboard.writeText(field.value);
+      });
+    <% end %>
+    <p class="text-sm text-slate-600">Scopes: <%= @token.scopes.join(", ") %>. Expires: <%= @token.expires_at ? token_time(@token.expires_at) : "never" %>.</p>
+    <% if @predecessor %>
+      <p class="text-sm font-medium text-slate-900">
+        <%= @predecessor.revoked_at ? "The previous token stopped working now." : "The previous token stops working at #{token_time(@predecessor.expires_at)}." %>
+      </p>
+    <% end %>
+    <p class="text-sm"><%= link_to "Back to API tokens", open_blog_api_tokens_path %></p>
+  </div>
+</div>

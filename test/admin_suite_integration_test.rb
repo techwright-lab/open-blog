@@ -66,6 +66,9 @@ class AdminSuiteIntegrationTest < ActiveSupport::TestCase
       abort "missing generated post" unless Admin::Resources::OpenBlog::PostResource.model_class == OpenBlog::Post
       abort "adapter missing" unless AdminSuite::ResourcesController.ancestors.include?(OpenBlog::AdminSuite::ResourceParameters)
       abort "missing portal" unless AdminSuite::PortalRegistry.all.key?(:open_blog)
+      abort "token route shadowed" unless AdminSuite::Engine.routes.recognize_path("/open_blog/api_tokens")[:controller] == "open_blog/admin_suite/api_tokens"
+      abort "token route repeated" unless AdminSuite::Engine.routes.routes.count { |route| route.name == "open_blog_api_tokens" } == 1
+      abort "token controller detached" unless OpenBlog::AdminSuite::ApiTokensController.superclass.equal?(AdminSuite::ApplicationController)
       puts "booted generated integration"
     RUBY
     %w[0 1].each do |preload|

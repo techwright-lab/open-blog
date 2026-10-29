@@ -1,0 +1,44 @@
+<% content_for :title, "New API token - Admin Suite" %>
+<% content_for :head do %>
+  <%= tag.style(<<~CSS.html_safe, nonce: content_security_policy_nonce) %>
+    form:has(input[name="scopes[]"][value="read"]:checked) .open-blog-read-warning { display: none; }
+  CSS
+<% end %>
+
+<div class="px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto">
+  <nav class="mb-2 text-sm text-slate-500"><%= link_to "API tokens", open_blog_api_tokens_path %></nav>
+  <h1 class="text-2xl font-bold text-slate-900 mb-6">New API token</h1>
+
+  <%= render "banner" %>
+  <%= render "error" %>
+
+  <div class="bg-white rounded-xl border border-slate-200 p-6">
+    <%= form_with url: open_blog_api_tokens_path, method: :post, data: { turbo: false }, class: "space-y-6" do |form| %>
+      <div>
+        <%= form.label :name, "Name", class: "block text-sm font-medium text-slate-700" %>
+        <%= form.text_field :name, value: params[:name], required: true, maxlength: OpenBlog::ApiTokens::NAME_LENGTH.max, class: "form-input mt-1 w-full" %>
+      </div>
+
+      <fieldset>
+        <legend class="text-sm font-medium text-slate-700">Scopes</legend>
+        <% grant.scopes.each do |scope| %>
+          <label class="mt-2 flex items-center gap-2 text-sm">
+            <%= check_box_tag "scopes[]", scope, @scopes.include?(scope), id: "scope_#{scope}" %>
+            <%= scope %>
+          </label>
+        <% end %>
+        <p class="open-blog-read-warning mt-2 text-sm text-amber-800">Without read, this token cannot list or fetch posts.</p>
+      </fieldset>
+
+      <div>
+        <%= form.label :expires_at, "Expires at (#{Time.zone.name})", class: "block text-sm font-medium text-slate-700" %>
+        <%= form.datetime_local_field :expires_at, value: @expires_at, required: !no_expiry_allowed?, class: "form-input mt-1" %>
+        <% if no_expiry_allowed? %>
+          <p class="mt-1 text-sm text-slate-500">Leave blank for no expiry.</p>
+        <% end %>
+      </div>
+
+      <%= form.submit "Create token", disabled: tokens_inactive?, class: "px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium" %>
+    <% end %>
+  </div>
+</div>
