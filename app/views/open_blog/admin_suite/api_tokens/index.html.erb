@@ -35,9 +35,9 @@
               <td class="px-4 py-3"><%= token.scopes.join(", ") %></td>
               <td class="px-4 py-3"><%= token.creator_identity || "No owner" %></td>
               <td class="px-4 py-3"><%= token.status.to_s.humanize %></td>
-              <td class="px-4 py-3"><%= l(token.created_at, format: :short) %></td>
-              <td class="px-4 py-3"><%= token.last_used_at ? l(token.last_used_at, format: :short) : "Never" %></td>
-              <td class="px-4 py-3"><%= token.expires_at ? l(token.expires_at, format: :short) : "Never" %></td>
+              <td class="px-4 py-3"><%= token_time(token.created_at) %></td>
+              <td class="px-4 py-3"><%= token.last_used_at ? token_time(token.last_used_at) : "Never" %></td>
+              <td class="px-4 py-3"><%= token.expires_at ? token_time(token.expires_at) : "Never" %></td>
             </tr>
           <% end %>
         </tbody>

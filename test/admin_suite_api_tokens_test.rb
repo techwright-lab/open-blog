@@ -57,14 +57,18 @@ if Gem.loaded_specs.key?("admin_suite")
       OpenBlog::ApiTokens::Grant.new(manage_own: own, manage_all: all, scopes: scopes)
     end
 
-    def issue_for(identity, name: "Deploy", scopes: %w[read])
-      result = OpenBlog::ApiTokens.issue(identity: identity, name: name, scopes: scopes, expires_at: 30.days.from_now)
+    def issue_for(identity, name: "Deploy", scopes: %w[read], expires_at: 30.days.from_now)
+      result = OpenBlog::ApiTokens.issue(identity: identity, name: name, scopes: scopes, expires_at: expires_at)
       assert result.success?, result.error.inspect
       result
     end
 
     def expiry_param(time = 30.days.from_now)
       time.strftime("%Y-%m-%dT%H:%M")
+    end
+
+    def shown(time)
+      "#{time.in_time_zone.strftime('%Y-%m-%d %H:%M:%S')} (#{Time.zone.name})"
     end
 
     def document
@@ -216,6 +220,7 @@ if Gem.loaded_specs.key?("admin_suite")
       replacement = OpenBlog::ApiToken.authenticate(secret)
       assert_equal replacement.id, old.reload.successor_id
       refute_nil old.revoked_at
+      assert_includes response.body, "The previous token stopped working now."
       get "#{INDEX}/#{replacement.id}"
       refute_includes response.body, secret
     end
@@ -233,8 +238,52 @@ if Gem.loaded_specs.key?("admin_suite")
       old.reload
       assert_nil old.revoked_at
       assert_in_delta 1.hour.from_now, old.expires_at, 1.minute
+      assert_includes response.body, "The previous token stops working at #{shown(old.expires_at)}."
       post "#{INDEX}/#{old.id}/rotate", params: { grace: "none", confirm: "1" }
       assert_response :unprocessable_content
+    end
+
+    test "rotation reports the old token's earlier expiry as the cutoff" do
+      old = issue_for(ADA, expires_at: 30.minutes.from_now).token
+      post "#{INDEX}/#{old.id}/rotate", params: { grace: 24.hours.to_i.to_s, confirm: "1" }
+      assert_response :success
+      assert_equal old.expires_at, old.reload.expires_at
+      assert_includes response.body, "The previous token stops working at #{shown(old.expires_at)}."
+      refute_includes response.body, "stopped working now"
+    end
+
+    test "expiry input and displayed times name the application time zone" do
+      Time.use_zone("Tokyo") do
+        token = issue_for(ADA).token
+        get "#{INDEX}/new"
+        assert_equal "Expires at (Tokyo)", document.at_css("label[for='expires_at']").text.strip
+        get INDEX
+        assert_includes response.body, shown(token.expires_at)
+        get "#{INDEX}/#{token.id}"
+        assert_includes response.body, shown(token.expires_at)
+        assert_includes response.body, shown(token.created_at)
+        post INDEX, params: { name: "Zoned", scopes: %w[read], expires_at: "2099-01-02T03:04" }
+        assert_equal Time.zone.parse("2099-01-02T03:04"), OpenBlog::ApiToken.find_by(name: "Zoned").expires_at
+        assert_includes response.body, "Expires: 2099-01-02 03:04:00 (Tokyo)."
+      end
+    end
+
+    test "the reveal page renders under a locale without time formats" do
+      saved = I18n.available_locales
+      I18n.backend.store_translations(:zz, open_blog_test: "present")
+      I18n.available_locales = saved + [ :zz ]
+      I18n.with_locale(:zz) do
+        assert_raises(I18n::MissingTranslationData) { I18n.l(Time.current, format: :long, raise: true) }
+        post INDEX, params: { name: "Localized", scopes: %w[read], expires_at: expiry_param }
+        assert_response :success
+        assert_match(/\Aob_/, revealed_secret)
+        get INDEX
+        assert_response :success
+        get "#{INDEX}/#{OpenBlog::ApiToken.find_by(name: 'Localized').id}"
+        assert_response :success
+      end
+    ensure
+      I18n.available_locales = saved
     end
 
     test "a host authentication hook shows the banner, hides New, and rejects issuance" do

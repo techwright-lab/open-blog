@@ -46,10 +46,10 @@ api_tokens:
 
 Without `all`, a request for another identity's token returns not found. A token with no owner, such as one from `open_blog:install_token`, cannot be rotated.
 
-Each token has a name, at least one scope, and an expiry. The expiry defaults to `default_lifetime`. With `require_expiry` or `max_lifetime` set, the page does not offer no expiry. A token stops working at its expiry time.
+Each token has a name, at least one scope, and an expiry. The expiry defaults to `default_lifetime`. With `require_expiry` or `max_lifetime` set, the page does not offer no expiry. A token stops working at its expiry time. The expiry field and every time on these pages use the application time zone (`Time.zone`), and the pages name that zone.
 
-Rotation issues a replacement with the same name and scopes and requires a confirm checkbox. The grace period is no grace, 1 hour, or 24 hours, limited by `max_grace`. With no grace, the old token is revoked at once; otherwise it keeps working until the grace period ends. A token can be rotated once.
+Rotation issues a replacement with the same name and scopes and requires a confirm checkbox. The grace period is no grace, 1 hour, or 24 hours, limited by `max_grace`. With no grace, the old token is revoked at once; otherwise it keeps working until the grace period ends, or until its own earlier expiry. The page that shows the replacement states when the previous token stops working. A token can be rotated once.
 
 The secret appears once, in the response to the issue or rotate form. It is sent with `Cache-Control: no-store`, is not in any URL, flash, or log, and cannot be shown again after a reload. Store it immediately. Events for issue, rotation, and revocation are recorded without secrets.
 
-When `config.authenticate` is set, the API ignores tokens. The page then says tokens are inactive and refuses to issue or rotate; listing and revoking stay available. `bin/rails open_blog:doctor` reports whether token management is wired.
+When `config.authenticate` is set, the API ignores tokens. The page then says tokens are inactive and refuses to issue or rotate; listing and revoking stay available. `bin/rails open_blog:doctor` reports whether token management is wired and names what is missing: the identity hook, the grant policy, grants in `config/open_blog.yml`, or tokens inactive because `config.authenticate` is set.

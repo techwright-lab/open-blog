@@ -31,7 +31,7 @@
       </fieldset>
 
       <div>
-        <%= form.label :expires_at, "Expires at", class: "block text-sm font-medium text-slate-700" %>
+        <%= form.label :expires_at, "Expires at (#{Time.zone.name})", class: "block text-sm font-medium text-slate-700" %>
         <%= form.datetime_local_field :expires_at, value: @expires_at, required: !no_expiry_allowed?, class: "form-input mt-1" %>
         <% if no_expiry_allowed? %>
           <p class="mt-1 text-sm text-slate-500">Leave blank for no expiry.</p>

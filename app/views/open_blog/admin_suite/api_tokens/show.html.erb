@@ -12,11 +12,11 @@
       <dt class="text-slate-500">Scopes</dt><dd><%= @token.scopes.join(", ") %></dd>
       <dt class="text-slate-500">Owner</dt><dd><%= @token.creator_identity || "No owner" %></dd>
       <dt class="text-slate-500">Status</dt><dd><%= @token.status.to_s.humanize %></dd>
-      <dt class="text-slate-500">Created</dt><dd><%= l(@token.created_at, format: :long) %></dd>
-      <dt class="text-slate-500">Last used</dt><dd><%= @token.last_used_at ? l(@token.last_used_at, format: :long) : "Never" %></dd>
-      <dt class="text-slate-500">Expires</dt><dd><%= @token.expires_at ? l(@token.expires_at, format: :long) : "Never" %></dd>
+      <dt class="text-slate-500">Created</dt><dd><%= token_time(@token.created_at) %></dd>
+      <dt class="text-slate-500">Last used</dt><dd><%= @token.last_used_at ? token_time(@token.last_used_at) : "Never" %></dd>
+      <dt class="text-slate-500">Expires</dt><dd><%= @token.expires_at ? token_time(@token.expires_at) : "Never" %></dd>
       <% if @token.revoked_at %>
-        <dt class="text-slate-500">Revoked</dt><dd><%= l(@token.revoked_at, format: :long) %></dd>
+        <dt class="text-slate-500">Revoked</dt><dd><%= token_time(@token.revoked_at) %></dd>
       <% end %>
       <% if @token.successor_id %>
         <dt class="text-slate-500">Replaced by</dt><dd><%= link_to "Token #{@token.successor_id}", open_blog_api_token_path(@token.successor_id) %></dd>
@@ -70,7 +70,7 @@
           <tr>
             <td class="py-2 pr-4"><%= event.action %></td>
             <td class="py-2 pr-4"><%= event.actor_identity %></td>
-            <td class="py-2 pr-4"><%= l(event.created_at, format: :long) %></td>
+            <td class="py-2 pr-4"><%= token_time(event.created_at) %></td>
             <td class="py-2 font-mono text-xs"><%= (event.details || {}).map { |key, value| "#{key}: #{Array(value).join(", ")}" }.join("; ") %></td>
           </tr>
         <% end %>

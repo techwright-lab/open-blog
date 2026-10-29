@@ -18,7 +18,7 @@ module OpenBlog
       protect_from_forgery with: :exception, prepend: true
       before_action :require_grant
 
-      helper_method :grant, :tokens_inactive?, :grace_options, :no_expiry_allowed?
+      helper_method :grant, :tokens_inactive?, :grace_options, :no_expiry_allowed?, :token_time
 
       def index
         @tokens = ApiTokens.list(identity: @identity).tokens
@@ -59,7 +59,9 @@ module OpenBlog
         return unless confirmed?
         return render_show(ERRORS[:grace_invalid]) unless grace_options.value?(params[:grace].to_s)
         result = ApiTokens.rotate(identity: @identity, id: params[:id], grace: GRACES[params[:grace].to_s])
-        result.success? ? reveal(result) : failed(result)
+        return failed(result) unless result.success?
+        @predecessor = result.token.predecessor
+        reveal(result)
       end
 
       private
@@ -73,6 +75,10 @@ module OpenBlog
         return forbidden("No trusted identity is configured for API token management.") if @identity.nil?
         @grant = ApiTokens.permissions(identity: @identity)
         forbidden("No token-management grant for this identity.") unless @grant && (@grant.manage_own || @grant.manage_all)
+      end
+
+      def token_time(time)
+        "#{time.in_time_zone.strftime('%Y-%m-%d %H:%M:%S')} (#{Time.zone.name})"
       end
 
       def tokens_inactive?

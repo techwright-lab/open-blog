@@ -19,7 +19,12 @@
         if (navigator.clipboard) navigator.clipboard.writeText(field.value);
       });
     <% end %>
-    <p class="text-sm text-slate-600">Scopes: <%= @token.scopes.join(", ") %>. Expires: <%= @token.expires_at ? l(@token.expires_at, format: :long) : "never" %>.</p>
+    <p class="text-sm text-slate-600">Scopes: <%= @token.scopes.join(", ") %>. Expires: <%= @token.expires_at ? token_time(@token.expires_at) : "never" %>.</p>
+    <% if @predecessor %>
+      <p class="text-sm font-medium text-slate-900">
+        <%= @predecessor.revoked_at ? "The previous token stopped working now." : "The previous token stops working at #{token_time(@predecessor.expires_at)}." %>
+      </p>
+    <% end %>
     <p class="text-sm"><%= link_to "Back to API tokens", open_blog_api_tokens_path %></p>
   </div>
 </div>
