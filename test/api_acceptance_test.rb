@@ -15,7 +15,8 @@ class ApiAcceptanceTest < ActionDispatch::IntegrationTest
     revoked, revoked_secret = OpenBlog::ApiToken.generate(name: "Revoked")
     revoked.update!(revoked_at: Time.current)
     _expired, expired_secret = OpenBlog::ApiToken.generate(name: "Expired", expires_at: 1.minute.ago)
-    _limited, limited_secret = OpenBlog::ApiToken.generate(name: "No permissions", scopes: [])
+    limited, limited_secret = OpenBlog::ApiToken.generate(name: "No permissions", scopes: [ "read" ])
+    limited.update_columns(scopes: [])
     endpoints.each do |method, path, scope, params|
       [ nil, revoked_secret, expired_secret ].each do |secret|
         public_send(method, path, params: params, headers: credentials(secret), as: :json)

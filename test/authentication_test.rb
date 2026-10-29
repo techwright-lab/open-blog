@@ -16,6 +16,11 @@ class AuthenticationTest < ActiveSupport::TestCase
     end
   end
 
+  test "owned token actor names the creator" do
+    _, secret = OpenBlog::ApiToken.generate(name: "Bot", scopes: [ "read" ], creator_identity: "admin:1")
+    assert_equal "Bot (admin:1)", OpenBlog::Authentication.actor_for(request("Bearer #{secret}")).name
+  end
+
   test "host hook supersedes token lookup even when it rejects the request" do
     OpenBlog::ApiToken.stub(:authenticate, ->(*) { flunk "token fallback ran" }) do
       OpenBlog.config.authenticate = ->(_) { nil }

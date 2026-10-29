@@ -12,7 +12,9 @@ module OpenBlog
       match = /\ABearer (ob_[1-9A-HJ-NP-Za-km-z]{40})\z/.match(request.authorization.to_s)
       return unless match
       token = ApiToken.authenticate(match[1])
-      Actor.new(name: token.name, scopes: token.scopes, id: "token:#{token.id}") if token
+      return unless token
+      name = token.creator_identity.present? ? "#{token.name} (#{token.creator_identity})" : token.name
+      Actor.new(name: name, scopes: token.scopes, id: "token:#{token.id}")
     end
   end
 end
