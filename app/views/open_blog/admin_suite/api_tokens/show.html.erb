@@ -1,0 +1,80 @@
+<% content_for :title, "API token - Admin Suite" %>
+
+<div class="px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
+  <nav class="mb-2 text-sm text-slate-500"><%= link_to "API tokens", open_blog_api_tokens_path %></nav>
+  <h1 class="text-2xl font-bold text-slate-900 mb-6"><%= @token.name %></h1>
+
+  <%= render "error" %>
+
+  <div class="bg-white rounded-xl border border-slate-200 p-6 mb-6">
+    <dl class="grid grid-cols-2 gap-4 text-sm">
+      <dt class="text-slate-500">Prefix</dt><dd class="font-mono"><%= @token.token_prefix %></dd>
+      <dt class="text-slate-500">Scopes</dt><dd><%= @token.scopes.join(", ") %></dd>
+      <dt class="text-slate-500">Owner</dt><dd><%= @token.creator_identity || "No owner" %></dd>
+      <dt class="text-slate-500">Status</dt><dd><%= @token.status.to_s.humanize %></dd>
+      <dt class="text-slate-500">Created</dt><dd><%= l(@token.created_at, format: :long) %></dd>
+      <dt class="text-slate-500">Last used</dt><dd><%= @token.last_used_at ? l(@token.last_used_at, format: :long) : "Never" %></dd>
+      <dt class="text-slate-500">Expires</dt><dd><%= @token.expires_at ? l(@token.expires_at, format: :long) : "Never" %></dd>
+      <% if @token.revoked_at %>
+        <dt class="text-slate-500">Revoked</dt><dd><%= l(@token.revoked_at, format: :long) %></dd>
+      <% end %>
+      <% if @token.successor_id %>
+        <dt class="text-slate-500">Replaced by</dt><dd><%= link_to "Token #{@token.successor_id}", open_blog_api_token_path(@token.successor_id) %></dd>
+      <% end %>
+    </dl>
+  </div>
+
+  <% if @token.status == :active %>
+    <div class="grid gap-6 md:grid-cols-2 mb-6">
+      <% if @token.successor_id.nil? && @token.creator_identity == @identity && grant.manage_own && !tokens_inactive? %>
+        <div class="bg-white rounded-xl border border-slate-200 p-6">
+          <h2 class="text-lg font-semibold text-slate-900 mb-2">Rotate</h2>
+          <p class="text-sm text-slate-600 mb-4">Rotation issues a replacement with the same name and scopes. Without grace, this token stops working at once.</p>
+          <%= form_with url: rotate_open_blog_api_token_path(@token), method: :post, data: { turbo: false }, class: "space-y-4" do |form| %>
+            <div>
+              <%= form.label :grace, "Grace period", class: "block text-sm font-medium text-slate-700" %>
+              <%= form.select :grace, grace_options, {}, class: "form-select mt-1" %>
+            </div>
+            <label class="flex items-center gap-2 text-sm">
+              <%= check_box_tag :confirm, "1", false, id: "rotate_confirm" %>
+              I understand clients using this token must switch to the replacement.
+            </label>
+            <%= form.submit "Rotate token", class: "px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium" %>
+          <% end %>
+        </div>
+      <% end %>
+      <% if @token.revoked_at.nil? %>
+        <div class="bg-white rounded-xl border border-red-200 p-6">
+          <h2 class="text-lg font-semibold text-slate-900 mb-2">Revoke</h2>
+          <p class="text-sm text-slate-600 mb-4">Revoking stops this token at once. This cannot be undone.</p>
+          <%= form_with url: revoke_open_blog_api_token_path(@token), method: :post, data: { turbo: false }, class: "space-y-4" do |form| %>
+            <label class="flex items-center gap-2 text-sm">
+              <%= check_box_tag :confirm, "1", false, id: "revoke_confirm" %>
+              I understand clients using this token will stop working.
+            </label>
+            <%= form.submit "Revoke token", class: "px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium" %>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+
+  <div class="bg-white rounded-xl border border-slate-200 p-6">
+    <h2 class="text-lg font-semibold text-slate-900 mb-4">Events</h2>
+    <table class="min-w-full text-sm">
+      <thead class="text-left text-slate-600">
+        <tr><th class="py-2 pr-4">Action</th><th class="py-2 pr-4">Actor</th><th class="py-2 pr-4">Time</th><th class="py-2">Details</th></tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        <% @token.events.order(:created_at, :id).each do |event| %>
+          <tr>
+            <td class="py-2 pr-4"><%= event.action %></td>
+            <td class="py-2 pr-4"><%= event.actor_identity %></td>
+            <td class="py-2 pr-4"><%= l(event.created_at, format: :long) %></td>
+            <td class="py-2 font-mono text-xs"><%= (event.details || {}).map { |key, value| "#{key}: #{Array(value).join(", ")}" }.join("; ") %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

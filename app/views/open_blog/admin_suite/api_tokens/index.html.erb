@@ -1,0 +1,47 @@
+<% content_for :title, "API tokens - Admin Suite" %>
+
+<div class="px-4 sm:px-6 lg:px-8">
+  <div class="mb-6 flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-slate-900">API tokens</h1>
+    <% if grant.manage_own && !tokens_inactive? %>
+      <%= link_to "New token", new_open_blog_api_token_path, class: "px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium" %>
+    <% end %>
+  </div>
+
+  <%= render "banner" %>
+
+  <% if @tokens.empty? %>
+    <p class="text-slate-600">No API tokens yet.</p>
+  <% else %>
+    <div class="bg-white rounded-xl border border-slate-200 overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50 text-left text-slate-600">
+          <tr>
+            <th class="px-4 py-3">Name</th>
+            <th class="px-4 py-3">Prefix</th>
+            <th class="px-4 py-3">Scopes</th>
+            <th class="px-4 py-3">Owner</th>
+            <th class="px-4 py-3">Status</th>
+            <th class="px-4 py-3">Created</th>
+            <th class="px-4 py-3">Last used</th>
+            <th class="px-4 py-3">Expires</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <% @tokens.each do |token| %>
+            <tr>
+              <td class="px-4 py-3"><%= link_to token.name, open_blog_api_token_path(token) %></td>
+              <td class="px-4 py-3 font-mono"><%= token.token_prefix %></td>
+              <td class="px-4 py-3"><%= token.scopes.join(", ") %></td>
+              <td class="px-4 py-3"><%= token.creator_identity || "No owner" %></td>
+              <td class="px-4 py-3"><%= token.status.to_s.humanize %></td>
+              <td class="px-4 py-3"><%= l(token.created_at, format: :short) %></td>
+              <td class="px-4 py-3"><%= token.last_used_at ? l(token.last_used_at, format: :short) : "Never" %></td>
+              <td class="px-4 py-3"><%= token.expires_at ? l(token.expires_at, format: :short) : "Never" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</div>
