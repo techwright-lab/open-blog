@@ -1,6 +1,6 @@
 class AddOpenBlogApiTokenManagement < ActiveRecord::Migration[8.0]
   def change
-    key_type = connection.columns(:open_blog_api_tokens).find { |column| column.name == "id" }.type
+    key_type = connection.columns(:open_blog_api_tokens).find { |column| column.name == "id" }.type == :uuid ? :uuid : :bigint
 
     change_table :open_blog_api_tokens do |t|
       t.string :creator_identity, index: true

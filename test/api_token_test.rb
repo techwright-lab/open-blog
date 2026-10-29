@@ -81,6 +81,13 @@ class ApiTokenTest < ActiveSupport::TestCase
     assert_raises(ActiveRecord::RecordNotUnique) { second.update!(successor: successor) }
   end
 
+  test "foreign keys match the token primary key type" do
+    id_type = OpenBlog::ApiToken.columns_hash["id"].sql_type
+    expected = id_type == "uuid" ? "uuid" : "bigint"
+    assert_equal expected, OpenBlog::ApiToken.columns_hash["successor_id"].sql_type
+    assert_equal expected, OpenBlog::ApiTokenEvent.columns_hash["api_token_id"].sql_type
+  end
+
   test "inspect omits digest" do
     record, = OpenBlog::ApiToken.generate(name: "x", scopes: %w[read])
     refute_includes record.inspect, record.token_digest
