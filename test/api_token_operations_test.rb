@@ -118,7 +118,7 @@ class ApiTokenOperationsTest < ActiveSupport::TestCase
   end
 
   test "issue validates name and scopes" do
-    assert_equal [ :invalid, [ "name" ] ], issue(name: "   ").then { [ it.error, it.details ] }
+    assert_equal [ :invalid, [ "name" ] ], issue(name: "   ").then { |result| [ result.error, result.details ] }
     assert_equal [ "name" ], issue(name: "x" * 101).details
     assert issue(name: "x" * 100).success?
     assert_equal [ "name" ], issue(name: nil).details

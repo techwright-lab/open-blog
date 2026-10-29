@@ -27,9 +27,10 @@ module OpenBlog
 
     def self.generate(name:, scopes: SCOPES, expires_at: nil, creator_identity: nil)
       secret = "ob_#{SecureRandom.base58(40)}"
-      record = create!(name: name, scopes: scopes, expires_at: expires_at,
-        creator_identity: creator_identity,
-        token_digest: Digest::SHA256.hexdigest(secret), token_prefix: secret[0, 8])
+      attributes = { name: name, scopes: scopes, expires_at: expires_at,
+        token_digest: Digest::SHA256.hexdigest(secret), token_prefix: secret[0, 8] }
+      attributes[:creator_identity] = creator_identity if creator_identity
+      record = create!(attributes)
       [ record, secret ]
     end
 

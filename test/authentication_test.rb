@@ -21,6 +21,16 @@ class AuthenticationTest < ActiveSupport::TestCase
     assert_equal "Bot (admin:1)", OpenBlog::Authentication.actor_for(request("Bearer #{secret}")).name
   end
 
+  test "tokens issue and authenticate before the token management migration runs" do
+    OpenBlog::ApiToken.ignored_columns = %w[creator_identity]
+    refute OpenBlog::ApiToken.column_names.include?("creator_identity")
+    token, secret = OpenBlog::ApiToken.generate(name: "CLI", scopes: [ "read" ])
+    actor = OpenBlog::Authentication.actor_for(request("Bearer #{secret}"))
+    assert_equal [ "CLI", "token:#{token.id}" ], [ actor.name, actor.id ]
+  ensure
+    OpenBlog::ApiToken.ignored_columns = []
+  end
+
   test "host hook supersedes token lookup even when it rejects the request" do
     OpenBlog::ApiToken.stub(:authenticate, ->(*) { flunk "token fallback ran" }) do
       OpenBlog.config.authenticate = ->(_) { nil }

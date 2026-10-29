@@ -13,7 +13,8 @@ module OpenBlog
       return unless match
       token = ApiToken.authenticate(match[1])
       return unless token
-      name = token.creator_identity.present? ? "#{token.name} (#{token.creator_identity})" : token.name
+      owner = token.has_attribute?(:creator_identity) && token.creator_identity.presence
+      name = owner ? "#{token.name} (#{owner})" : token.name
       Actor.new(name: name, scopes: token.scopes, id: "token:#{token.id}")
     end
   end
